@@ -47,6 +47,7 @@ export class MotionEngine {
     this._playStart = 0;
     this._motions = {};
     this._cancelFn = null;
+    this._overlayTimer = null;
     this._overlays = new OverlayManager(talkingHead);
 
     /** @type {function(string):void|null} */
@@ -82,7 +83,7 @@ export class MotionEngine {
       }
 
       // Deep clone to avoid mutating the source dictionary
-      const entry = JSON.parse(JSON.stringify(motion));
+      const entry = structuredClone(motion);
 
       // Convert null → Infinity in gesture arrays (JSON doesn't support Infinity)
       if (entry.vs?.gesture) {
@@ -285,7 +286,10 @@ export class MotionEngine {
     // Start overlay if defined
     if (motion._overlay) {
       const ol = motion._overlay;
-      setTimeout(() => this._overlays.start(ol.bones, ol.duration), ol.delay);
+      this._overlayTimer = setTimeout(() => {
+        this._overlays.start(ol.bones, ol.duration);
+        this._overlayTimer = null;
+      }, ol.delay);
     }
 
     this.head.playGesture(name, Infinity, false, this.opt.gestureFadeIn);
@@ -349,6 +353,10 @@ export class MotionEngine {
     if (this._cancelFn) {
       this._cancelFn();
       this._cancelFn = null;
+    }
+    if (this._overlayTimer) {
+      clearTimeout(this._overlayTimer);
+      this._overlayTimer = null;
     }
     this.head.stopGesture(this.opt.stopFade);
     this._overlays.clear();

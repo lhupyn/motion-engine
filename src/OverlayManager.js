@@ -7,40 +7,35 @@
  * @module OverlayManager
  */
 
+const FADE_RAMP_MS = 300;
+
 export class OverlayManager {
-    /**
-     * @param {object} head - TalkingHead instance
-     */
     constructor(head) {
         this.head = head;
         this.overlay = null;
+        this._cache = [];
     }
 
-    /** Whether an overlay is currently active */
     get active() {
         return this.overlay !== null;
     }
 
-    /**
-     * Start an overlay with the given bone definitions and duration.
-     *
-     * @param {object} bones - Dictionary of bone oscillation configs
-     * @param {number} duration - Total overlay duration in ms
-     */
     start(bones, duration) {
         this.overlay = {
             bones,
             startTime: performance.now(),
             duration,
         };
+
+        // Pre-calculate paths to avoid string creation in hot loop
+        this._cache = Object.entries(bones).map(([boneName, osc]) => ({
+            osc,
+            isJump: osc.custom === 'jump',
+            posKey: `${boneName}.position`,
+            quatKey: `${boneName}.quaternion`
+        }));
     }
 
-    /**
-     * Frame update — apply oscillation values to poseDelta.
-     * Call this from the TalkingHead render loop.
-     *
-     * @param {number} _dt - Delta time (unused, timing is absolute)
-     */
     update(_dt) {
         if (!this.overlay) return;
 
@@ -51,53 +46,49 @@ export class OverlayManager {
         }
 
         const time = elapsed / 1000;
-        // Fade in/out envelope (300ms ramps)
-        const fadeIn = Math.min(elapsed / 300, 1);
-        const fadeOut = Math.min((this.overlay.duration - elapsed) / 300, 1);
+        const fadeIn = Math.min(elapsed / FADE_RAMP_MS, 1);
+        const fadeOut = Math.min((this.overlay.duration - elapsed) / FADE_RAMP_MS, 1);
         const envelope = fadeIn * fadeOut;
 
-        for (const [boneName, osc] of Object.entries(this.overlay.bones)) {
-            // Custom jump overlay — smooth vertical arc via position delta
-            if (osc.custom === 'jump') {
-                const posKey = `${boneName}.position`;
-                if (this.head.poseDelta?.props?.[posKey]) {
+        const props = this.head.poseDelta?.props;
+        if (!props) return;
+
+        for (let i = 0; i < this._cache.length; i++) {
+            const { osc, isJump, posKey, quatKey } = this._cache[i];
+
+            if (isJump) {
+                if (props[posKey]) {
                     const progress = elapsed / this.overlay.duration;
-                    const arc = Math.sin(progress * Math.PI);
-                    this.head.poseDelta.props[posKey].y = arc * 0.12;
+                    props[posKey].y = Math.sin(progress * Math.PI) * 0.12;
                 }
                 continue;
             }
 
-            // Standard sinusoidal oscillation via quaternion delta
-            const key = `${boneName}.quaternion`;
-            if (this.head.poseDelta?.props?.[key]) {
-                this.head.poseDelta.props[key].x = Math.sin(time * osc.freq) * osc.amp[0] * envelope;
-                this.head.poseDelta.props[key].y = Math.sin(time * osc.freq) * osc.amp[1] * envelope;
-                this.head.poseDelta.props[key].z = Math.sin(time * osc.freq + (osc.phase || 0)) * osc.amp[2] * envelope;
+            if (props[quatKey]) {
+                const p = props[quatKey];
+                const s = Math.sin(time * osc.freq) * envelope;
+                p.x = s * osc.amp[0];
+                p.y = s * osc.amp[1];
+                p.z = Math.sin(time * osc.freq + (osc.phase || 0)) * osc.amp[2] * envelope;
             }
         }
     }
 
-    /**
-     * Clear the overlay and reset all affected poseDelta values to zero.
-     */
     clear() {
         if (!this.overlay) return;
-        for (const [boneName, osc] of Object.entries(this.overlay.bones)) {
-            if (osc.custom === 'jump') {
-                const posKey = `${boneName}.position`;
-                if (this.head.poseDelta?.props?.[posKey]) {
-                    this.head.poseDelta.props[posKey].y = 0;
+        const props = this.head.poseDelta?.props;
+        if (props) {
+            for (let i = 0; i < this._cache.length; i++) {
+                const { isJump, posKey, quatKey } = this._cache[i];
+                if (isJump) {
+                    if (props[posKey]) props[posKey].y = 0;
+                } else if (props[quatKey]) {
+                    const p = props[quatKey];
+                    p.x = p.y = p.z = 0;
                 }
-                continue;
-            }
-            const key = `${boneName}.quaternion`;
-            if (this.head.poseDelta?.props?.[key]) {
-                this.head.poseDelta.props[key].x = 0;
-                this.head.poseDelta.props[key].y = 0;
-                this.head.poseDelta.props[key].z = 0;
             }
         }
         this.overlay = null;
+        this._cache = [];
     }
 }
