@@ -38,7 +38,7 @@ MotionEngine bridges that gap:
 ## Install
 
 ```bash
-npm install motion-engine
+npm install github:lhupyn/motion-engine
 ```
 
 Or copy `src/MotionEngine.js` and `src/motions.json` directly into your project.
