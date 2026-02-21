@@ -9,7 +9,7 @@ import { MotionEngine } from '../src/MotionEngine.js';
 import motions from '../src/motions.json';
 
 // --- Config ---
-const AVATAR_MODEL = 'https://met4citizen.github.io/TalkingHead/avatars/brunette.glb';
+const AVATAR_MODEL = './female_1.glb';
 const AVATAR_BODY = 'F';
 
 // --- DOM refs ---
@@ -18,6 +18,7 @@ const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const motionInput = document.getElementById('motion-text');
 const btnGenerate = document.getElementById('btn-generate');
+const btnStop = document.getElementById('btn-stop');
 
 // --- State ---
 let head = null;
@@ -73,7 +74,7 @@ async function initAvatar() {
   log(`Registered ${count} custom motions.`, 'info');
   log('Available poses: ' + Object.keys(head.poseTemplates).join(', '), 'info');
   log('Native gestures: ' + Object.keys(head.gestureTemplates).join(', '), 'info');
-  log('Custom motions: ' + Object.keys(motions).join(', '), 'info');
+  log('Custom motions: ' + engine.getMotionNames().join(', '), 'info');
   statusEl.textContent = 'Ready. Click any motion.';
 }
 
@@ -82,15 +83,51 @@ async function handleMotion(motionId) {
   const btn = document.querySelector(`[data-motion="${motionId}"]`);
   if (btn) btn.classList.add('active');
 
-  await engine.play(motionId);
+  try {
+    await engine.play(motionId);
+  } catch (e) {
+    if (e.name !== 'AbortError') throw e;
+  }
 
   if (btn) btn.classList.remove('active');
 }
 
+async function handleSequence(sequenceStr) {
+  const names = sequenceStr.split(',').map((s) => s.trim());
+  log(`Sequence: ${names.join(' → ')}`, 'info');
+  statusEl.textContent = `Sequence: ${names.join(' → ')}`;
+
+  try {
+    for (const name of names) {
+      await engine.play(name);
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') throw e;
+  }
+
+  statusEl.textContent = 'Ready.';
+}
+
+// Motion buttons
 document.querySelectorAll('[data-motion]').forEach((btn) => {
   btn.addEventListener('click', () => handleMotion(btn.dataset.motion));
 });
 
+// Sequence buttons
+document.querySelectorAll('[data-sequence]').forEach((btn) => {
+  btn.addEventListener('click', () => handleSequence(btn.dataset.sequence));
+});
+
+// Stop button
+btnStop.addEventListener('click', () => {
+  engine.stop();
+  statusEl.textContent = 'Stopped.';
+  log('Stopped.', 'warn');
+  // Remove active class from all buttons
+  document.querySelectorAll('.btn.active').forEach((b) => b.classList.remove('active'));
+});
+
+// Custom input
 btnGenerate.addEventListener('click', () => {
   const text = motionInput.value.trim();
   if (text) handleMotion(text);

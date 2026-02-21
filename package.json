@@ -6,6 +6,7 @@
   "main": "src/MotionEngine.js",
   "exports": {
     ".": "./src/MotionEngine.js",
+    "./overlay": "./src/OverlayManager.js",
     "./motions": "./src/motions.json"
   },
   "scripts": {
@@ -13,7 +14,14 @@
     "build": "vite build",
     "deploy": "vite build && gh-pages -d dist"
   },
-  "keywords": ["talkinghead", "avatar", "3d", "motion", "animation", "gesture"],
+  "keywords": [
+    "talkinghead",
+    "avatar",
+    "3d",
+    "motion",
+    "animation",
+    "gesture"
+  ],
   "license": "MIT",
   "devDependencies": {
     "talkinghead": "github:met4citizen/TalkingHead",

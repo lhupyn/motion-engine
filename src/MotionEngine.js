@@ -4,12 +4,26 @@
  * Responsibilities:
  *   - Register custom animEmojis on a TalkingHead instance
  *   - Play motions (custom, native gesture/emoji, or pose)
- *   - Manage poseDelta oscillation overlays via update() hook
+ *   - Delegate poseDelta oscillation overlays to OverlayManager
+ *   - Support motion interruption and sequencing
  *
  * No DOM dependencies. Designed to be used as a plugin.
  *
  * @module MotionEngine
  */
+
+import { OverlayManager } from './OverlayManager.js';
+
+/** Default timing options (ms) */
+const DEFAULTS = {
+  gestureFadeIn: 800,
+  gestureFadeOut: 800,
+  stopFade: 100,
+  stopSettleTime: 1000,
+  poseFadeIn: 1500,
+  poseSettleTime: 1700,
+  nativeDuration: 3,
+};
 
 /**
  * @class MotionEngine
@@ -17,13 +31,23 @@
 export class MotionEngine {
   /**
    * @param {object} talkingHead - TalkingHead instance
+   * @param {object} [options] - Timing and behavior overrides
+   * @param {number} [options.gestureFadeIn=800]     - Fade-in for gesture playback (ms)
+   * @param {number} [options.gestureFadeOut=800]     - Fade-out when stopping a gesture (ms)
+   * @param {number} [options.stopFade=100]           - Quick fade for interrupt stops (ms)
+   * @param {number} [options.stopSettleTime=1000]    - Wait after stopGesture before cleanup (ms)
+   * @param {number} [options.poseFadeIn=1500]        - Transition time for pose changes (ms)
+   * @param {number} [options.poseSettleTime=1700]    - Wait after setPoseFromTemplate (ms)
+   * @param {number} [options.nativeDuration=3]       - Default duration for native gestures (s)
    */
-  constructor(talkingHead) {
+  constructor(talkingHead, options = {}) {
     this.head = talkingHead;
-    this.overlay = null;
+    this.opt = { ...DEFAULTS, ...options };
     this.playing = false;
     this._playStart = 0;
     this._motions = {};
+    this._cancelFn = null;
+    this._overlays = new OverlayManager(talkingHead);
 
     /** @type {function(string):void|null} */
     this.onStart = null;
@@ -32,6 +56,10 @@ export class MotionEngine {
     /** @type {function(string, Error):void|null} */
     this.onError = null;
   }
+
+  // ===========================================================================
+  // Registration
+  // ===========================================================================
 
   /**
    * Register a dictionary of custom motions as animEmojis on the TalkingHead instance.
@@ -48,7 +76,6 @@ export class MotionEngine {
       : [];
 
     for (const [name, motion] of Object.entries(motions)) {
-      // Collision check: animEmoji name must not match a gestureTemplate name
       if (gestureNames.includes(name)) {
         console.warn(`[MotionEngine] Skipping "${name}" — collides with gestureTemplates (would cause recursive loop).`);
         continue;
@@ -59,22 +86,19 @@ export class MotionEngine {
 
       // Convert null → Infinity in gesture arrays (JSON doesn't support Infinity)
       if (entry.vs?.gesture) {
-        for (const gestureFrame of entry.vs.gesture) {
-          if (Array.isArray(gestureFrame)) {
-            for (let i = 0; i < gestureFrame.length; i++) {
-              if (gestureFrame[i] === null) {
-                gestureFrame[i] = Infinity;
-              }
+        for (const frame of entry.vs.gesture) {
+          if (Array.isArray(frame)) {
+            for (let i = 0; i < frame.length; i++) {
+              if (frame[i] === null) frame[i] = Infinity;
             }
           }
         }
       }
 
-      // Store full motion (with _overlay) for play()
       this._motions[name] = entry;
 
-      // Register without _overlay as animEmoji
-      const { _overlay, ...animEmoji } = entry;
+      // Register without _overlay as animEmoji on TalkingHead
+      const { _overlay, _description, _tags, ...animEmoji } = entry;
       this.head.animEmojis[name] = animEmoji;
       count++;
     }
@@ -82,60 +106,117 @@ export class MotionEngine {
     return count;
   }
 
+  // ===========================================================================
+  // Playback
+  // ===========================================================================
+
   /**
    * Play a motion by name.
-   * Resolves custom motions, native gestures/emojis, and poses.
+   * If a motion is already playing, it will be interrupted first.
+   * Resolution order: custom → native gesture/emoji → pose.
    *
    * @param {string} name - Motion identifier
    * @param {number} [dur] - Optional duration override for native gestures (seconds)
    */
   async play(name, dur) {
     if (this.playing) {
-      // Force reset if stuck for more than 10s
-      if (this._playStart && (performance.now() - this._playStart > 10000)) {
-        this.head.stopGesture(100);
-        this._clearOverlay();
-        this.playing = false;
-      } else {
-        return;
-      }
+      this._interrupt();
     }
     this._playStart = performance.now();
 
     const motion = this._motions[name];
-    if (!motion) {
-      // Try as a native TalkingHead gesture/emoji
-      if (this.head.gestureTemplates[name] || this.head.animEmojis[name]) {
-        this.playing = true;
-        this._emit('onStart', name);
-        const d = dur || 3;
-        this.head.playGesture(name, d, false, 800);
-        await this._wait(d * 1000 + 800);
-        this.playing = false;
-        this._emit('onEnd', name);
-        return;
-      }
 
-      // Try as a pose
-      if (this.head.poseTemplates[name]) {
-        this.playing = true;
-        this._emit('onStart', name);
-        this.head.poseName = name;
-        this.head.setPoseFromTemplate(this.head.poseTemplates[name], 1500);
-        await this._wait(1700);
-        this.playing = false;
-        this._emit('onEnd', name);
-        return;
-      }
-
-      this._emit('onError', name, new Error(`Unknown motion: ${name}`));
-      return;
+    // ── Custom motion ──────────────────────────────────────────────────
+    if (motion) {
+      return this._playCustom(name, motion);
     }
 
+    // ── Native gesture / emoji ─────────────────────────────────────────
+    if (this.head.gestureTemplates[name] || this.head.animEmojis[name]) {
+      return this._playNative(name, dur);
+    }
+
+    // ── Pose ───────────────────────────────────────────────────────────
+    if (this.head.poseTemplates[name]) {
+      return this._playPose(name);
+    }
+
+    this._emit('onError', name, new Error(`Unknown motion: ${name}`));
+  }
+
+  /**
+   * Play a sequence of motions in order.
+   * Each motion waits for the previous one to finish before starting.
+   * If stop() is called during a sequence, the remaining motions are skipped.
+   *
+   * @param {string[]} names - Array of motion names to play sequentially
+   */
+  async playSequence(names) {
+    for (const name of names) {
+      if (!this.playing && names.indexOf(name) > 0) return;
+      await this.play(name);
+    }
+  }
+
+  /**
+   * Force-stop the current motion. Cleanly cancels any pending wait timers
+   * and resets state immediately.
+   */
+  stop() {
+    if (!this.playing) return;
+    this._interrupt();
+  }
+
+  // ===========================================================================
+  // Discovery
+  // ===========================================================================
+
+  /**
+   * Get all registered custom motion names.
+   *
+   * @returns {string[]}
+   */
+  getMotionNames() {
+    return Object.keys(this._motions);
+  }
+
+  /**
+   * Get motion metadata for LLM tool discovery.
+   * Returns name, description, and tags for each registered motion.
+   *
+   * @returns {Array<{name: string, description: string, tags: string[]}>}
+   */
+  getMotions() {
+    return Object.entries(this._motions).map(([name, motion]) => ({
+      name,
+      description: motion._description || name,
+      tags: motion._tags || [],
+    }));
+  }
+
+  // ===========================================================================
+  // Render loop hook
+  // ===========================================================================
+
+  /**
+   * Frame update hook — delegates to OverlayManager.
+   * Connect to TalkingHead via: `head.opt.update = (dt) => engine.update(dt);`
+   *
+   * @param {number} dt - Delta time from TalkingHead render loop
+   */
+  update(dt) {
+    this._overlays.update(dt);
+  }
+
+  // ===========================================================================
+  // Private — playback strategies
+  // ===========================================================================
+
+  /** @private — Play a custom motion from the registry */
+  async _playCustom(name, motion) {
     this.playing = true;
     this._emit('onStart', name);
 
-    // Calculate total duration from dt array
     const totalMs = motion.dt.reduce((sum, d) => {
       return sum + (Array.isArray(d) ? (d[0] + d[1]) / 2 : d);
     }, 0);
@@ -143,106 +224,91 @@ export class MotionEngine {
     // Start overlay if defined
     if (motion._overlay) {
       const ol = motion._overlay;
-      setTimeout(() => {
-        this._startOverlay(ol.bones, ol.duration);
-      }, ol.delay);
+      setTimeout(() => this._overlays.start(ol.bones, ol.duration), ol.delay);
     }
 
-    // Play via TalkingHead — don't pass dur so our dt timing is used as-is
-    this.head.playGesture(name, Infinity, false, 800);
+    this.head.playGesture(name, Infinity, false, this.opt.gestureFadeIn);
 
-    // Wait for the animation to play out
-    await this._wait(totalMs);
+    try {
+      await this._wait(totalMs);
+      this.head.stopGesture(this.opt.gestureFadeOut);
+      await this._wait(this.opt.stopSettleTime);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      throw e;
+    }
 
-    // Manually stop the gesture (hand returns to base pose)
-    this.head.stopGesture(800);
-    await this._wait(1000);
-    this._clearOverlay();
+    this._overlays.clear();
+    this.playing = false;
+    this._emit('onEnd', name);
+  }
+
+  /** @private — Play a native TalkingHead gesture or emoji */
+  async _playNative(name, dur) {
+    this.playing = true;
+    this._emit('onStart', name);
+    const d = dur || this.opt.nativeDuration;
+    this.head.playGesture(name, d, false, this.opt.gestureFadeIn);
+
+    try {
+      await this._wait(d * 1000 + this.opt.gestureFadeIn);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      throw e;
+    }
 
     this.playing = false;
     this._emit('onEnd', name);
   }
 
-  /**
-   * Force-stop the current motion.
-   */
-  stop() {
-    if (!this.playing) return;
-    this.head.stopGesture(100);
-    this._clearOverlay();
+  /** @private — Apply a TalkingHead pose template */
+  async _playPose(name) {
+    this.playing = true;
+    this._emit('onStart', name);
+    this.head.poseName = name;
+    this.head.setPoseFromTemplate(this.head.poseTemplates[name], this.opt.poseFadeIn);
+
+    try {
+      await this._wait(this.opt.poseSettleTime);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      throw e;
+    }
+
+    this.playing = false;
+    this._emit('onEnd', name);
+  }
+
+  // ===========================================================================
+  // Private — utilities
+  // ===========================================================================
+
+  /** @private — Interrupt: cancel timers, stop gesture, clear overlays */
+  _interrupt() {
+    if (this._cancelFn) {
+      this._cancelFn();
+      this._cancelFn = null;
+    }
+    this.head.stopGesture(this.opt.stopFade);
+    this._overlays.clear();
     this.playing = false;
   }
 
-  /**
-   * Frame update hook — manages oscillation overlays.
-   * Connect to TalkingHead via: `head.opt.update = (dt) => engine.update(dt);`
-   *
-   * @param {number} dt - Delta time from TalkingHead render loop
-   */
-  update(dt) {
-    if (!this.overlay) return;
-
-    const elapsed = performance.now() - this.overlay.startTime;
-    if (elapsed > this.overlay.duration) {
-      this._clearOverlay();
-      return;
-    }
-
-    const time = elapsed / 1000;
-    // Fade in/out envelope
-    const fadeIn = Math.min(elapsed / 300, 1);
-    const fadeOut = Math.min((this.overlay.duration - elapsed) / 300, 1);
-    const envelope = fadeIn * fadeOut;
-
-    for (const [boneName, osc] of Object.entries(this.overlay.bones)) {
-      // Skip custom overlay types (like jump)
-      if (osc.custom) continue;
-
-      const key = `${boneName}.quaternion`;
-      if (this.head.poseDelta.props[key]) {
-        this.head.poseDelta.props[key].x = Math.sin(time * osc.freq) * osc.amp[0] * envelope;
-        this.head.poseDelta.props[key].y = Math.sin(time * osc.freq) * osc.amp[1] * envelope;
-        this.head.poseDelta.props[key].z = Math.sin(time * osc.freq + (osc.phase || 0)) * osc.amp[2] * envelope;
-      }
-    }
-  }
-
-  /** @private */
-  _startOverlay(bones, duration) {
-    this.overlay = {
-      bones,
-      startTime: performance.now(),
-      duration,
-    };
-  }
-
-  /** @private */
-  _clearOverlay() {
-    if (!this.overlay) return;
-    for (const boneName of Object.keys(this.overlay.bones)) {
-      const key = `${boneName}.quaternion`;
-      if (this.head.poseDelta.props[key]) {
-        this.head.poseDelta.props[key].x = 0;
-        this.head.poseDelta.props[key].y = 0;
-        this.head.poseDelta.props[key].z = 0;
-      }
-    }
-    this.overlay = null;
-  }
-
-  /** @private */
+  /** @private — Emit a callback event */
   _emit(event, name, err) {
     if (typeof this[event] === 'function') {
-      if (err) {
-        this[event](name, err);
-      } else {
-        this[event](name);
-      }
+      err ? this[event](name, err) : this[event](name);
     }
   }
 
-  /** @private */
+  /** @private — Cancellable wait */
   _wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, ms);
+      this._cancelFn = () => {
+        clearTimeout(timer);
+        reject(Object.assign(new Error('Interrupted'), { name: 'AbortError' }));
+      };
+    });
   }
 }
