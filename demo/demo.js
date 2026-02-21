@@ -9,7 +9,7 @@ import { MotionEngine } from '../src/MotionEngine.js';
 import motions from '../src/motions.json';
 
 // --- Config ---
-const AVATAR_MODEL = '/models/avatars/female_1.glb';
+const AVATAR_MODEL = 'https://met4citizen.github.io/TalkingHead/avatars/brunette.glb';
 const AVATAR_BODY = 'F';
 
 // --- DOM refs ---

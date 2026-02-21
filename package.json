@@ -9,12 +9,15 @@
     "./motions": "./src/motions.json"
   },
   "scripts": {
-    "demo": "vite demo --open"
+    "demo": "vite --open",
+    "build": "vite build",
+    "deploy": "vite build && gh-pages -d dist"
   },
   "keywords": ["talkinghead", "avatar", "3d", "motion", "animation", "gesture"],
   "license": "MIT",
   "devDependencies": {
-    "talkinghead": "^0.10.0",
+    "talkinghead": "github:met4citizen/TalkingHead",
+    "gh-pages": "^6.0.0",
     "vite": "^6.0.0"
   }
 }
