@@ -214,7 +214,6 @@ export class MotionEngine {
       if (!groups[tag]) groups[tag] = [];
       groups[tag].push(name);
     }
-    return groups; groupNames: Object.keys(groups), groups;
     return groups;
   }
 
@@ -264,15 +263,18 @@ export class MotionEngine {
 
     // 2. Discover Bones (traverse Three.js graph)
     const bones = [];
-    const group = this.head.group || this.head.nodeAvatar; // Direct access to the group/model
-    if (group) {
+    // Access the armature group (TalkingHead's internal Three.js object)
+    const group = this.head.armature || this.head.group;
+    if (group && typeof group.traverse === 'function') {
       group.traverse((obj) => {
         if (obj.isBone) {
           bones.push(obj.name);
         }
       });
+    } else {
+        console.warn('[MotionEngine] Could not find Three.js armature on TalkingHead instance.');
     }
-    caps.bones = [...new Set(bones)]; // Deduplicate just in case
+    caps.bones = [...new Set(bones)];
 
     return caps;
   }
