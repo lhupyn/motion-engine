@@ -119,7 +119,28 @@ Get all registered custom motion names.
 
 ### `engine.getMotions() → Array<{name, description, tags}>`
 
-Get motion metadata for LLM tool discovery.
+Get full motion metadata for LLM tool discovery (~660 tokens).
+
+### `engine.getMotionsCompact() → Object<string, string[]>`
+
+Get motions grouped by primary tag — 75% fewer tokens (~164 tokens).
+
+```js
+engine.getMotionsCompact()
+// → { greeting: ["wave_right", "wave_left", "namaste_bow"],
+//     sarcasm: ["eyeroll", "smirk"],
+//     frustration: ["facepalm", "sigh"], ... }
+```
+
+### `engine.getMotionsForPrompt(level?) → string`
+
+Get a pre-formatted string ready for injection into LLM system prompts.
+
+| Level | ~Tokens | Output |
+|---|---|---|
+| `'full'` | ~660 | `- wave_right: Friendly wave with hand oscillation...` |
+| `'compact'` (default) | ~164 | `greeting: wave_right, wave_left, namaste_bow` |
+| `'minimal'` | ~103 | `wave_right, wave_left, thumbup_right, ...` |
 
 ### `engine.update(dt)`
 
@@ -233,13 +254,15 @@ When an LLM controls an avatar, every turn consumes tokens for context (system p
 
 ### Context cost (input tokens per turn)
 
-| | TalkingHead native | MotionEngine |
-|---|---|---|
-| System prompt | ~190 tokens | ~530 tokens |
-| Tool definitions | ~250 tokens (3 tools) | ~290 tokens (1 tool) |
-| **Total context** | **~440 tokens** | **~820 tokens** |
+MotionEngine offers three verbosity levels via `getMotionsForPrompt()`:
 
-MotionEngine costs more context because it includes 39 motion names with semantic descriptions. TalkingHead only lists emoji characters and short names.
+| | TalkingHead native | ME `'full'` | ME `'compact'` ★ | ME `'minimal'` |
+|---|---|---|---|---|
+| System prompt | ~190 | ~660 | **~164** | ~103 |
+| Tool definitions | ~250 (3 tools) | ~290 (1 tool) | ~290 (1 tool) | ~290 (1 tool) |
+| **Total context** | **~440** | ~950 | **~454** | ~393 |
+
+★ **Recommended.** The `'compact'` level groups motions by semantic category, giving the LLM enough context to choose correctly at roughly the same token cost as native TalkingHead.
 
 ### Output cost (tokens per action)
 
