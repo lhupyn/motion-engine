@@ -1,0 +1,323 @@
+{
+  "wave_right": {
+    "dt": [300, 2500, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "mouthSmile": [0.6],
+      "eyeSquintLeft": [0.3],
+      "eyeSquintRight": [0.3],
+      "browInnerUp": [0.3],
+      "gesture": [["handup", null, true], null]
+    },
+    "_overlay": {
+      "bones": {
+        "RightHand": { "freq": 8, "amp": [0, 0.12, 0.12], "phase": 0 },
+        "RightForeArm": { "freq": 8, "amp": [0.04, 0, 0.08], "phase": 1.5707963267948966 }
+      },
+      "delay": 400,
+      "duration": 2500
+    }
+  },
+
+  "wave_left": {
+    "dt": [300, 2500, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "mouthSmile": [0.6],
+      "eyeSquintLeft": [0.3],
+      "eyeSquintRight": [0.3],
+      "browInnerUp": [0.3],
+      "gesture": [["handup", null, false], null]
+    },
+    "_overlay": {
+      "bones": {
+        "LeftHand": { "freq": 8, "amp": [0, 0.12, 0.12], "phase": 0 },
+        "LeftForeArm": { "freq": 8, "amp": [0.04, 0, 0.08], "phase": 1.5707963267948966 }
+      },
+      "delay": 400,
+      "duration": 2500
+    }
+  },
+
+  "thumbup_right": {
+    "dt": [300, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "mouthSmile": [0.6],
+      "browInnerUp": [0.4],
+      "eyeSquintLeft": [0.4],
+      "eyeSquintRight": [0.4],
+      "noseSneerLeft": [0.3],
+      "noseSneerRight": [0.3],
+      "gesture": [["thumbup", null, true], null]
+    }
+  },
+
+  "thumbdown_right": {
+    "dt": [300, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browDownLeft": [0.8],
+      "browDownRight": [0.8],
+      "mouthFrownLeft": [0.7],
+      "mouthFrownRight": [0.7],
+      "bodyRotateX": [0.1],
+      "gesture": [["thumbdown", null, true], null]
+    }
+  },
+
+  "point": {
+    "dt": [300, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browDownLeft": [0.3],
+      "browDownRight": [0.3],
+      "eyeSquintLeft": [0.4],
+      "eyeSquintRight": [0.4],
+      "mouthPressLeft": [0.3],
+      "mouthPressRight": [0.3],
+      "gesture": [["index", null, true], null]
+    }
+  },
+
+  "ok_wink": {
+    "dt": [600, 200, 200, 1500, 500],
+    "rescale": [0, 0, 0, 1, 0],
+    "vs": {
+      "mouthSmile": [0.5],
+      "eyeBlinkLeft": [0, 0.8, 0, 0],
+      "browDownLeft": [0, 0.5, 0, 0],
+      "cheekSquintLeft": [0, 0.5, 0.2, 0],
+      "gesture": [["ok", null], null]
+    }
+  },
+
+  "shrug_confused": {
+    "dt": [400, 1800, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browInnerUp": [0.8],
+      "browOuterUpLeft": [0.5],
+      "browOuterUpRight": [0.5],
+      "mouthPucker": [0.3],
+      "mouthFrownLeft": [0.4],
+      "mouthFrownRight": [0.4],
+      "mouthShrugLower": [0.5],
+      "mouthShrugUpper": [0.3],
+      "gesture": [["shrug", null], null]
+    }
+  },
+
+  "namaste_bow": {
+    "dt": [500, 300, 1500, 500, 500],
+    "rescale": [0, 0, 1, 0, 0],
+    "vs": {
+      "eyeBlinkLeft": [0, 0, 0.8, 0.8, 0],
+      "eyeBlinkRight": [0, 0, 0.8, 0.8, 0],
+      "eyeSquintLeft": [0.5],
+      "eyeSquintRight": [0.5],
+      "mouthSmile": [0.4],
+      "browInnerUp": [0.5],
+      "bodyRotateX": [0, 0, 0.15, 0.15, 0],
+      "gesture": [["namaste", null], null]
+    }
+  },
+
+  "nod_yes": {
+    "dt": [250, 250, 250, 250, 300],
+    "vs": {
+      "headMove": [0],
+      "headRotateX": [0.15, -0.05, 0.15, -0.05, 0],
+      "mouthSmile": [0.3],
+      "headRotateZ": [[-0.05, 0.05]]
+    }
+  },
+
+  "shake_no": {
+    "dt": [200, 300, 300, 300, 300],
+    "vs": {
+      "headMove": [0],
+      "headRotateY": [0.15, -0.15, 0.15, -0.15, 0],
+      "mouthFrownLeft": [0.4],
+      "mouthFrownRight": [0.4],
+      "browDownLeft": [0.3],
+      "browDownRight": [0.3],
+      "headRotateZ": [[-0.05, 0.05]]
+    }
+  },
+
+  "look_up": {
+    "dt": [800, 1000, 800],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "headMove": [0],
+      "headRotateX": [-0.3, -0.3, 0],
+      "bodyRotateX": [-0.1, -0.1, 0],
+      "eyeWideLeft": [0.5, 0.5, 0],
+      "eyeWideRight": [0.5, 0.5, 0],
+      "browInnerUp": [0.6, 0.6, 0],
+      "browOuterUpLeft": [0.4, 0.4, 0],
+      "browOuterUpRight": [0.4, 0.4, 0],
+      "mouthOpen": [0.1, 0.1, 0]
+    }
+  },
+
+  "look_down": {
+    "dt": [600, 800, 600],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "headMove": [0],
+      "headRotateX": [0.25, 0.25, 0],
+      "bodyRotateX": [0.08, 0.08, 0],
+      "eyeSquintLeft": [0.5, 0.5, 0],
+      "eyeSquintRight": [0.5, 0.5, 0]
+    }
+  },
+
+  "bow": {
+    "dt": [600, 300, 800, 800],
+    "rescale": [0, 0, 1, 0],
+    "vs": {
+      "headMove": [0],
+      "bodyRotateX": [0.2, 0.25, 0.25, 0],
+      "headRotateX": [0.15, 0.2, 0.2, 0],
+      "eyeBlinkLeft": [0, 0.8, 0.8, 0],
+      "eyeBlinkRight": [0, 0.8, 0.8, 0],
+      "mouthSmile": [0.2]
+    }
+  },
+
+  "jump": {
+    "dt": [250, 200, 150, 200, 400],
+    "vs": {
+      "headMove": [0],
+      "bodyRotateX": [0.15, -0.1, -0.1, 0.1, 0],
+      "headRotateX": [0.1, -0.15, -0.1, 0.08, 0],
+      "mouthOpen": [0, 0.3, 0.3, 0, 0],
+      "eyeWideLeft": [0, 0.6, 0.6, 0, 0],
+      "eyeWideRight": [0, 0.6, 0.6, 0, 0],
+      "browInnerUp": [0, 0.5, 0.5, 0, 0],
+      "mouthSmile": [0, 0.6, 0.6, 0, 0]
+    },
+    "_overlay": {
+      "bones": {
+        "Hips": { "freq": 0, "amp": [0, 0, 0], "phase": 0, "custom": "jump" }
+      },
+      "delay": 0,
+      "duration": 1200
+    }
+  },
+
+  "celebrate": {
+    "dt": [300, 800, 800, 500],
+    "rescale": [0, 0.5, 0.5, 0],
+    "vs": {
+      "mouthSmile": [0.8],
+      "mouthOpen": [0.3],
+      "eyeSquintLeft": [0.6],
+      "eyeSquintRight": [0.6],
+      "browInnerUp": [0.5],
+      "noseSneerLeft": [0.5],
+      "noseSneerRight": [0.5],
+      "jawOpen": [0.2],
+      "gesture": [["handup", null, true], null]
+    },
+    "_overlay": {
+      "bones": {
+        "RightHand": { "freq": 10, "amp": [0.08, 0.12, 0.08] },
+        "Hips": { "freq": 4, "amp": [0, 0.03, 0] }
+      },
+      "delay": 400,
+      "duration": 2000
+    }
+  },
+
+  "turn_around": {
+    "dt": [600, 600, 600, 400],
+    "vs": {
+      "headMove": [0],
+      "bodyRotateY": [-0.8, -1.6, -2.4, 0],
+      "mouthSmile": [0.2]
+    }
+  },
+
+  "thinking": {
+    "dt": [500, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browDownLeft": [1],
+      "browOuterUpRight": [1],
+      "eyeSquintLeft": [0.6],
+      "mouthFrownLeft": [0.7],
+      "mouthFrownRight": [0.7],
+      "mouthRight": [0.5],
+      "mouthRollLower": [0.5],
+      "mouthPressRight": [0.4],
+      "headRotateY": [0.15, 0.15, 0],
+      "headRotateZ": [0.05, 0.05, 0],
+      "bodyRotateY": [0.1, 0.1, 0]
+    }
+  },
+
+  "surprised": {
+    "dt": [200, 1500, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browInnerUp": [0.8],
+      "eyeWideLeft": [0.7],
+      "eyeWideRight": [0.7],
+      "jawOpen": [0.5],
+      "mouthFunnel": [0.3],
+      "headRotateX": [-0.1, -0.1, 0],
+      "bodyRotateX": [-0.05, -0.05, 0]
+    }
+  },
+
+  "wink": {
+    "dt": [500, 200, 500, 500],
+    "rescale": [0, 0, 0, 1],
+    "vs": {
+      "mouthSmile": [0.5],
+      "mouthOpen": [0.2],
+      "mouthSmileLeft": [0, 0.5, 0],
+      "eyeBlinkLeft": [0, 0.7, 0],
+      "bodyRotateX": [0.05, 0.05, 0.05, 0],
+      "bodyRotateZ": [-0.05, -0.05, -0.05, 0],
+      "browDownLeft": [0, 0.7, 0],
+      "cheekSquintLeft": [0, 0.7, 0],
+      "eyeSquintLeft": [0, 1, 0]
+    }
+  },
+
+  "angry": {
+    "dt": [500, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browDownLeft": [1],
+      "browDownRight": [1],
+      "eyesLookUp": [0.2],
+      "jawForward": [0.3],
+      "mouthFrownLeft": [1],
+      "mouthFrownRight": [1],
+      "bodyRotateX": [0.15, 0.15, 0],
+      "handFistLeft": [1],
+      "handFistRight": [1]
+    }
+  },
+
+  "sad": {
+    "dt": [800, 2000, 800],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browInnerUp": [1],
+      "eyeSquintLeft": [1],
+      "eyeSquintRight": [1],
+      "eyesClosed": [0.3],
+      "mouthFrownLeft": [1],
+      "mouthFrownRight": [1],
+      "mouthPucker": [0.5],
+      "bodyRotateX": [0.2, 0.2, 0],
+      "headRotateX": [0.15, 0.15, 0]
+    }
+  }
+}
