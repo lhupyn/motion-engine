@@ -6,6 +6,7 @@
  *   - Play motions (custom, native gesture/emoji, or pose)
  *   - Delegate poseDelta oscillation overlays to OverlayManager
  *   - Support motion interruption and sequencing
+ *   - Autodiscover avatar capabilities (morph targets and bones)
  *
  * No DOM dependencies. Designed to be used as a plugin.
  *
@@ -169,7 +170,7 @@ export class MotionEngine {
   }
 
   // ===========================================================================
-  // Discovery
+  // Discovery & Capabilities
   // ===========================================================================
 
   /**
@@ -213,6 +214,7 @@ export class MotionEngine {
       if (!groups[tag]) groups[tag] = [];
       groups[tag].push(name);
     }
+    return groups; groupNames: Object.keys(groups), groups;
     return groups;
   }
 
@@ -222,19 +224,6 @@ export class MotionEngine {
    *
    * @param {'full'|'compact'|'minimal'} [level='compact'] - Verbosity level
    * @returns {string} Ready-to-inject prompt text
-   *
-   * @example
-   * // ~164 tokens (default, recommended)
-   * engine.getMotionsForPrompt('compact')
-   * // → "greeting: wave_right, wave_left, namaste_bow\nsarcasm: eyeroll, smirk\n..."
-   *
-   * // ~660 tokens (maximum precision)
-   * engine.getMotionsForPrompt('full')
-   * // → "- wave_right: Friendly wave with right hand oscillation...\n..."
-   *
-   * // ~103 tokens (bare minimum)
-   * engine.getMotionsForPrompt('minimal')
-   * // → "wave_right, wave_left, thumbup_right, ..."
    */
   getMotionsForPrompt(level = 'compact') {
     switch (level) {
@@ -254,6 +243,64 @@ export class MotionEngine {
           .join('\n');
       }
     }
+  }
+
+  /**
+   * Inspect the bound TalkingHead instance to discover its anatomical capabilities.
+   * List available morph targets (for facial expressions) and bones (for body movements).
+   *
+   * @returns {object} { morphTargets: string[], bones: string[] }
+   */
+  getAvatarCapabilities() {
+    const caps = {
+      morphTargets: [],
+      bones: []
+    };
+
+    // 1. Discover Morph Targets (from TalkingHead dictionary)
+    if (this.head.mtAvatar) {
+      caps.morphTargets = Object.keys(this.head.mtAvatar);
+    }
+
+    // 2. Discover Bones (traverse Three.js graph)
+    const bones = [];
+    const group = this.head.group || this.head.nodeAvatar; // Direct access to the group/model
+    if (group) {
+      group.traverse((obj) => {
+        if (obj.isBone) {
+          bones.push(obj.name);
+        }
+      });
+    }
+    caps.bones = [...new Set(bones)]; // Deduplicate just in case
+
+    return caps;
+  }
+
+  /**
+   * Get a comprehensive discovery string for LLM system instructions,
+   * combining available motions and physical capabilities.
+   *
+   * @returns {string}
+   */
+  getDiscoveryPrompt() {
+    const caps = this.getAvatarCapabilities();
+    const motions = this.getMotionsForPrompt('compact');
+
+    return [
+      '### AVATAR CAPABILITIES',
+      'The avatar supports the following physical controls for dynamic animation:',
+      `* Morph Targets (Facial): ${caps.morphTargets.join(', ')}`,
+      `* Bones (Body): ${caps.bones.join(', ')}`,
+      '',
+      '### REGISTERED MOTIONS',
+      'You can trigger the following high-level motions by name:',
+      motions,
+      '',
+      '### CUSTOM MOTION FORMAT',
+      'You can also define new motions using JSON with the following schema:',
+      '{ "name": { "dt": [ms], "vs": { "morph": [val] }, "_overlay": { "bones": { "Name": { "freq": 8, "amp": [x,y,z] } } } } }'
+    ].join('\n');
   }
 
   // ===========================================================================
