@@ -19,6 +19,7 @@ const logEl = document.getElementById('log');
 const motionInput = document.getElementById('motion-text');
 const btnGenerate = document.getElementById('btn-generate');
 const btnStop = document.getElementById('btn-stop');
+const btnAudit = document.getElementById('btn-audit');
 
 // --- State ---
 let head = null;
@@ -108,6 +109,22 @@ async function handleSequence(sequenceStr) {
   statusEl.textContent = 'Ready.';
 }
 
+// --- Discovery Audit ---
+async function handleAudit() {
+  log('Starting Avatar Audit...', 'warn');
+  const prompt = engine.getDiscoveryPrompt();
+  console.log('Discovery Prompt:\n', prompt);
+  
+  // Pretty print for the log panel
+  log('\n--- DISCOVERY PROMPT ---\n', 'info');
+  prompt.split('\n').filter(line => line.trim()).forEach(line => {
+    log(line, 'info');
+  });
+  log('--- END AUDIT ---\n', 'info');
+  
+  statusEl.textContent = 'Audit complete. Check console/logs.';
+}
+
 // Motion buttons
 document.querySelectorAll('[data-motion]').forEach((btn) => {
   btn.addEventListener('click', () => handleMotion(btn.dataset.motion));
@@ -126,6 +143,11 @@ btnStop.addEventListener('click', () => {
   // Remove active class from all buttons
   document.querySelectorAll('.btn.active').forEach((b) => b.classList.remove('active'));
 });
+
+// Audit button
+if (btnAudit) {
+    btnAudit.addEventListener('click', handleAudit);
+}
 
 // Custom input
 btnGenerate.addEventListener('click', () => {
