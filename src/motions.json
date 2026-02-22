@@ -2346,5 +2346,248 @@
         0
       ]
     }
+  },
+  "raise_eyebrows": {
+    "_description": "Raised eyebrows with wide eyes, expressing surprise or emphasis",
+    "_tags": ["expression", "surprise", "face"],
+    "dt": [400, 2000, 400],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browInnerUp": [0.9],
+      "browOuterUpLeft": [0.7],
+      "browOuterUpRight": [0.7],
+      "eyeWideLeft": [0.3],
+      "eyeWideRight": [0.3]
+    }
+  },
+  "frown": {
+    "_description": "Displeased frown with furrowed brows and turned-down mouth",
+    "_tags": ["expression", "negative", "face"],
+    "dt": [400, 2000, 400],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browDownLeft": [0.8],
+      "browDownRight": [0.8],
+      "mouthFrownLeft": [0.7],
+      "mouthFrownRight": [0.7],
+      "eyeSquintLeft": [0.3],
+      "eyeSquintRight": [0.3]
+    }
+  },
+  "open_mouth": {
+    "_description": "Mouth wide open in awe or shock",
+    "_tags": ["expression", "surprise", "face"],
+    "dt": [300, 1500, 300],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "jawOpen": [0.7],
+      "mouthOpen": [0.5],
+      "eyeWideLeft": [0.4],
+      "eyeWideRight": [0.4],
+      "browInnerUp": [0.5]
+    }
+  },
+  "cheek_puff": {
+    "_description": "Puffed cheeks with closed mouth, playful or holding breath",
+    "_tags": ["expression", "playful", "face"],
+    "dt": [300, 2000, 300],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "cheekPuff": [0.9],
+      "mouthClose": [0.3],
+      "mouthPressLeft": [0.4],
+      "mouthPressRight": [0.4],
+      "eyeSquintLeft": [0.2],
+      "eyeSquintRight": [0.2]
+    }
+  },
+  "close_eyes": {
+    "_description": "Gently closed eyes, relaxed or meditating",
+    "_tags": ["expression", "calm", "face"],
+    "dt": [500, 3000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "eyeBlinkLeft": [1],
+      "eyeBlinkRight": [1],
+      "eyeSquintLeft": [0.5],
+      "eyeSquintRight": [0.5],
+      "mouthSmile": [0.15]
+    }
+  },
+  "squint": {
+    "_description": "Squinting with furrowed brows, suspicious or scrutinizing",
+    "_tags": ["expression", "skeptical", "face"],
+    "dt": [400, 2000, 400],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "eyeSquintLeft": [0.9],
+      "eyeSquintRight": [0.9],
+      "browDownLeft": [0.6],
+      "browDownRight": [0.6],
+      "noseSneerLeft": [0.2],
+      "noseSneerRight": [0.2]
+    }
+  },
+  "look_left": {
+    "_description": "Looking to the left with eyes and slight head turn",
+    "_tags": ["direction", "attention", "head"],
+    "dt": [500, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "headMove": [0],
+      "headRotateY": [0.2, 0.2, 0],
+      "eyeLookOutLeft": [0.7, 0.7, 0],
+      "eyeLookInRight": [0.7, 0.7, 0]
+    }
+  },
+  "look_right": {
+    "_description": "Looking to the right with eyes and slight head turn",
+    "_tags": ["direction", "attention", "head"],
+    "dt": [500, 2000, 500],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "headMove": [0],
+      "headRotateY": [-0.2, -0.2, 0],
+      "eyeLookInLeft": [0.7, 0.7, 0],
+      "eyeLookOutRight": [0.7, 0.7, 0]
+    }
+  },
+  "head_circles": {
+    "_description": "Slow circular head movement, stretching or being goofy",
+    "_tags": ["playful", "body", "head"],
+    "dt": [500, 500, 500, 500, 500],
+    "vs": {
+      "headMove": [0],
+      "headRotateX": [-0.15, 0, 0.15, 0, 0],
+      "headRotateZ": [0, -0.15, 0, 0.15, 0]
+    },
+    "_overlay": {
+      "bones": {
+        "Neck": {
+          "freq": 1.2,
+          "amp": [0.06, 0, 0.06],
+          "phase": 1.5707963267948966
+        }
+      },
+      "delay": 0,
+      "duration": 2500
+    }
+  },
+  "shiver": {
+    "_description": "Shivering from cold or fear with rapid small tremors",
+    "_tags": ["fear", "cold", "body"],
+    "dt": [300, 2000, 300],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "eyeSquintLeft": [0.4],
+      "eyeSquintRight": [0.4],
+      "mouthPressLeft": [0.3],
+      "mouthPressRight": [0.3],
+      "jawOpen": [0.1]
+    },
+    "_overlay": {
+      "bones": {
+        "Spine1": {
+          "freq": 18,
+          "amp": [0.008, 0, 0.005],
+          "phase": 0
+        },
+        "Spine2": {
+          "freq": 18,
+          "amp": [0.005, 0, 0.008],
+          "phase": 0.8
+        },
+        "Neck": {
+          "freq": 20,
+          "amp": [0.004, 0, 0.004],
+          "phase": 1.2
+        }
+      },
+      "delay": 200,
+      "duration": 2200
+    }
+  },
+  "chew": {
+    "_description": "Chewing motion with rhythmic jaw movement",
+    "_tags": ["expression", "eating", "face"],
+    "dt": [200, 200, 200, 200, 200, 300],
+    "vs": {
+      "jawOpen": [0.3, 0.05, 0.3, 0.05, 0.25, 0],
+      "mouthClose": [0, 0.3, 0, 0.3, 0, 0],
+      "mouthPressLeft": [0.2],
+      "mouthPressRight": [0.2],
+      "cheekPuff": [0.1, 0.3, 0.1, 0.3, 0.1, 0]
+    }
+  },
+  "deep_breath": {
+    "_description": "Deep inhale and exhale with visible chest expansion",
+    "_tags": ["calm", "breathing", "body"],
+    "dt": [1000, 1500, 500, 2000, 500],
+    "rescale": [0, 0, 0, 1, 0],
+    "vs": {
+      "chestInhale": [0, 0.9, 0.9, 0, 0],
+      "bodyRotateX": [0, -0.08, -0.08, 0.05, 0],
+      "headRotateX": [0, -0.1, -0.1, 0.05, 0],
+      "eyeBlinkLeft": [0, 0.6, 0.6, 0, 0],
+      "eyeBlinkRight": [0, 0.6, 0.6, 0, 0],
+      "mouthOpen": [0, 0.2, 0.2, 0, 0],
+      "browInnerUp": [0, 0.3, 0.3, 0, 0]
+    }
+  },
+  "vibrate": {
+    "_description": "Rapid vibration effect, excitement or buzzing energy",
+    "_tags": ["energy", "excitement", "body"],
+    "dt": [200, 1500, 200],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "eyeWideLeft": [0.3],
+      "eyeWideRight": [0.3],
+      "mouthSmile": [0.3]
+    },
+    "_overlay": {
+      "bones": {
+        "Hips": {
+          "freq": 30,
+          "amp": [0.003, 0.003, 0.003],
+          "phase": 0
+        }
+      },
+      "delay": 100,
+      "duration": 1600
+    }
+  },
+  "curious": {
+    "_description": "Curious expression with tilted head, raised brow, and wide eyes",
+    "_tags": ["curious", "thinking", "expression"],
+    "dt": [400, 2000, 400],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "browInnerUp": [0.7],
+      "browOuterUpLeft": [0.3],
+      "eyeWideLeft": [0.5],
+      "eyeWideRight": [0.5],
+      "headRotateZ": [0.1, 0.1, 0],
+      "headRotateY": [0.08, 0.08, 0],
+      "mouthSmile": [0.15],
+      "mouthOpen": [0.1]
+    }
+  },
+  "disgust": {
+    "_description": "Disgusted expression with nose scrunch, frown, and recoil",
+    "_tags": ["disgust", "negative", "expression"],
+    "dt": [300, 2000, 400],
+    "rescale": [0, 1, 0],
+    "vs": {
+      "noseSneerLeft": [0.8],
+      "noseSneerRight": [0.8],
+      "mouthFrownLeft": [0.7],
+      "mouthFrownRight": [0.7],
+      "browDownLeft": [0.5],
+      "browDownRight": [0.5],
+      "mouthUpperUpLeft": [0.4],
+      "mouthUpperUpRight": [0.4],
+      "headRotateX": [-0.08, -0.08, 0],
+      "bodyRotateX": [-0.04, -0.04, 0]
+    }
   }
 }

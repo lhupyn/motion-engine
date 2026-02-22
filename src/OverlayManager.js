@@ -24,7 +24,7 @@ export class OverlayManager {
         this.overlay = {
             bones,
             startTime: performance.now(),
-            duration,
+            duration: duration || 2000,
         };
 
         // Pre-calculate paths to avoid string creation in hot loop
@@ -51,7 +51,13 @@ export class OverlayManager {
         const envelope = fadeIn * fadeOut;
 
         const props = this.head.poseDelta?.props;
-        if (!props) return;
+        if (!props) {
+            if (!this._warned) {
+                console.warn("[OverlayManager] TalkingHead poseDelta.props not found. Ensure usePoseDelta:true is set.");
+                this._warned = true;
+            }
+            return;
+        }
 
         for (let i = 0; i < this._cache.length; i++) {
             const { osc, isJump, posKey, quatKey } = this._cache[i];
@@ -65,11 +71,11 @@ export class OverlayManager {
             }
 
             if (props[quatKey]) {
-                const p = props[quatKey];
                 const s = Math.sin(time * osc.freq) * envelope;
-                p.x = s * osc.amp[0];
-                p.y = s * osc.amp[1];
-                p.z = Math.sin(time * osc.freq + (osc.phase || 0)) * osc.amp[2] * envelope;
+                const p = props[quatKey];
+                p.x = s * (osc.amp[0] || 0);
+                p.y = s * (osc.amp[1] || 0);
+                p.z = Math.sin(time * osc.freq + (osc.phase || 0)) * (osc.amp[2] || 0) * envelope;
             }
         }
     }

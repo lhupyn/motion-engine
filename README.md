@@ -8,12 +8,15 @@ Motion engine plugin for [TalkingHead](https://github.com/met4citizen/TalkingHea
 
 ## Features
 
-- **39 built-in motions** with synchronized facial expressions, gestures, and body movement
+- **54 built-in motions** with synchronized facial expressions, gestures, and body movement
 - **Bone oscillation overlays** (e.g., hand waving, hip bounce, laugh tremor) via `poseDelta`
 - **Motion sequencing** — chain motions for multi-step animations
 - **Motion interruption** — new motions cleanly interrupt running ones
 - **LLM-friendly discovery** — `getMotions()` returns semantic descriptions and tags
 - **Configurable timing** — all fade/settle durations are constructor options
+- **Raw JSON dynamic motions** — LLMs can send motion definitions as JSON strings
+- **LLM-safe normalization** — auto-wraps scalar values as arrays, applies morph/bone aliases
+- **Avatar capability discovery** — `getAvatarCapabilities()` introspects morph targets and bones
 - **Fallback** to native TalkingHead gestures, emojis, and poses
 - **No DOM dependencies** — works as a pure plugin
 - **Data-driven** — motions are pure JSON, no code changes needed to add new ones
@@ -96,6 +99,11 @@ Create a new engine bound to a TalkingHead instance.
 | `poseFadeIn` | `1500` | Transition time for pose changes (ms) |
 | `poseSettleTime` | `1700` | Wait after setPoseFromTemplate (ms) |
 | `nativeDuration` | `3` | Default duration for native gestures (s) |
+| `aliases` | `{}` | Morph name aliases (e.g., `{eyesClosed: ['eyeBlinkLeft','eyeBlinkRight']}`) |
+| `boneAliases` | `{}` | Bone name aliases (e.g., `{Head: 'Neck', Spine: 'Spine2'}`) |
+| `autoWrapMorphs` | `false` | Auto-wrap bare morph target names as dynamic motions |
+| `morphWhitelist` | ARKit standard | Custom morph target whitelist for `getAvatarCapabilities()` |
+| `boneWhitelist` | Common anchors | Custom bone whitelist for `getAvatarCapabilities()` |
 
 ### `engine.registerMotions(motions) → number`
 
@@ -103,7 +111,7 @@ Register a dictionary of custom motions. Returns the number registered. Strips `
 
 ### `engine.play(name, dur?) → Promise<void>`
 
-Play a motion by name. Resolution order: custom → native gesture/emoji → pose. Interrupts any currently playing motion.
+Play a motion by name. Resolution order: custom → raw JSON → native gesture/emoji → pose → bare morph (if `autoWrapMorphs`). Accepts preset names, raw JSON strings, or morph target names. Interrupts any currently playing motion.
 
 ### `engine.playSequence(names) → Promise<void>`
 
@@ -142,6 +150,19 @@ Get a pre-formatted string ready for injection into LLM system prompts.
 | `'compact'` (default) | ~164 | `greeting: wave_right, wave_left, namaste_bow` |
 | `'minimal'` | ~103 | `wave_right, wave_left, thumbup_right, ...` |
 
+### `engine.getAvatarCapabilities() → {morphTargets: string[], bones: string[]}`
+
+Inspect the bound TalkingHead instance to discover its anatomical capabilities. Filters morph targets and bones through configurable whitelists.
+
+### `engine.getLLMContext() → string`
+
+Get a compact context string for LLM system prompts. Includes avatar capabilities (morphs, bones) and available presets grouped by tag.
+
+```js
+engine.getLLMContext()
+// → "MOTION ENGINE\nMorphs: eyeBlinkLeft,eyeBlinkRight,...\nBones: Hips,Spine,...\nPresets: greeting: wave_right,wave_left; ...\nAny morph name works as motion. For custom: {\"dt\":[ms],\"vs\":{\"morph\":[val]}}"
+```
+
 ### `engine.update(dt)`
 
 Frame update hook for oscillation overlays. Connect via:
@@ -158,7 +179,7 @@ engine.onEnd = (name) => { /* motion finished */ };
 engine.onError = (name, error) => { /* motion failed */ };
 ```
 
-## Built-in motions (39)
+## Built-in motions (54)
 
 ### Gestures
 | Motion | Description |
@@ -214,6 +235,32 @@ engine.onError = (name, error) => { /* motion failed */ };
 | `dance` | Rhythmic dance with hip bounce |
 | `facepalm` | Hand to forehead with slump |
 | `dismiss` | Dismissive wave-off with head turn |
+
+### Facial presets (new)
+| Motion | Description |
+|---|---|
+| `raise_eyebrows` | Raised eyebrows with wide eyes |
+| `frown` | Furrowed brows and turned-down mouth |
+| `open_mouth` | Mouth wide open in awe |
+| `cheek_puff` | Puffed cheeks, playful or holding breath |
+| `close_eyes` | Gently closed eyes, relaxed |
+| `squint` | Squinting, suspicious or scrutinizing |
+
+### Direction & Body (new)
+| Motion | Description |
+|---|---|
+| `look_left` / `look_right` | Looking sideways with eyes and head turn |
+| `head_circles` | Slow circular head movement with Neck overlay |
+| `shiver` | Rapid tremors on Spine1/Spine2/Neck |
+| `chew` | Rhythmic jaw movement (6 phases) |
+| `deep_breath` | Visible chest inhale/exhale cycle |
+
+### Compound (new)
+| Motion | Description |
+|---|---|
+| `vibrate` | Rapid micro-vibration on Hips |
+| `curious` | Tilted head, raised brow, wide eyes |
+| `disgust` | Nose scrunch, frown, and recoil |
 
 ## Custom motions format
 
