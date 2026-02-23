@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MotionEngine — LLM Playground</title>
+  <script type="importmap">
+  { "imports":
+    {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+    }
+  }
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #111;
+      color: #eee;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+
+    #avatar-container {
+      flex: 6;
+      position: relative;
+      background: #1a1a2e;
+    }
+
+    #avatar-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #panel {
+      flex: 4;
+      padding: 20px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      border-left: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 340px;
+      max-width: 500px;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav a {
+      color: #6cf;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    h2 {
+      font-size: 16px;
+      color: #aaa;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+      margin: 0;
+    }
+
+    label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* --- Provider tabs --- */
+    .tabs {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a2a;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: center;
+      transition: all .15s;
+    }
+
+    .tab:hover {
+      background: #3a3a3a;
+      border-color: #666;
+    }
+
+    .tab.active {
+      background: #1a3a5a;
+      border-color: #2a6a9a;
+      color: #eee;
+    }
+
+    .model-name {
+      font-size: 10px;
+      color: #555;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    /* --- Inputs --- */
+    .preset-select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a2a;
+      color: #eee;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .preset-select optgroup {
+      color: #aaa;
+      font-style: normal;
+    }
+
+    .preset-select option {
+      color: #eee;
+      background: #2a2a2a;
+    }
+
+    input[type="password"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a2a;
+      color: #eee;
+      font-size: 13px;
+      font-family: system-ui, sans-serif;
+      resize: vertical;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #666;
+    }
+
+    #json-editor {
+      font-family: monospace;
+      font-size: 12px;
+      min-height: 160px;
+      line-height: 1.4;
+      tab-size: 2;
+    }
+
+    #prompt-input {
+      min-height: 60px;
+    }
+
+    /* --- Buttons --- */
+    .btn {
+      padding: 10px 16px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a2a;
+      color: #eee;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all .15s;
+    }
+
+    .btn:hover {
+      background: #3a3a3a;
+      border-color: #666;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-generate {
+      background: #1a3a5a;
+      border-color: #2a6a9a;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      background: #2a4a6a;
+      border-color: #3a7aaa;
+    }
+
+    .btn-play {
+      background: #1a5a2a;
+      border-color: #2a8a4a;
+    }
+
+    .btn-play:hover:not(:disabled) {
+      background: #2a6a3a;
+      border-color: #3a9a5a;
+    }
+
+    .btn-stop {
+      background: #4a1a1a;
+      border-color: #7a2a2a;
+    }
+
+    .btn-stop:hover {
+      background: #5a2a2a;
+      border-color: #8a3a3a;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-row .btn {
+      flex: 1;
+    }
+
+    /* --- Log --- */
+    #log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #0a0a0a;
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      flex: 1;
+      min-height: 80px;
+    }
+
+    .log-info { color: #6c9; }
+    .log-warn { color: #fc6; }
+    .log-error { color: #f66; }
+
+    #status {
+      font-size: 12px;
+      color: #888;
+      padding: 8px;
+      background: #0a0a0a;
+      border-radius: 6px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="avatar-container"></div>
+  <div id="panel">
+    <nav>
+      <h2>LLM Motion Playground</h2>
+      <a href="./index.html">&larr; Demo</a>
+    </nav>
+    <div id="status">Loading avatar...</div>
+
+    <!-- Provider tabs -->
+    <label>Provider</label>
+    <div class="tabs">
+      <button class="tab active" data-provider="gemini">Gemini</button>
+      <button class="tab" data-provider="openai">OpenAI</button>
+      <button class="tab" data-provider="claude">Claude</button>
+    </div>
+    <div class="model-name" id="model-name">gemini-3.1-pro-preview</div>
+
+    <!-- API key -->
+    <label>API Key</label>
+    <input type="password" id="api-key" placeholder="Paste your API key..." />
+
+    <!-- Presets -->
+    <label>Presets</label>
+    <select id="presets" class="preset-select">
+      <option value="">— pick a preset or write your own below —</option>
+      <optgroup label="Facial expressions">
+        <option>Raise both eyebrows in surprise, then slowly smile</option>
+        <option>Wink the left eye with a smirk</option>
+        <option>Nervous face — eyes darting, slight frown, jaw tense</option>
+      </optgroup>
+      <optgroup label="Head / body">
+        <option>Nod slowly like you deeply agree</option>
+        <option>Shake head in disbelief while looking down</option>
+        <option>Tilt head to the right like a curious dog</option>
+      </optgroup>
+      <optgroup label="Full body with overlays">
+        <option>Laugh hard — open mouth, squint eyes, shoulders shaking</option>
+        <option>Shrug with palms up like saying 'I have no idea'</option>
+        <option>Dance — sway hips side to side with a big smile</option>
+        <option>Take a deep breath — chest rises slowly, eyes close, then exhale and relax</option>
+      </optgroup>
+      <optgroup label="Emotional / theatrical">
+        <option>Dramatic gasp — mouth wide open, eyebrows up, lean back</option>
+        <option>Shy reaction — look down, slight smile, shoulders tense</option>
+        <option>Get increasingly angry — frown builds, jaw clenches, body tenses</option>
+      </optgroup>
+      <optgroup label="Creative / fun">
+        <option>Robot malfunction — head twitches, body vibrates erratically</option>
+        <option>Wake up from a nap — yawn, stretch, blink slowly</option>
+        <option>Get startled by a loud noise then try to act cool</option>
+      </optgroup>
+    </select>
+
+    <!-- Prompt -->
+    <label>Describe a movement</label>
+    <textarea id="prompt-input" placeholder="e.g. A slow, dramatic bow with eyes closed and a slight smile"></textarea>
+
+    <!-- Generate -->
+    <button class="btn btn-generate" id="btn-generate">Generate Motion</button>
+
+    <!-- JSON editor -->
+    <label>Motion JSON (editable)</label>
+    <textarea id="json-editor" placeholder="Generated motion JSON will appear here..."></textarea>
+
+    <!-- Play / Stop -->
+    <div class="btn-row">
+      <button class="btn btn-play" id="btn-play">Play</button>
+      <button class="btn btn-stop" id="btn-stop">Stop</button>
+    </div>
+
+    <!-- Log -->
+    <label>Log</label>
+    <div id="log"></div>
+  </div>
+
+  <script type="module" src="./playground.js"></script>
+</body>
+
+</html>
