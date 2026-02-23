@@ -279,7 +279,7 @@ The **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)**
 | Layer | Purpose | Speed |
 |-------|---------|-------|
 | **Semantic dictionary** | Runtime playback — LLM agent calls `play("thinking")` | Instant |
-| **LLM motion creator** | Authoring — describe a movement, AI generates the JSON | 2-3 seconds |
+| **LLM motion creator** | Authoring — describe a movement, AI generates the JSON | 3-15 seconds |
 
 The dictionary is for real-time conversations (fast, predictable). The playground is for expanding the dictionary without being a 3D animator (slow, creative, infinite variety).
 
