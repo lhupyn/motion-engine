@@ -392,7 +392,7 @@ export class MotionEngine {
 
     return [
       'MOTION ENGINE',
-      `Morphs: ${caps.morphTargets.slice(0, 10).join(',')}`,
+      `Morphs: ${caps.morphTargets.join(',')}`,
       `Bones: ${caps.bones.join(',')}`,
       `Presets: ${presetLines}`,
       'Any morph name works as motion. For custom: {"dt":[ms],"vs":{"morph":[val]}}'

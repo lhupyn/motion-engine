@@ -4,7 +4,7 @@
 
 MotionEngine is a plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that adds expressive, multi-layered animations (gestures + facial expressions + procedural bone oscillations). It is designed specifically for **AI Agents** that need a semantic vocabulary to control avatars.
 
-**[Live Demo](https://lhupyn.github.io/motion-engine/)**
+**[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)**
 
 ---
 
@@ -260,6 +260,38 @@ npm run demo
 ```
 
 Click **"Audit Avatar"** in the demo to see the autodiscovery engine in action.
+
+---
+
+## LLM Playground
+
+The **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** is a browser-based authoring tool for creating avatar motions with AI. Describe a movement in natural language, and an LLM generates playable motion JSON in real time.
+
+### How it works
+
+1. **Avatar scanning** — MotionEngine discovers the loaded avatar's morph targets and skeleton bones at runtime via `getAvatarCapabilities()`
+2. **Prompt injection** — The discovered capabilities, existing motion presets, and 6 real examples from the dictionary are injected into the LLM system prompt (few-shot)
+3. **Generation** — The LLM (Gemini, OpenAI, or Claude) produces a valid motion JSON definition
+4. **Preview** — Edit the JSON if needed, then play it directly on the avatar
+
+### Two complementary layers
+
+| Layer | Purpose | Speed |
+|-------|---------|-------|
+| **Semantic dictionary** | Runtime playback — LLM agent calls `play("thinking")` | Instant |
+| **LLM motion creator** | Authoring — describe a movement, AI generates the JSON | 2-3 seconds |
+
+The dictionary is for real-time conversations (fast, predictable). The playground is for expanding the dictionary without being a 3D animator (slow, creative, infinite variety).
+
+### Supported providers
+
+| Provider | Default model |
+|----------|--------------|
+| Gemini | `gemini-3.1-pro-preview` |
+| OpenAI | `gpt-5.2` |
+| Claude | `claude-opus-4-6` |
+
+API keys are stored in `localStorage` and calls are made client-side — no backend required.
 
 ---
 
