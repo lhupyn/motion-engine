@@ -237,28 +237,8 @@ export class MotionStudio {
   registerDynamic(name, obj) {
     const entry = structuredClone(obj);
 
-    // Apply morph aliases
-    if (entry.vs) {
-      for (const [key, val] of Object.entries(entry.vs)) {
-        if (this._aliases[key]) {
-          const normalized = Array.isArray(val) ? val : [val];
-          this._aliases[key].forEach(target => {
-            entry.vs[target] = normalized;
-          });
-          delete entry.vs[key];
-        }
-      }
-    }
-
-    // Apply bone aliases to overlay
-    if (entry._overlay?.bones) {
-      const aliasedBones = {};
-      for (const [b, config] of Object.entries(entry._overlay.bones)) {
-        const targetBone = this._boneAliases[b] || b;
-        aliasedBones[targetBone] = config;
-      }
-      entry._overlay.bones = aliasedBones;
-    }
+    if (entry.vs) entry.vs = this.applyMorphAliases(entry.vs);
+    if (entry._overlay?.bones) entry._overlay.bones = this.applyBoneAliases(entry._overlay.bones);
 
     this.engine.registerMotions({ [name]: entry });
   }

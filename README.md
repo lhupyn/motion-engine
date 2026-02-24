@@ -43,7 +43,7 @@ Moods persist while actions play on top. Actions interrupt each other. Poses and
 
 ## Features
 
-- **54 built-in motions** with `_track` metadata (16 moods + 38 actions)
+- **54 built-in motions** with `_track` metadata (14 moods + 40 actions)
 - **Multi-track concurrency** — mood persists while action plays
 - **Bone oscillation overlays** via `poseDelta`
 - **Motion sequencing** — chain motions for multi-step animations
@@ -190,7 +190,7 @@ const prompt = studio.getMotionsForPrompt('compact');
 
 ## Built-in Motions (54)
 
-### Moods (16 — persistent, blended with actions)
+### Moods (14 — persistent, blended with actions)
 
 | Motion | Description |
 |---|---|
@@ -209,9 +209,50 @@ const prompt = studio.getMotionsForPrompt('compact');
 | `curious` | Curious tilted head with wide eyes |
 | `disgust` | Disgusted nose scrunch and recoil |
 
-### Actions (38 — temporal, interrupt each other)
+### Actions (40 — temporal, interrupt each other)
 
-Gestures, head/body movements, expressions, and compound animations. See the [motions.json](src/motions.json) for full definitions.
+| Motion | Description |
+|---|---|
+| `wave_right` | Friendly wave with right hand and warm smile |
+| `wave_left` | Friendly wave with left hand and warm smile |
+| `thumbup_right` | Enthusiastic thumbs up with big smile |
+| `thumbdown_right` | Disapproving thumbs down with frown |
+| `point` | Pointing gesture with focused expression |
+| `ok_wink` | OK hand sign with playful wink |
+| `shrug_confused` | Confused shrug with raised eyebrows |
+| `namaste_bow` | Respectful namaste with prayer hands |
+| `nod_yes` | Affirmative head nod with subtle smile |
+| `shake_no` | Disapproving head shake with frown |
+| `look_up` | Looking upward as if pondering |
+| `look_down` | Looking downward, reflective or shy |
+| `bow` | Respectful bow with closed eyes |
+| `jump` | Excited jump with wide eyes |
+| `celebrate` | Joyful celebration with raised hand |
+| `turn_around` | Playful 360-degree spin |
+| `surprised` | Shocked expression with wide eyes and open mouth |
+| `wink` | Playful wink with body lean |
+| `laugh` | Hearty laugh with body shakes and spine oscillation |
+| `yawn` | Tired yawn with wide jaw and squinted eyes |
+| `applause` | Clapping hands with joyful expression |
+| `dance` | Rhythmic dance with hip bounce and spine sway |
+| `facepalm` | Facepalm with hand to forehead |
+| `excited` | Bursting with excitement — wide eyes, rapid hand wave |
+| `dismiss` | Dismissive wave-off with head turn |
+| `tongueout` | Playful tongue sticking out |
+| `kiss` | Blowing a kiss with wink and pursed lips |
+| `eyeroll` | Dramatic eye roll with head tilt |
+| `sigh` | Deep sigh with chest inhale and slumped body |
+| `raise_eyebrows` | Raised eyebrows expressing surprise |
+| `open_mouth` | Mouth wide open in awe or shock |
+| `cheek_puff` | Puffed cheeks, playful or holding breath |
+| `close_eyes` | Gently closed eyes, relaxed or meditating |
+| `look_left` | Looking left with eyes and slight head turn |
+| `look_right` | Looking right with eyes and slight head turn |
+| `head_circles` | Slow circular head movement |
+| `shiver` | Shivering with rapid small tremors |
+| `chew` | Chewing motion with rhythmic jaw |
+| `deep_breath` | Deep inhale and exhale with chest expansion |
+| `vibrate` | Rapid vibration effect, excitement or buzzing |
 
 ---
 

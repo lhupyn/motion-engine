@@ -8,12 +8,29 @@ function createMockHead() {
     poseTemplates: { standing: {}, sitting: {} },
     moodTemplates: { neutral: {}, happy: {} },
     animEmojis: {},
+    animMoods: {
+      neutral: {
+        baseline: { eyesLookDown: 0.1 },
+        speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
+        anims: [
+          { name: 'breathing', delay: 1500, dt: [1200, 500, 1000], vs: { chestInhale: [0.5, 0.5, 0] } },
+          { name: 'head', idle: { dt: [[200, 5000]], vs: { bodyRotateX: [[-0.04, 0.10]] } } },
+        ],
+      },
+      happy: {
+        baseline: { mouthSmile: 0.2, eyesLookDown: 0.1 },
+        speech: { deltaRate: 0, deltaPitch: 0.1, deltaVolume: 0 },
+        anims: [],
+      },
+    },
     poseName: null,
     mtAvatar: {
-      browInnerUp: { newvalue: 0, needsUpdate: false },
-      mouthSmile: { newvalue: 0, needsUpdate: false },
-      eyeSquintLeft: { newvalue: 0, needsUpdate: false },
+      browInnerUp: { newvalue: 0, baseline: 0, needsUpdate: false },
+      mouthSmile: { newvalue: 0, baseline: 0, needsUpdate: false },
+      eyeSquintLeft: { newvalue: 0, baseline: 0, needsUpdate: false },
+      headRotateY: { newvalue: 0, baseline: 0, needsUpdate: false },
     },
+    avatar: { baseline: {} },
     poseDelta: { props: {} },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
@@ -61,6 +78,23 @@ describe('MotionEngine', () => {
       expect(count).toBe(0);
     });
 
+    it('registers metadata-only mood entries for discovery', () => {
+      const count = engine.registerMotions({
+        neutral: { _track: 'mood', _description: 'Default relaxed state', _tags: ['calm'] },
+      });
+      expect(count).toBe(1);
+      expect(engine.getMotionNames()).toContain('neutral');
+      // Should NOT overwrite TH's native animMoods entry
+      expect(head.animMoods.neutral.baseline.eyesLookDown).toBe(0.1);
+    });
+
+    it('does not register metadata-only entry as animEmoji', () => {
+      engine.registerMotions({
+        neutral: { _track: 'mood', _description: 'Default state' },
+      });
+      expect(head.animEmojis.neutral).toBeUndefined();
+    });
+
     it('normalizes scalar vs values to arrays', () => {
       engine.registerMotions({
         scalar_test: { dt: [500], vs: { mouthSmile: 0.8 } },
@@ -91,6 +125,63 @@ describe('MotionEngine', () => {
       });
       const motions = engine.getRegisteredMotions();
       expect(motions.overlay_only.dt).toEqual([3000]);
+    });
+
+    it('injects mood motions into TH animMoods', () => {
+      engine.registerMotions({
+        thinking: { dt: [500, 2000, 500], vs: { browInnerUp: [0.3, 0.7, 0.3] }, _track: 'mood' },
+      });
+      expect(head.animMoods.thinking).toBeDefined();
+      expect(head.animMoods.thinking.baseline.browInnerUp).toBe(0.7);
+      expect(head.animMoods.thinking.speech).toEqual({ deltaRate: 0, deltaPitch: 0, deltaVolume: 0 });
+    });
+
+    it('copies neutral anims into injected mood', () => {
+      engine.registerMotions({
+        thinking: { dt: [500], vs: { browInnerUp: [0.7] }, _track: 'mood' },
+      });
+      expect(head.animMoods.thinking.anims).toHaveLength(2);
+      expect(head.animMoods.thinking.anims[0].name).toBe('breathing');
+    });
+
+    it('picks single value for 1-frame morph arrays', () => {
+      engine.registerMotions({
+        test_mood: { dt: [500], vs: { browInnerUp: [0.8] }, _track: 'mood' },
+      });
+      expect(head.animMoods.test_mood.baseline.browInnerUp).toBe(0.8);
+    });
+
+    it('skips gesture key in mood baseline', () => {
+      engine.registerMotions({
+        test_mood: { dt: [500], vs: { gesture: [['wave', null]], browInnerUp: [0.5] }, _track: 'mood' },
+      });
+      expect(head.animMoods.test_mood.baseline.gesture).toBeUndefined();
+      expect(head.animMoods.test_mood.baseline.browInnerUp).toBe(0.5);
+    });
+
+    it('skips range arrays and non-numeric values in mood baseline', () => {
+      engine.registerMotions({
+        nervous: {
+          dt: [200, 200, 200],
+          vs: {
+            browInnerUp: [0.6],
+            headRotateZ: [[-0.03, 0.03]],  // range array — should be skipped
+            headRotateY: [0.06, -0.06, 0],  // numeric — should pick -0.06
+          },
+          _track: 'mood',
+        },
+      });
+      const b = head.animMoods.nervous.baseline;
+      expect(b.browInnerUp).toBe(0.6);
+      expect(b.headRotateZ).toBeUndefined();  // range array skipped
+      expect(b.headRotateY).toBe(-0.06);      // numeric value kept
+    });
+
+    it('does not inject action motions into animMoods', () => {
+      engine.registerMotions({
+        nod: { dt: [500], vs: { mouthSmile: [0.5] }, _track: 'action' },
+      });
+      expect(head.animMoods.nod).toBeUndefined();
     });
   });
 
@@ -240,22 +331,43 @@ describe('MotionEngine', () => {
   });
 
   // ===========================================================================
-  // Render loop
+  // Native mood delegation
   // ===========================================================================
 
-  describe('update', () => {
-    it('applies mood morphs procedurally', () => {
+  describe('native mood delegation', () => {
+    it('calls setMood for custom mood motions', async () => {
       engine.registerMotions({
         thinking: { dt: [500, 2000, 500], vs: { browInnerUp: [0.7] }, _track: 'mood' },
       });
-      engine.play('thinking');
+      await engine.play('thinking');
+      expect(head.setMood).toHaveBeenCalledWith('thinking');
+    });
 
-      // Simulate time passing past fade-in
-      vi.spyOn(performance, 'now').mockReturnValue(1000);
-      engine.update(16);
+    it('calls setMood for TH-native moods', async () => {
+      await engine.play('happy');
+      expect(head.setMood).toHaveBeenCalledWith('happy');
+    });
 
-      expect(head.mtAvatar.browInnerUp.newvalue).toBeGreaterThan(0);
-      expect(head.mtAvatar.browInnerUp.needsUpdate).toBe(true);
+    it('calls setMood for metadata-only mood entries', async () => {
+      engine.registerMotions({
+        sleep: { _track: 'mood', _description: 'Deep sleep' },
+      });
+      await engine.play('sleep');
+      expect(engine.tracks.mood.active).toBe(true);
+      expect(head.setMood).toHaveBeenCalledWith('sleep');
+    });
+
+    it('falls back to neutral if setMood throws', async () => {
+      head.setMood.mockImplementation((name) => {
+        if (name === 'broken_mood') throw new Error('Unknown mood.');
+      });
+      engine.registerMotions({
+        broken_mood: { dt: [500], vs: { browInnerUp: [0.5] }, _track: 'mood' },
+      });
+      // Remove the injected animMood to simulate failure
+      delete head.animMoods.broken_mood;
+      await engine.play('broken_mood');
+      expect(head.setMood).toHaveBeenCalledWith('neutral');
     });
 
     it('does not apply mood morphs when no mood is active', () => {
@@ -263,20 +375,29 @@ describe('MotionEngine', () => {
       expect(head.mtAvatar.browInnerUp.newvalue).toBe(0);
     });
 
-    it('safe override: extreme magnitude wins', () => {
+    it('mood switching delegates entirely to TH setMood', async () => {
       engine.registerMotions({
-        strong_mood: { dt: [500], vs: { browInnerUp: [0.9] }, _track: 'mood' },
+        mood_a: { dt: [500], vs: { browInnerUp: [0.8] }, _track: 'mood' },
+        mood_b: { dt: [500], vs: { eyeSquintLeft: [0.5] }, _track: 'mood' },
       });
-      engine.play('strong_mood');
 
-      // Set a competing value
-      head.mtAvatar.browInnerUp.newvalue = 0.3;
+      await engine.play('mood_a');
+      expect(head.setMood).toHaveBeenCalledWith('mood_a');
 
-      vi.spyOn(performance, 'now').mockReturnValue(1000);
+      await engine.play('mood_b');
+      expect(head.setMood).toHaveBeenCalledWith('mood_b');
+      // TH's setMood handles clearing old baselines natively
+    });
+  });
+
+  // ===========================================================================
+  // Render loop
+  // ===========================================================================
+
+  describe('update', () => {
+    it('calls overlay manager update', () => {
+      // update() should not throw when called without active moods
       engine.update(16);
-
-      // 0.9 > 0.3, so mood should win
-      expect(head.mtAvatar.browInnerUp.newvalue).toBe(0.9);
     });
   });
 

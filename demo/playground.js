@@ -8,6 +8,7 @@ import { TalkingHead } from 'talkinghead';
 import { MotionEngine } from '../src/MotionEngine.js';
 import { MotionStudio } from '../src/MotionStudio.js';
 import motions from '../src/motions.json';
+import motionsTH from '../src/motions_th.json';
 import { callLLM } from './llm.js';
 import { buildSystemPrompt } from './prompt.js';
 
@@ -70,7 +71,7 @@ async function initAvatar() {
 
   engine = new MotionEngine(head);
   studio = new MotionStudio(engine);
-  const count = engine.registerMotions(motions);
+  const count = engine.registerMotions(motions) + engine.registerMotions(motionsTH);
 
   engine.onStart = (name) => {
     statusEl.textContent = `Playing: ${name}`;

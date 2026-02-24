@@ -1,0 +1,357 @@
+{
+  "neutral_face": {
+    "_description": "Neutral blank stare with straight pose and wide eyes",
+    "_tags": ["expression", "neutral"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.4], "eyeWideLeft": [0.7], "eyeWideRight": [0.7], "mouthPressLeft": [0.6], "mouthPressRight": [0.6], "mouthRollLower": [0.3], "mouthStretchLeft": [1], "mouthStretchRight": [1] }
+  },
+
+  "smug": {
+    "_description": "Smug side-glance with one-sided smirk and raised brow",
+    "_tags": ["expression", "attitude"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browDownRight": [0.1], "browInnerUp": [0.7], "browOuterUpRight": [0.2], "eyeLookInRight": [0.7], "eyeLookOutLeft": [0.7], "eyeSquintLeft": [1], "eyeSquintRight": [0.8], "eyesRotateY": [0.7], "mouthLeft": [0.4], "mouthPucker": [0.4], "mouthShrugLower": [0.3], "mouthShrugUpper": [0.2], "mouthSmile": [0.2], "mouthSmileLeft": [0.4], "mouthSmileRight": [0.2], "mouthStretchLeft": [0.5], "mouthUpperUpLeft": [0.6], "noseSneerLeft": [0.7] }
+  },
+
+  "slight_smile": {
+    "_description": "Subtle gentle smile",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "mouthSmile": [0.5] }
+  },
+
+  "warm_smile": {
+    "_description": "Warm smile with squinted eyes and nose crinkle",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.6], "eyeSquintLeft": [1], "eyeSquintRight": [1], "mouthSmile": [0.7], "noseSneerLeft": [0.7], "noseSneerRight": [0.7] }
+  },
+
+  "grin": {
+    "_description": "Big grin with open mouth and dimples",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.6], "jawOpen": [0.1], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthOpen": [0.3], "mouthPressLeft": [0.3], "mouthPressRight": [0.3], "mouthRollLower": [0.4], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "open_grin": {
+    "_description": "Wide-eyed grin with open mouth",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.6], "eyeWideLeft": [0.7], "eyeWideRight": [0.7], "jawOpen": [0.1], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthOpen": [0.3], "mouthPressLeft": [0.3], "mouthPressRight": [0.3], "mouthRollLower": [0.4], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "squint_smile": {
+    "_description": "Happy squinting smile with jaw open",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.3], "eyeSquintLeft": [1], "eyeSquintRight": [1], "jawOpen": [0.2], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthOpen": [0.3], "mouthPressLeft": [0.3], "mouthPressRight": [0.3], "mouthRollLower": [0.4], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "beam": {
+    "_description": "Beaming closed-eye grin",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.3], "eyeSquintLeft": [1], "eyeSquintRight": [1], "jawOpen": [0.3], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthPressLeft": [0.5], "mouthPressRight": [0.5], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "laugh_closed": {
+    "_description": "Eyes-closed laughing with wide grin",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.3], "eyeSquintLeft": [1], "eyeSquintRight": [1], "eyesClosed": [0.6], "jawOpen": [0.3], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthPressLeft": [0.5], "mouthPressRight": [0.5], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "tongue_out": {
+    "_description": "Playful tongue out with closed eyes and big smile",
+    "_tags": ["expression", "playful"],
+    "_track": "action",
+    "dt": [300, 100, 1500, 500, 500],
+    "rescale": [0, 0, 1, 0, 0],
+    "vs": { "browInnerUp": [0.8], "eyesClosed": [1], "jawOpen": [0.7], "mouthFunnel": [0.5], "mouthSmile": [1], "tongueOut": [0, 1, 1, 0] }
+  },
+
+  "crying_laugh": {
+    "_description": "Laughing so hard with tears, eyes squinted shut",
+    "_tags": ["expression", "happy"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.3], "eyeSquintLeft": [1], "eyeSquintRight": [1], "eyesClosed": [0.6], "jawOpen": [0.3], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthPressLeft": [0.5], "mouthPressRight": [0.5], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "wink_smile": {
+    "_description": "Charming wink with smile and body lean",
+    "_tags": ["expression", "playful"],
+    "_track": "action",
+    "dt": [500, 200, 500, 500],
+    "rescale": [0, 0, 0, 1],
+    "vs": { "mouthSmile": [0.5], "mouthOpen": [0.2], "mouthSmileLeft": [0, 0.5, 0], "eyeBlinkLeft": [0, 0.7, 0], "eyeBlinkRight": [0, 0, 0], "bodyRotateX": [0.05, 0.05, 0.05, 0], "bodyRotateZ": [-0.05, -0.05, -0.05, 0], "browDownLeft": [0, 0.7, 0], "cheekSquintLeft": [0, 0.7, 0], "eyeSquintLeft": [0, 1, 0], "eyesClosed": [0] }
+  },
+
+  "sobbing": {
+    "_description": "Heavy crying with open mouth and furrowed brows",
+    "_tags": ["expression", "sad"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [1], "eyeSquintLeft": [1], "eyeSquintRight": [1], "eyesClosed": [0.1], "jawOpen": [0], "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthOpen": [0.5], "mouthPucker": [0.5], "mouthUpperUpLeft": [0.6], "mouthUpperUpRight": [0.6] }
+  },
+
+  "puppy_eyes": {
+    "_description": "Pleading puppy-dog eyes with pouty lip",
+    "_tags": ["expression", "sad"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browDownLeft": [0.2], "browDownRight": [0.2], "browInnerUp": [1], "eyeWideLeft": [0.9], "eyeWideRight": [0.9], "eyesClosed": [0.1], "mouthClose": [0.2], "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthPressLeft": [0.4], "mouthPressRight": [0.4], "mouthPucker": [1], "mouthRollLower": [0.6], "mouthRollUpper": [0.2], "mouthUpperUpLeft": [0.8], "mouthUpperUpRight": [0.8] }
+  },
+
+  "disappointed": {
+    "_description": "Disappointed look with drooped eyes and slumped posture",
+    "_tags": ["expression", "sad"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.7], "eyeSquintLeft": [1], "eyeSquintRight": [1], "eyesClosed": [0.5], "bodyRotateX": [0.3], "mouthClose": [0.2], "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthPucker": [1], "mouthRollLower": [1], "mouthShrugLower": [0.2], "mouthUpperUpLeft": [0.8], "mouthUpperUpRight": [0.8] }
+  },
+
+  "pensive": {
+    "_description": "Pensive sadness with closed eyes and pressed lips",
+    "_tags": ["expression", "sad"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [1], "eyeSquintLeft": [1], "eyeSquintRight": [1], "eyesClosed": [0.5], "bodyRotateX": [0.3], "mouthClose": [0.2], "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthPressLeft": [0.4], "mouthPressRight": [0.4], "mouthPucker": [1], "mouthRollLower": [0.6], "mouthRollUpper": [0.2], "mouthUpperUpLeft": [0.8], "mouthUpperUpRight": [0.8] }
+  },
+
+  "flushed": {
+    "_description": "Flushed embarrassment with wide eyes and pursed lips",
+    "_tags": ["expression", "surprise"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [1], "eyeWideLeft": [0.5], "eyeWideRight": [0.5], "eyesRotateY": [0.05], "eyesRotateX": [0.05], "mouthClose": [0.2], "mouthFunnel": [0.5], "mouthPucker": [0.4], "mouthRollLower": [0.4], "mouthRollUpper": [0.4] }
+  },
+
+  "sad_frown": {
+    "_description": "Simple frown with pursed lower lip",
+    "_tags": ["expression", "sad"],
+    "_track": "action",
+    "dt": [500, 1500],
+    "rescale": [0, 1],
+    "vs": { "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthPucker": [0.1], "mouthRollLower": [0.8] }
+  },
+
+  "kiss_eyes_closed": {
+    "_description": "Sweet kiss with closed eyes and puckered lips",
+    "_tags": ["expression", "love"],
+    "_track": "action",
+    "dt": [500, 1000, 1000],
+    "rescale": [0, 1, 0],
+    "vs": { "browInnerUp": [0.6], "eyeBlinkLeft": [1], "eyeBlinkRight": [1], "eyeSquintLeft": [1], "eyeSquintRight": [1], "mouthPucker": [0, 0.5], "noseSneerLeft": [0, 0.7], "noseSneerRight": [0, 0.7], "viseme_U": [0, 1] }
+  },
+
+  "blow_kiss": {
+    "_description": "Blowing a kiss with wink and body lean",
+    "_tags": ["expression", "love"],
+    "_track": "action",
+    "dt": [500, 500, 200, 500],
+    "rescale": [0, 0, 0, 1],
+    "vs": { "browInnerUp": [0.6], "eyeBlinkLeft": [0, 0, 1, 0], "eyeBlinkRight": [0], "eyesRotateY": [0], "bodyRotateY": [0], "bodyRotateX": [0, 0.05, 0.05, 0], "bodyRotateZ": [0, -0.05, -0.05, 0], "eyeSquintLeft": [1], "eyeSquintRight": [1], "mouthPucker": [0, 0.5, 0], "noseSneerLeft": [0, 0.7], "noseSneerRight": [0.7], "viseme_U": [0, 1] }
+  },
+
+  "adoring": {
+    "_description": "Adoring look with warm squinted smile",
+    "_tags": ["expression", "love"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.6], "eyeSquintLeft": [1], "eyeSquintRight": [1], "mouthSmile": [0.7], "noseSneerLeft": [0.7], "noseSneerRight": [0.7] }
+  },
+
+  "heart_eyes": {
+    "_description": "Starstruck admiration with wide smile and open mouth",
+    "_tags": ["expression", "love"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.6], "jawOpen": [0.1], "mouthDimpleLeft": [0.2], "mouthDimpleRight": [0.2], "mouthOpen": [0.3], "mouthPressLeft": [0.3], "mouthPressRight": [0.3], "mouthRollLower": [0.4], "mouthShrugUpper": [0.4], "mouthSmile": [0.7], "mouthUpperUpLeft": [0.3], "mouthUpperUpRight": [0.3], "noseSneerLeft": [0.4], "noseSneerRight": [0.4] }
+  },
+
+  "rage": {
+    "_description": "Furious rage with furrowed brows and forward lean",
+    "_tags": ["expression", "angry"],
+    "_track": "action",
+    "dt": [1000, 1500],
+    "rescale": [0, 1],
+    "vs": { "browDownLeft": [1], "browDownRight": [1], "eyesLookUp": [0.2], "jawForward": [0.3], "mouthFrownLeft": [1], "mouthFrownRight": [1], "bodyRotateX": [0.15] }
+  },
+
+  "unamused": {
+    "_description": "Unamused side-glance with deep frown",
+    "_tags": ["expression", "angry"],
+    "_track": "action",
+    "dt": [1000, 1000],
+    "rescale": [0, 1],
+    "vs": { "browDownRight": [0.1], "browInnerUp": [0.7], "browOuterUpRight": [0.2], "eyeLookInRight": [0.7], "eyeLookOutLeft": [0.7], "eyeSquintLeft": [1], "eyeSquintRight": [0.8], "eyesRotateY": [0.7], "mouthFrownLeft": [1], "mouthFrownRight": [1], "mouthLeft": [0.2], "mouthPucker": [0.5], "mouthRollLower": [0.2], "mouthRollUpper": [0.2], "mouthShrugLower": [0.2], "mouthShrugUpper": [0.2], "mouthStretchLeft": [0.5] }
+  },
+
+  "scream": {
+    "_description": "Screaming in terror with wide eyes and open jaw",
+    "_tags": ["expression", "fear"],
+    "_track": "action",
+    "dt": [500, 1500],
+    "rescale": [0, 1],
+    "vs": { "browInnerUp": [0.8], "eyeWideLeft": [0.5], "eyeWideRight": [0.5], "jawOpen": [0.7], "mouthFunnel": [0.5] }
+  },
+
+  "grimace_teeth": {
+    "_description": "Nervous grimace showing clenched teeth",
+    "_tags": ["expression", "nervous"],
+    "_track": "action",
+    "dt": [500, 1500],
+    "rescale": [0, 1],
+    "vs": { "browDownLeft": [1], "browDownRight": [1], "browInnerUp": [1], "mouthDimpleLeft": [0.5], "mouthDimpleRight": [0.5], "mouthLowerDownLeft": [1], "mouthLowerDownRight": [1], "mouthPressLeft": [0.4], "mouthPressRight": [0.4], "mouthPucker": [0.5], "mouthSmile": [0.1], "mouthSmileLeft": [0.2], "mouthSmileRight": [0.2], "mouthStretchLeft": [1], "mouthStretchRight": [1], "mouthUpperUpLeft": [1], "mouthUpperUpRight": [1] }
+  },
+
+  "thinking_face": {
+    "_description": "Pondering with furrowed brow and pursed lips",
+    "_tags": ["expression", "thinking"],
+    "_track": "action",
+    "dt": [500, 1500],
+    "rescale": [0, 1],
+    "vs": { "browDownLeft": [1], "browOuterUpRight": [1], "eyeSquintLeft": [0.6], "mouthFrownLeft": [0.7], "mouthFrownRight": [0.7], "mouthLowerDownLeft": [0.3], "mouthPressRight": [0.4], "mouthPucker": [0.1], "mouthRight": [0.5], "mouthRollLower": [0.5], "mouthRollUpper": [0.2] }
+  },
+
+  "side_glance": {
+    "_description": "Suspicious side glance with eyes only",
+    "_tags": ["expression", "attitude"],
+    "_track": "action",
+    "dt": [500, 1500],
+    "rescale": [0, 1],
+    "vs": { "eyesRotateY": [-0.8] }
+  },
+
+  "zzz": {
+    "_description": "Falling asleep with closed eyes and head drooping",
+    "_tags": ["expression", "sleep"],
+    "_track": "action",
+    "dt": [5000, 5000],
+    "rescale": [0, 1],
+    "vs": { "eyeBlinkLeft": [1], "eyeBlinkRight": [1], "bodyRotateX": [0.2], "bodyRotateZ": [0.1] }
+  },
+
+  "hand_raise": {
+    "_description": "Raise right hand with smile",
+    "_tags": ["gesture", "greeting"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "mouthSmile": [0.5], "gesture": [["handup", null, true], null] }
+  },
+
+  "hand_raise_left": {
+    "_description": "Raise left hand with smile",
+    "_tags": ["gesture", "greeting"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "mouthSmile": [0.5], "gesture": [["handup", null], null] }
+  },
+
+  "thumbs_up": {
+    "_description": "Thumbs up with smile",
+    "_tags": ["gesture", "positive"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "mouthSmile": [0.5], "gesture": [["thumbup", null], null] }
+  },
+
+  "thumbs_down": {
+    "_description": "Thumbs down with angry frown",
+    "_tags": ["gesture", "negative"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "browDownLeft": [1], "browDownRight": [1], "eyesLookUp": [0.2], "jawForward": [0.3], "mouthFrownLeft": [1], "mouthFrownRight": [1], "bodyRotateX": [0.15], "gesture": [["thumbdown", null], null] }
+  },
+
+  "ok_sign": {
+    "_description": "OK hand sign with smile",
+    "_tags": ["gesture", "positive"],
+    "_track": "action",
+    "dt": [300, 2000],
+    "rescale": [0, 1],
+    "vs": { "mouthSmile": [0.5], "gesture": [["ok", null], null] }
+  },
+
+  "shrug_both": {
+    "_description": "Confused shrug with both palms up",
+    "_tags": ["gesture", "confused"],
+    "_track": "action",
+    "dt": [1000, 1500],
+    "rescale": [0, 1],
+    "vs": { "gesture": [["shrug", null], null] }
+  },
+
+  "pray": {
+    "_description": "Prayer hands with closed eyes and slight bow",
+    "_tags": ["gesture", "respect"],
+    "_track": "action",
+    "dt": [1500, 300, 1000],
+    "rescale": [0, 1, 0],
+    "vs": { "eyeBlinkLeft": [0, 1], "eyeBlinkRight": [0, 1], "bodyRotateX": [0], "bodyRotateZ": [0.1], "gesture": [["namaste", null], null] }
+  },
+
+  "nod": {
+    "_description": "Affirmative head nod",
+    "_tags": ["gesture", "agreement"],
+    "_track": "action",
+    "dt": [350, 350, 350, 350],
+    "vs": { "headMove": [0], "headRotateX": [0.15, 0.1, 0.15, 0], "headRotateZ": [0] }
+  },
+
+  "head_shake": {
+    "_description": "Disapproving head shake",
+    "_tags": ["gesture", "disagreement"],
+    "_track": "action",
+    "dt": [350, 350, 350, 350, 350],
+    "vs": { "headMove": [0], "headRotateY": [-0.08, 0.08, -0.08, 0.08, 0], "headRotateZ": [0] }
+  },
+
+  "fear": {
+    "_description": "Fearful state with wide eyes, raised brows, and tense mouth",
+    "_tags": ["emotion", "negative"],
+    "_track": "mood",
+    "dt": [800, 3000, 800],
+    "vs": { "browInnerUp": [0.7], "eyeSquintLeft": [0.5], "eyeSquintRight": [0.5], "eyeWideLeft": [0.6], "eyeWideRight": [0.6], "mouthClose": [0.1], "mouthFunnel": [0.3], "mouthShrugLower": [0.5], "mouthShrugUpper": [0.5] }
+  },
+
+  "love": {
+    "_description": "Loving gaze with soft eyes, gentle smile, and slight forward lean",
+    "_tags": ["emotion", "positive"],
+    "_track": "mood",
+    "dt": [1000, 3000, 1000],
+    "vs": { "browInnerUp": [0.4], "browOuterUpLeft": [0.2], "browOuterUpRight": [0.2], "mouthSmile": [0.2], "eyeBlinkLeft": [0.6], "eyeBlinkRight": [0.6], "eyeWideLeft": [0.7], "eyeWideRight": [0.7], "bodyRotateX": [0.1], "mouthDimpleLeft": [0.1], "mouthDimpleRight": [0.1], "mouthPressLeft": [0.2], "mouthShrugUpper": [0.2], "mouthUpperUpLeft": [0.1], "mouthUpperUpRight": [0.1] }
+  }
+}

@@ -8,7 +8,8 @@
     ".": "./src/MotionEngine.js",
     "./studio": "./src/MotionStudio.js",
     "./overlay": "./src/OverlayManager.js",
-    "./motions": "./src/motions.json"
+    "./motions": "./src/motions.json",
+    "./motions-th": "./src/motions_th.json"
   },
   "scripts": {
     "demo": "vite --open",

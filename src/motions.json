@@ -1,4 +1,19 @@
 {
+  "neutral": {
+    "_description": "Default relaxed state with no strong emotion — use to reset after any mood",
+    "_tags": ["calm", "default", "reset"],
+    "_track": "mood"
+  },
+  "happy": {
+    "_description": "Warm positive mood with subtle smile and upbeat energy",
+    "_tags": ["joy", "positive", "warm"],
+    "_track": "mood"
+  },
+  "sleep": {
+    "_description": "Eyes closed, slow breathing, drowsy head sway — deep sleep or very tired",
+    "_tags": ["tired", "sleeping", "rest"],
+    "_track": "mood"
+  },
   "wave_right": {
     "_description": "Friendly wave with right hand oscillation and warm smile",
     "_tags": [

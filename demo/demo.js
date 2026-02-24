@@ -10,6 +10,7 @@ import { TalkingHead } from 'talkinghead';
 import { MotionEngine } from '../src/MotionEngine.js';
 import { MotionStudio } from '../src/MotionStudio.js';
 import motions from '../src/motions.json';
+import motionsTH from '../src/motions_th.json';
 
 // --- Config ---
 const AVATAR_MODEL = './female_1.glb';
@@ -59,7 +60,7 @@ async function initAvatar() {
   // Create engine (player) and studio (authoring/discovery)
   engine = new MotionEngine(head);
   studio = new MotionStudio(engine);
-  const count = engine.registerMotions(motions);
+  const count = engine.registerMotions(motions) + engine.registerMotions(motionsTH);
 
   // Wire up event callbacks to UI
   engine.onStart = (name) => {

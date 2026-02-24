@@ -4,7 +4,7 @@
  * Responsibilities:
  *   - Register custom animEmojis on a TalkingHead instance
  *   - Manage 3 parallel tracks: pose, mood, action
- *   - Blend procedural continuous morphs (moods) concurrently with native gestures (actions)
+ *   - Inject custom moods into TH's native animMoods for seamless transitions
  *   - Delegate poseDelta oscillation overlays to OverlayManager
  *   - Support motion interruption and sequencing
  *
@@ -104,6 +104,13 @@ export class MotionEngine {
         entry.vs = entry.vs || {};
       }
 
+      // Metadata-only mood entries (no dt): register for discovery but skip animation
+      if (!entry.dt && entry._track === 'mood') {
+        this._motions[name] = entry;
+        count++;
+        continue;
+      }
+
       // Skip motions that have no timing at all (invalid)
       if (!entry.dt) continue;
 
@@ -127,6 +134,11 @@ export class MotionEngine {
       }
 
       this._motions[name] = entry;
+
+      // Mood-track motions: inject into TH's animMoods so setMood() works natively
+      if (entry._track === 'mood' && this.head.animMoods) {
+        this._registerMood(name, entry);
+      }
 
       // Register without metadata as animEmoji on TalkingHead
       const { _overlay, _description, _tags, _track, ...animEmoji } = entry;
@@ -181,32 +193,93 @@ export class MotionEngine {
 
     this._emit('onStart', name);
 
-    // ── 1. POSE TRACK ──────────────────────────────────────────────────
-    if (trackName === 'pose') {
-      this.tracks.pose = { active: true, name, startTime: performance.now(), motion, isNative: !motion };
-      if (this.head.poseTemplates?.[name]) {
-        this.head.poseName = name;
-        this.head.setPoseFromTemplate(this.head.poseTemplates[name], this.opt.poseFadeIn);
-      }
-      return;
+    switch (trackName) {
+      case 'pose':  return this._playPose(name, motion);
+      case 'mood':  return this._playMood(name, motion);
+      default:      return this._playAction(name, motion, dur);
+    }
+  }
+
+  /**
+   * Play a sequence of motions in order.
+   * Each motion waits for the previous one to finish before starting.
+   * If stop() is called during a sequence, remaining motions are skipped.
+   *
+   * @param {string[]} names - Array of motion names to play sequentially
+   */
+  async playSequence(names) {
+    for (let i = 0; i < names.length; i++) {
+      if (!this.tracks.action.active && i > 0) return;
+      await this.play(names[i]);
+    }
+  }
+
+  /**
+   * Force-stop the current action. Cleanly cancels any pending wait timers
+   * and resets the action track immediately.
+   */
+  stop() {
+    this._interruptAction();
+  }
+
+  /**
+   * Get all registered custom motion names.
+   *
+   * @returns {string[]}
+   */
+  getMotionNames() {
+    return Object.keys(this._motions);
+  }
+
+  // ===========================================================================
+  // Private — Track Playback
+  // ===========================================================================
+
+  /**
+   * Apply a pose immediately.
+   * @private
+   */
+  _playPose(name, motion) {
+    this.tracks.pose = { active: true, name, startTime: performance.now(), motion, isNative: !motion };
+    if (this.head.poseTemplates?.[name]) {
+      this.head.poseName = name;
+      this.head.setPoseFromTemplate(this.head.poseTemplates[name], this.opt.poseFadeIn);
+    }
+  }
+
+  /**
+   * Apply a mood (persistent).
+   *
+   * All moods — both TH-native and custom — are handled via TH's setMood().
+   * Custom moods were injected into head.animMoods during registerMotions(),
+   * so TH manages baselines, idle animations, and smooth transitions natively.
+   *
+   * @private
+   */
+  _playMood(name, motion) {
+    this.tracks.mood = { active: true, name, startTime: performance.now(), motion, isNative: !motion };
+
+    // Bone overlays from motion definition
+    if (motion?._overlay) {
+      this._overlays.start(motion._overlay.bones || {}, Infinity);
+    } else {
+      this._overlays.clear();
     }
 
-    // ── 2. MOOD TRACK (persistent, blended procedurally) ───────────────
-    if (trackName === 'mood') {
-      this.tracks.mood = { active: true, name, startTime: performance.now(), motion, isNative: !motion };
-      if (motion) {
-        if (motion._overlay) {
-          this._overlays.start(motion._overlay.bones || {}, Infinity);
-        } else {
-          this._overlays.clear();
-        }
-      } else {
-        this.head.setMood(name);
-      }
-      return;
+    // Delegate entirely to TalkingHead's native mood system
+    try {
+      this.head.setMood(name);
+    } catch {
+      // Mood not in animMoods — fall back to neutral
+      this.head.setMood('neutral');
     }
+  }
 
-    // ── 3. ACTION TRACK (temporal, interrupts previous) ────────────────
+  /**
+   * Play a temporal action gesture (interrupts previous action).
+   * @private
+   */
+  async _playAction(name, motion, dur) {
     if (this.tracks.action.active) {
       this._interruptAction();
     }
@@ -270,102 +343,66 @@ export class MotionEngine {
     }
   }
 
-  /**
-   * Play a sequence of motions in order.
-   * Each motion waits for the previous one to finish before starting.
-   * If stop() is called during a sequence, remaining motions are skipped.
-   *
-   * @param {string[]} names - Array of motion names to play sequentially
-   */
-  async playSequence(names) {
-    for (const name of names) {
-      if (!this.tracks.action.active && names.indexOf(name) > 0) return;
-      await this.play(name);
-    }
-  }
-
-  /**
-   * Force-stop the current action. Cleanly cancels any pending wait timers
-   * and resets the action track immediately.
-   */
-  stop() {
-    this._interruptAction();
-  }
-
-  /**
-   * Get all registered custom motion names.
-   *
-   * @returns {string[]}
-   */
-  getMotionNames() {
-    return Object.keys(this._motions);
-  }
-
   // ===========================================================================
   // Render Loop
   // ===========================================================================
 
   /**
-   * Frame update hook — delegates to OverlayManager and applies mood morphs.
+   * Frame update hook — delegates to OverlayManager for bone overlays.
+   * Mood morphs are handled entirely by TH's native mood system.
    * Connect to TalkingHead via: `head.opt.update = (dt) => engine.update(dt);`
    *
    * @param {number} dt - Delta time from TalkingHead render loop
    */
   update(dt) {
     this._overlays.update(dt);
-
-    // Procedurally apply the mood layer so it blends with the native action gesture runtime
-    if (this.tracks.mood.active && this.tracks.mood.motion) {
-      this._applyManualTrack(this.tracks.mood);
-    }
   }
 
   // ===========================================================================
-  // Private — Mood Blending
+  // Private — Mood Registration
   // ===========================================================================
 
   /**
-   * Procedurally apply morph targets from a mood track.
-   * Uses cosine ease-in during the first dt segment, then holds.
-   * "Extreme magnitude wins" safe override prevents geometry explosion
-   * when action and mood target the same morph.
+   * Inject a custom mood into TH's animMoods so setMood() handles it natively.
+   *
+   * Extracts morph target values from the motion's `vs` object as static baselines.
+   * For multi-frame arrays, picks the peak value (second element in a 3-frame
+   * ramp-up/hold/ramp-down pattern, or first element for single-value arrays).
+   * Copies neutral mood's `anims` so the avatar keeps breathing, blinking, etc.
    *
    * @private
-   * @param {object} trackState - Track state object with motion and startTime
+   * @param {string} name - Mood name
+   * @param {object} entry - Motion definition with `vs` morph targets
    */
-  _applyManualTrack(trackState) {
-    if (!trackState.motion || !trackState.motion.vs) return;
+  _registerMood(name, entry) {
+    // Build baseline from vs morph targets (skip non-morph keys)
+    const SKIP_KEYS = new Set(['gesture', 'headMove']);
+    const baseline = {};
 
-    const elapsed = performance.now() - trackState.startTime;
-    const motion = trackState.motion;
-    const dtArray = Array.isArray(motion.dt) ? motion.dt : [motion.dt];
-
-    // Fade-in using the first segment of dt (moods hold forever afterwards)
-    const fadeIn = dtArray[0] || 1000;
-    let progress = 1.0;
-
-    if (elapsed < fadeIn) {
-      const p = Math.max(0, elapsed / fadeIn);
-      progress = 0.5 * (1 - Math.cos(Math.PI * p)); // cosine easeInOut
-    }
-
-    for (const [key, vsArray] of Object.entries(motion.vs)) {
-      if (key === 'gesture') continue;
-
-      const targetValue = Array.isArray(vsArray) ? vsArray[0] : vsArray;
-      if (typeof targetValue !== 'number') continue;
-
-      const val = targetValue * progress;
-
-      if (this.head.mtAvatar && this.head.mtAvatar[key]) {
-        const current = this.head.mtAvatar[key].newvalue || 0;
-        // Safe Override Blending: the extreme magnitude wins
-        if (Math.abs(val) > Math.abs(current)) {
-          this.head.mtAvatar[key].newvalue = val;
-          this.head.mtAvatar[key].needsUpdate = true;
+    if (entry.vs) {
+      for (const [key, val] of Object.entries(entry.vs)) {
+        if (SKIP_KEYS.has(key)) continue;
+        const arr = Array.isArray(val) ? val : [val];
+        // For 3-frame [ramp, hold, ramp-down]: use hold (index 1)
+        // For 1-frame [value]: use that value
+        // For 2-frame [a, b]: use first
+        const picked = arr.length >= 2 ? arr[1] : arr[0];
+        // Only include finite numbers — skip range arrays and oscillation patterns
+        if (typeof picked === 'number' && isFinite(picked)) {
+          baseline[key] = picked;
         }
       }
     }
+
+    // Copy idle animations from neutral mood (breathing, eyes, blink, etc.)
+    const neutral = this.head.animMoods?.['neutral'];
+    const anims = neutral?.anims ? [...neutral.anims] : [];
+
+    this.head.animMoods[name] = {
+      baseline,
+      speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
+      anims,
+    };
   }
 
   // ===========================================================================
