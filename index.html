@@ -82,35 +82,58 @@
       gap: 8px;
     }
 
-    .compare-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 8px;
+      background: #0a0a0a;
+      border-radius: 6px;
+      font-size: 10px;
+      color: #666;
     }
 
-    .compare-row .btn {
-      font-size: 12px;
-      padding: 8px 10px;
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .btn.native {
+    .legend .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .btn.mood {
+      background: #2a1a2a;
+      border-color: #5a2a5a;
+    }
+
+    .btn.mood:hover {
+      background: #3a2a3a;
+      border-color: #6a3a6a;
+    }
+
+    .btn.th {
       background: #1a2a3a;
       border-color: #2a4a6a;
     }
 
-    .btn.native:hover {
+    .btn.th:hover {
       background: #2a3a4a;
       border-color: #3a5a7a;
     }
 
-    .btn.custom {
-      background: #2a1a3a;
-      border-color: #4a2a6a;
+    .btn.emoji {
+      background: #2a2a1a;
+      border-color: #5a5a2a;
     }
 
-    .btn.custom:hover {
-      background: #3a2a4a;
-      border-color: #5a3a7a;
+    .btn.emoji:hover {
+      background: #3a3a2a;
+      border-color: #6a6a3a;
     }
 
     .btn.sequence {
@@ -148,21 +171,6 @@
       color: #666;
       text-align: center;
       padding: 4px 0 2px;
-    }
-
-    .compare-header {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
-    .compare-header span {
-      font-size: 10px;
-      color: #555;
-      text-align: center;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     #custom-input {
@@ -228,8 +236,8 @@
     }
   }
   </script>
-  <script type="module" crossorigin src="/motion-engine/assets/main-C9R9DgYY.js"></script>
-  <link rel="modulepreload" crossorigin href="/motion-engine/assets/motions-BLYgTl3T.js">
+  <script type="module" crossorigin src="/motion-engine/assets/main-ydWJWtGk.js"></script>
+  <link rel="modulepreload" crossorigin href="/motion-engine/assets/motions_th-CPjySIZ-.js">
 </head>
 
 <body>
@@ -243,137 +251,174 @@
     <button class="btn stop-btn" id="btn-stop">⏹ Stop</button>
     <button class="btn audit-btn" id="btn-audit">🔍 Audit Avatar</button>
 
-    <h2>Compare: TalkingHead vs MotionEngine</h2>
-    <div class="compare-header">
-      <span>TalkingHead native</span>
-      <span>MotionEngine custom</span>
+    <div class="legend">
+      <span><span class="dot" style="background:#444"></span> motions.json</span>
+      <span><span class="dot" style="background:#2a4a6a"></span> motions_th.json</span>
+      <span><span class="dot" style="background:#5a2a5a"></span> mood (persistent)</span>
+      <span><span class="dot" style="background:#5a5a2a"></span> TH emoji</span>
     </div>
 
-    <div class="section-label">Gestures</div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x270B;">✋ Wave</button>
-      <button class="btn custom" data-motion="wave_right">Wave Hello</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F44D;">👍 Thumbs Up</button>
-      <button class="btn custom" data-motion="thumbup_right">Thumbs Up</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F44E;">👎 Thumbs Down</button>
-      <button class="btn custom" data-motion="thumbdown_right">Thumbs Down</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F44C;">👌 OK</button>
-      <button class="btn custom" data-motion="ok_wink">OK + Wink</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F937;">🤷 Shrug</button>
-      <button class="btn custom" data-motion="shrug_confused">Shrug</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F64F;">🙏 Namaste</button>
-      <button class="btn custom" data-motion="namaste_bow">Namaste</button>
-    </div>
-
-    <div class="section-label">Head / Body</div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="yes">yes (native)</button>
-      <button class="btn custom" data-motion="nod_yes">Nod Yes</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="no">no (native)</button>
-      <button class="btn custom" data-motion="shake_no">Shake No</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F609;">😉 Wink</button>
-      <button class="btn custom" data-motion="wink">Wink</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F914;">🤔 Thinking</button>
-      <button class="btn custom" data-motion="thinking">Thinking</button>
-    </div>
-
-    <div class="section-label">Expressions</div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F621;">😡 Angry</button>
-      <button class="btn custom" data-motion="angry">Angry</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F614;">😔 Sad</button>
-      <button class="btn custom" data-motion="sad">Sad</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F631;">😱 Surprised</button>
-      <button class="btn custom" data-motion="surprised">Surprised</button>
-    </div>
-    <div class="compare-row">
-      <button class="btn native" data-motion="&#x1F60A;">😊 Happy</button>
-      <button class="btn custom" data-motion="celebrate">Celebrate</button>
-    </div>
-
-    <div class="section-label">MotionEngine only</div>
+    <!-- ============================================================ -->
+    <!-- MOODS (persistent — stay active until replaced)              -->
+    <!-- ============================================================ -->
+    <h2>Moods (persistent)</h2>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="look_up">Look Up</button>
-      <button class="btn custom" data-motion="look_down">Look Down</button>
-      <button class="btn custom" data-motion="bow">Bow</button>
-      <button class="btn custom" data-motion="turn_around">Turn Around</button>
-      <button class="btn custom" data-motion="jump">Jump</button>
-      <button class="btn custom" data-motion="point">Point</button>
+      <button class="btn mood" data-motion="neutral">Neutral</button>
+      <button class="btn mood" data-motion="happy">Happy</button>
+      <button class="btn mood" data-motion="thinking">Thinking</button>
+      <button class="btn mood" data-motion="angry">Angry</button>
+      <button class="btn mood" data-motion="sad">Sad</button>
+      <button class="btn mood" data-motion="nervous">Nervous</button>
+      <button class="btn mood" data-motion="shy">Shy</button>
+      <button class="btn mood" data-motion="listen">Listen</button>
+      <button class="btn mood" data-motion="smirk">Smirk</button>
+      <button class="btn mood" data-motion="grimace">Grimace</button>
+      <button class="btn mood" data-motion="pleading">Pleading</button>
+      <button class="btn mood" data-motion="sleep">Sleep</button>
+      <button class="btn mood" data-motion="sleeping">Sleeping</button>
+      <button class="btn mood" data-motion="frown">Frown</button>
+      <button class="btn mood" data-motion="squint">Squint</button>
+      <button class="btn mood" data-motion="curious">Curious</button>
+      <button class="btn mood" data-motion="disgust">Disgust</button>
+      <button class="btn mood" data-motion="fear">Fear</button>
+      <button class="btn mood" data-motion="love">Love</button>
     </div>
 
-    <div class="section-label">New motions</div>
+    <!-- ============================================================ -->
+    <!-- EXPRESSIONS (temporal — play once then return to neutral)     -->
+    <!-- ============================================================ -->
+    <h2>Expressions</h2>
+
+    <div class="section-label">Joy</div>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="laugh">Laugh</button>
-      <button class="btn custom" data-motion="yawn">Yawn</button>
-      <button class="btn custom" data-motion="nervous">Nervous</button>
-      <button class="btn custom" data-motion="applause">Applause</button>
-      <button class="btn custom" data-motion="dance">Dance</button>
-      <button class="btn custom" data-motion="shy">Shy</button>
-      <button class="btn custom" data-motion="facepalm">Facepalm</button>
-      <button class="btn custom" data-motion="listen">Listen</button>
-      <button class="btn custom" data-motion="excited">Excited</button>
-      <button class="btn custom" data-motion="dismiss">Dismiss</button>
+      <button class="btn th" data-motion="slight_smile">Slight Smile</button>
+      <button class="btn th" data-motion="warm_smile">Warm Smile</button>
+      <button class="btn th" data-motion="grin">Grin</button>
+      <button class="btn th" data-motion="open_grin">Open Grin</button>
+      <button class="btn th" data-motion="squint_smile">Squint Smile</button>
+      <button class="btn th" data-motion="beam">Beam</button>
+      <button class="btn th" data-motion="laugh_closed">Laugh Closed</button>
+      <button class="btn th" data-motion="crying_laugh">Crying Laugh</button>
+      <button class="btn" data-motion="laugh">Laugh</button>
+      <button class="btn" data-motion="celebrate">Celebrate</button>
+      <button class="btn" data-motion="excited">Excited</button>
+      <button class="btn" data-motion="wink">Wink</button>
+      <button class="btn th" data-motion="wink_smile">Wink Smile</button>
     </div>
 
-    <div class="section-label">Facial presets</div>
+    <div class="section-label">Sadness</div>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="raise_eyebrows">Raise Eyebrows</button>
-      <button class="btn custom" data-motion="frown">Frown</button>
-      <button class="btn custom" data-motion="open_mouth">Open Mouth</button>
-      <button class="btn custom" data-motion="cheek_puff">Cheek Puff</button>
-      <button class="btn custom" data-motion="close_eyes">Close Eyes</button>
-      <button class="btn custom" data-motion="squint">Squint</button>
+      <button class="btn th" data-motion="sad_frown">Sad Frown</button>
+      <button class="btn th" data-motion="disappointed">Disappointed</button>
+      <button class="btn th" data-motion="pensive">Pensive</button>
+      <button class="btn th" data-motion="sobbing">Sobbing</button>
+      <button class="btn th" data-motion="puppy_eyes">Puppy Eyes</button>
+      <button class="btn" data-motion="sigh">Sigh</button>
     </div>
 
-    <div class="section-label">Head & Body presets</div>
+    <div class="section-label">Love & Affection</div>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="look_left">Look Left</button>
-      <button class="btn custom" data-motion="look_right">Look Right</button>
-      <button class="btn custom" data-motion="head_circles">Head Circles</button>
-      <button class="btn custom" data-motion="shiver">Shiver</button>
-      <button class="btn custom" data-motion="chew">Chew</button>
-      <button class="btn custom" data-motion="deep_breath">Deep Breath</button>
+      <button class="btn th" data-motion="adoring">Adoring</button>
+      <button class="btn th" data-motion="heart_eyes">Heart Eyes</button>
+      <button class="btn th" data-motion="kiss_eyes_closed">Kiss (closed)</button>
+      <button class="btn th" data-motion="blow_kiss">Blow Kiss</button>
+      <button class="btn" data-motion="kiss">Kiss</button>
     </div>
 
-    <div class="section-label">Compound presets</div>
+    <div class="section-label">Attitude & Reactions</div>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="vibrate">Vibrate</button>
-      <button class="btn custom" data-motion="curious">Curious</button>
-      <button class="btn custom" data-motion="disgust">Disgust</button>
+      <button class="btn th" data-motion="neutral_face">Neutral Face</button>
+      <button class="btn th" data-motion="smug">Smug</button>
+      <button class="btn th" data-motion="unamused">Unamused</button>
+      <button class="btn th" data-motion="rage">Rage</button>
+      <button class="btn th" data-motion="scream">Scream</button>
+      <button class="btn th" data-motion="flushed">Flushed</button>
+      <button class="btn th" data-motion="grimace_teeth">Grimace Teeth</button>
+      <button class="btn th" data-motion="thinking_face">Thinking Face</button>
+      <button class="btn th" data-motion="side_glance">Side Glance</button>
+      <button class="btn" data-motion="surprised">Surprised</button>
+      <button class="btn" data-motion="eyeroll">Eye Roll</button>
+      <button class="btn" data-motion="facepalm">Facepalm</button>
+      <button class="btn" data-motion="dismiss">Dismiss</button>
     </div>
 
-    <div class="section-label">TalkingHead exclusive</div>
+    <!-- ============================================================ -->
+    <!-- FACIAL (isolated morph targets)                              -->
+    <!-- ============================================================ -->
+    <h2>Facial</h2>
     <div class="btn-grid">
-      <button class="btn custom" data-motion="tongueout">Tongue Out</button>
-      <button class="btn custom" data-motion="kiss">Kiss</button>
-      <button class="btn custom" data-motion="eyeroll">Eye Roll</button>
-      <button class="btn custom" data-motion="smirk">Smirk</button>
-      <button class="btn custom" data-motion="grimace">Grimace</button>
-      <button class="btn custom" data-motion="pleading">Pleading</button>
-      <button class="btn custom" data-motion="sleeping">Sleeping</button>
-      <button class="btn custom" data-motion="sigh">Sigh</button>
+      <button class="btn" data-motion="raise_eyebrows">Raise Eyebrows</button>
+      <button class="btn" data-motion="open_mouth">Open Mouth</button>
+      <button class="btn" data-motion="cheek_puff">Cheek Puff</button>
+      <button class="btn" data-motion="close_eyes">Close Eyes</button>
+      <button class="btn" data-motion="tongueout">Tongue Out</button>
+      <button class="btn th" data-motion="tongue_out">Tongue Out (th)</button>
+      <button class="btn th" data-motion="zzz">Zzz</button>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- GESTURES (hand / arm motions)                                -->
+    <!-- ============================================================ -->
+    <h2>Gestures</h2>
+    <div class="section-label">TH native emoji dispatch</div>
+    <div class="btn-grid">
+      <button class="btn emoji" data-motion="&#x270B;">&#x270B; Wave</button>
+      <button class="btn emoji" data-motion="&#x1F44D;">&#x1F44D; Thumbs Up</button>
+      <button class="btn emoji" data-motion="&#x1F44E;">&#x1F44E; Thumbs Down</button>
+      <button class="btn emoji" data-motion="&#x1F44C;">&#x1F44C; OK</button>
+      <button class="btn emoji" data-motion="&#x1F937;">&#x1F937; Shrug</button>
+      <button class="btn emoji" data-motion="&#x1F64F;">&#x1F64F; Pray</button>
+    </div>
+    <div class="section-label">MotionEngine gestures</div>
+    <div class="btn-grid">
+      <button class="btn" data-motion="wave_right">Wave Right</button>
+      <button class="btn" data-motion="wave_left">Wave Left</button>
+      <button class="btn" data-motion="thumbup_right">Thumbs Up</button>
+      <button class="btn" data-motion="thumbdown_right">Thumbs Down</button>
+      <button class="btn" data-motion="ok_wink">OK + Wink</button>
+      <button class="btn" data-motion="shrug_confused">Shrug</button>
+      <button class="btn" data-motion="namaste_bow">Namaste</button>
+      <button class="btn" data-motion="point">Point</button>
+      <button class="btn" data-motion="applause">Applause</button>
+      <button class="btn th" data-motion="hand_raise">Hand Raise</button>
+      <button class="btn th" data-motion="hand_raise_left">Raise Left</button>
+      <button class="btn th" data-motion="thumbs_up">Thumbs Up (th)</button>
+      <button class="btn th" data-motion="thumbs_down">Thumbs Down (th)</button>
+      <button class="btn th" data-motion="ok_sign">OK Sign (th)</button>
+      <button class="btn th" data-motion="shrug_both">Shrug Both</button>
+      <button class="btn th" data-motion="pray">Pray (th)</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- HEAD & BODY                                                  -->
+    <!-- ============================================================ -->
+    <h2>Head & Body</h2>
+    <div class="btn-grid">
+      <button class="btn emoji" data-motion="yes">Yes (native)</button>
+      <button class="btn emoji" data-motion="no">No (native)</button>
+      <button class="btn" data-motion="nod_yes">Nod Yes</button>
+      <button class="btn" data-motion="shake_no">Shake No</button>
+      <button class="btn th" data-motion="nod">Nod (th)</button>
+      <button class="btn th" data-motion="head_shake">Head Shake (th)</button>
+      <button class="btn" data-motion="look_up">Look Up</button>
+      <button class="btn" data-motion="look_down">Look Down</button>
+      <button class="btn" data-motion="look_left">Look Left</button>
+      <button class="btn" data-motion="look_right">Look Right</button>
+      <button class="btn" data-motion="head_circles">Head Circles</button>
+      <button class="btn" data-motion="bow">Bow</button>
+      <button class="btn" data-motion="turn_around">Turn Around</button>
+      <button class="btn" data-motion="jump">Jump</button>
+      <button class="btn" data-motion="dance">Dance</button>
+      <button class="btn" data-motion="deep_breath">Deep Breath</button>
+      <button class="btn" data-motion="shiver">Shiver</button>
+      <button class="btn" data-motion="chew">Chew</button>
+      <button class="btn" data-motion="yawn">Yawn</button>
+      <button class="btn" data-motion="vibrate">Vibrate</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- SEQUENCES                                                    -->
+    <!-- ============================================================ -->
     <h2>Sequences</h2>
     <div class="btn-grid">
       <button class="btn sequence" data-sequence="wave_right,thumbup_right,bow">Greet &amp; Bow</button>
@@ -382,6 +427,9 @@
       <button class="btn sequence" data-sequence="surprised,excited,dance">OMG Dance!</button>
       <button class="btn sequence" data-sequence="smirk,eyeroll,sigh,dismiss">Sarcastic AF</button>
       <button class="btn sequence" data-sequence="pleading,sad,sigh">Guilt Trip</button>
+      <button class="btn sequence" data-sequence="slight_smile,warm_smile,grin,beam">Smile Build</button>
+      <button class="btn sequence" data-sequence="sad_frown,disappointed,sobbing">Sadness Spiral</button>
+      <button class="btn sequence" data-sequence="adoring,blow_kiss,heart_eyes">Love Combo</button>
     </div>
 
     <h2>Custom Motion</h2>
