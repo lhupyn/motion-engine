@@ -1,11 +1,12 @@
 /**
  * LLM Motion Playground — Logic
  *
- * Initializes TalkingHead + MotionEngine (same as demo.js),
+ * Initializes TalkingHead + MotionEngine + MotionStudio,
  * wires provider tabs, API key persistence, LLM generation, and playback.
  */
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine } from '../src/MotionEngine.js';
+import { MotionStudio } from '../src/MotionStudio.js';
 import motions from '../src/motions.json';
 import { callLLM } from './llm.js';
 import { buildSystemPrompt } from './prompt.js';
@@ -37,6 +38,7 @@ const presetsSelect = document.getElementById('presets');
 // --- State ---
 let head = null;
 let engine = null;
+let studio = null;
 let provider = 'gemini';
 
 // --- Logging ---
@@ -49,7 +51,7 @@ function log(msg, level = 'info') {
 }
 
 // =============================================================================
-// AVATAR INIT (same pattern as demo.js)
+// AVATAR INIT
 // =============================================================================
 async function initAvatar() {
   log('Initializing TalkingHead...');
@@ -67,6 +69,7 @@ async function initAvatar() {
   head.start();
 
   engine = new MotionEngine(head);
+  studio = new MotionStudio(engine);
   const count = engine.registerMotions(motions);
 
   engine.onStart = (name) => {
@@ -94,7 +97,6 @@ function switchProvider(p) {
   provider = p;
   tabs.forEach((t) => t.classList.toggle('active', t.dataset.provider === p));
   modelNameEl.textContent = MODELS[p];
-  // Restore saved key for this provider
   apiKeyInput.value = localStorage.getItem(`llm-key-${p}`) || '';
 }
 
@@ -102,15 +104,12 @@ tabs.forEach((tab) => {
   tab.addEventListener('click', () => switchProvider(tab.dataset.provider));
 });
 
-// Persist API key on change
 apiKeyInput.addEventListener('input', () => {
   localStorage.setItem(`llm-key-${provider}`, apiKeyInput.value);
 });
 
-// Load initial key
 apiKeyInput.value = localStorage.getItem(`llm-key-${provider}`) || '';
 
-// Preset selector fills the prompt textarea
 presetsSelect.addEventListener('change', () => {
   if (presetsSelect.value) {
     promptInput.value = presetsSelect.value;
@@ -118,7 +117,7 @@ presetsSelect.addEventListener('change', () => {
 });
 
 // =============================================================================
-// GENERATE
+// GENERATE (uses MotionStudio for context)
 // =============================================================================
 btnGenerate.addEventListener('click', async () => {
   const prompt = promptInput.value.trim();
@@ -133,7 +132,7 @@ btnGenerate.addEventListener('click', async () => {
   log(`Sending to ${provider} (${MODELS[provider]})...`);
 
   try {
-    const system = buildSystemPrompt(engine);
+    const system = buildSystemPrompt(studio);
     const response = await callLLM({
       provider,
       apiKey: apiKeyInput.value.trim(),
@@ -144,12 +143,10 @@ btnGenerate.addEventListener('click', async () => {
 
     log('LLM responded.', 'info');
 
-    // Extract JSON from response (strip markdown fences if present)
     let json = response.trim();
     const fenceMatch = json.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (fenceMatch) json = fenceMatch[1].trim();
 
-    // Validate and pretty-print
     const parsed = JSON.parse(json);
     jsonEditor.value = JSON.stringify(parsed, null, 2);
     log('Motion JSON ready. Edit if needed, then Play.', 'info');
@@ -161,7 +158,6 @@ btnGenerate.addEventListener('click', async () => {
   }
 });
 
-// Allow Ctrl+Enter in prompt to generate
 promptInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
     btnGenerate.click();
@@ -169,7 +165,7 @@ promptInput.addEventListener('keydown', (e) => {
 });
 
 // =============================================================================
-// PLAY / STOP
+// PLAY / STOP (uses MotionStudio.playDynamic for JSON input)
 // =============================================================================
 btnPlay.addEventListener('click', async () => {
   const text = jsonEditor.value.trim();
@@ -179,8 +175,7 @@ btnPlay.addEventListener('click', async () => {
   }
 
   try {
-    JSON.parse(text); // validate
-    await engine.play(text);
+    await studio.playDynamic(text);
   } catch (e) {
     if (e.name !== 'AbortError') {
       log(`Play error: ${e.message}`, 'error');

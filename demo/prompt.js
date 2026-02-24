@@ -1,12 +1,12 @@
 /**
  * System prompt builder for the LLM Motion Playground.
- * Uses engine.getLLMContext() for avatar capabilities and preset catalog.
+ * Uses studio.getLLMContext() for avatar capabilities and preset catalog.
  *
- * @param {import('../src/MotionEngine.js').MotionEngine} engine
+ * @param {import('../src/MotionStudio.js').MotionStudio} studio
  * @returns {string} system prompt
  */
-export function buildSystemPrompt(engine) {
-  const ctx = engine.getLLMContext();
+export function buildSystemPrompt(studio) {
+  const ctx = studio.getLLMContext();
 
   return `You are a motion designer for a 3D avatar. Given a natural-language description of a movement, you produce a JSON motion definition that the MotionEngine can play.
 

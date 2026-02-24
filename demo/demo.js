@@ -3,9 +3,12 @@
  *
  * Imports MotionEngine + motions dictionary, connects to TalkingHead,
  * and wires up the test button panel.
+ *
+ * Demonstrates multi-track playback: mood and action tracks run concurrently.
  */
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine } from '../src/MotionEngine.js';
+import { MotionStudio } from '../src/MotionStudio.js';
 import motions from '../src/motions.json';
 
 // --- Config ---
@@ -24,6 +27,7 @@ const btnAudit = document.getElementById('btn-audit');
 // --- State ---
 let head = null;
 let engine = null;
+let studio = null;
 
 // --- Logging ---
 function log(msg, level = 'info') {
@@ -52,8 +56,9 @@ async function initAvatar() {
   await head.showAvatar({ url: AVATAR_MODEL, body: AVATAR_BODY, avatarMode: 'full-body' });
   head.start();
 
-  // Create engine and register custom motions
+  // Create engine (player) and studio (authoring/discovery)
   engine = new MotionEngine(head);
+  studio = new MotionStudio(engine);
   const count = engine.registerMotions(motions);
 
   // Wire up event callbacks to UI
@@ -69,7 +74,7 @@ async function initAvatar() {
     log(`${err.message}`, 'warn');
   };
 
-  // Hook oscillation overlay into render loop
+  // Hook oscillation overlay + mood blending into render loop
   head.opt.update = (dt) => engine.update(dt);
 
   log(`Registered ${count} custom motions.`, 'info');
@@ -109,19 +114,18 @@ async function handleSequence(sequenceStr) {
   statusEl.textContent = 'Ready.';
 }
 
-// --- Discovery Audit ---
+// --- Discovery Audit (uses MotionStudio) ---
 async function handleAudit() {
   log('Starting Avatar Audit...', 'warn');
-  const prompt = engine.getDiscoveryPrompt();
-  console.log('Discovery Prompt:\n', prompt);
-  
-  // Pretty print for the log panel
-  log('\n--- DISCOVERY PROMPT ---\n', 'info');
-  prompt.split('\n').filter(line => line.trim()).forEach(line => {
+  const ctx = studio.getLLMContext();
+  console.log('LLM Context:\n', ctx);
+
+  log('\n--- LLM CONTEXT ---\n', 'info');
+  ctx.split('\n').filter(line => line.trim()).forEach(line => {
     log(line, 'info');
   });
   log('--- END AUDIT ---\n', 'info');
-  
+
   statusEl.textContent = 'Audit complete. Check console/logs.';
 }
 
@@ -140,13 +144,12 @@ btnStop.addEventListener('click', () => {
   engine.stop();
   statusEl.textContent = 'Stopped.';
   log('Stopped.', 'warn');
-  // Remove active class from all buttons
   document.querySelectorAll('.btn.active').forEach((b) => b.classList.remove('active'));
 });
 
 // Audit button
 if (btnAudit) {
-    btnAudit.addEventListener('click', handleAudit);
+  btnAudit.addEventListener('click', handleAudit);
 }
 
 // Custom input
