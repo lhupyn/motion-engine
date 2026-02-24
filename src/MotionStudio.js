@@ -6,7 +6,6 @@
  *   - Avatar capability inspection
  *   - Dynamic motion parsing from raw JSON (LLM output)
  *   - Morph and bone alias systems
- *   - Auto-wrap bare morph target names as motions
  *
  * Optional module — consumers who only need playback import MotionEngine directly.
  *
@@ -37,7 +36,6 @@ export class MotionStudio {
    * @param {object} [options]
    * @param {Object<string, string[]>} [options.aliases] - Morph name aliases
    * @param {Object<string, string>} [options.boneAliases] - Bone name aliases
-   * @param {boolean} [options.autoWrapMorphs=false] - Auto-wrap bare morph names as motions
    * @param {string[]} [options.morphWhitelist] - Custom morph whitelist for getAvatarCapabilities()
    * @param {string[]} [options.boneWhitelist] - Custom bone whitelist for getAvatarCapabilities()
    */
@@ -45,7 +43,6 @@ export class MotionStudio {
     this.engine = engine;
     this._aliases = options.aliases || {};
     this._boneAliases = options.boneAliases || {};
-    this._autoWrapMorphs = options.autoWrapMorphs || false;
     this._morphWhitelist = options.morphWhitelist || DEFAULT_MT_WHITELIST;
     this._boneWhitelist = options.boneWhitelist || DEFAULT_BONE_WHITELIST;
   }

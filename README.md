@@ -8,17 +8,17 @@ MotionEngine is a plugin for [TalkingHead](https://github.com/met4citizen/Talkin
 
 ---
 
-## Architecture: 2-Module Split
+## Architecture
 
 ### `MotionEngine` — The Player (runtime)
 Core playback engine. Every consumer imports this.
 
 - **Multi-track state machine**: 3 parallel tracks (`pose`, `mood`, `action`)
 - **Track routing**: reads `_track` from motion metadata, falls back to heuristics
-- **Mood blending**: procedural morph interpolation with cosine ease-in, "extreme magnitude wins" safe override
+- **Native mood injection**: custom moods are registered into TH's `animMoods` for seamless transitions
 - **Registration**: `registerMotions()` — parses metadata, registers animEmojis
 - **Playback**: `play(name, dur)`, `playSequence(names)`, `stop()`
-- **Render loop**: `update(dt)` — OverlayManager + manual mood morph blending per-frame
+- **Render loop**: `update(dt)` — bone overlay oscillations per-frame
 
 ### `MotionStudio` — Authoring & Discovery (optional)
 Wraps a MotionEngine instance. LLM integration, discovery, dynamic creation, aliases.
@@ -27,34 +27,17 @@ Wraps a MotionEngine instance. LLM integration, discovery, dynamic creation, ali
 - **Avatar inspection**: `getAvatarCapabilities()` — morph targets + bones
 - **Dynamic motions**: `parseDynamic()`, `playDynamic()`, `registerDynamic()`
 - **Aliases**: morph name mapping, bone name mapping
-- **Auto-wrap**: `wrapMorph()` — bare morph → full motion definition
+- **Utilities**: `wrapMorph()` — bare morph target → full motion definition
 
 ### Track System
 
 | Track | Behavior | Example |
 |-------|----------|---------|
 | **pose** | Persistent body position | `standing`, `sitting` |
-| **mood** | Persistent, blended procedurally | `thinking`, `angry`, `shy` |
+| **mood** | Persistent emotional state | `thinking`, `angry`, `shy` |
 | **action** | Temporal, interrupts previous | `wave_right`, `nod_yes`, `laugh` |
 
 Moods persist while actions play on top. Actions interrupt each other. Poses and moods apply immediately.
-
----
-
-## Features
-
-- **54 built-in motions** with `_track` metadata (14 moods + 40 actions)
-- **Multi-track concurrency** — mood persists while action plays
-- **Bone oscillation overlays** via `poseDelta`
-- **Motion sequencing** — chain motions for multi-step animations
-- **Motion interruption** — new actions cleanly interrupt running ones
-- **LLM Autodiscovery** — `getAvatarCapabilities()` scans morph targets and bones
-- **Raw JSON dynamic motions** — LLMs can send motion definitions as JSON
-- **Morph & bone aliases** — map LLM-friendly names to real targets
-- **Configurable timing** — all fade/settle durations are constructor options
-- **Fallback** to native TalkingHead gestures, emojis, and poses
-- **No DOM dependencies** — works as a pure plugin
-- **Data-driven** — motions are pure JSON
 
 ---
 
@@ -75,7 +58,7 @@ import motions from 'motion-engine/motions';
 const engine = new MotionEngine(talkingHead);
 engine.registerMotions(motions);
 
-// Hook into TalkingHead render loop (required for mood blending + overlays)
+// Hook into TalkingHead render loop (required for overlays)
 talkingHead.opt.update = (dt) => engine.update(dt);
 
 // Set a mood (persists)
@@ -98,25 +81,16 @@ import motions from 'motion-engine/motions';
 const engine = new MotionEngine(talkingHead);
 const studio = new MotionStudio(engine, {
   aliases: { eyesClosed: ['eyeBlinkLeft', 'eyeBlinkRight'] },
-  boneAliases: { Head: 'Neck' },
 });
 
 engine.registerMotions(motions);
 talkingHead.opt.update = (dt) => engine.update(dt);
 
-// Discover avatar capabilities
-const caps = studio.getAvatarCapabilities();
-console.log(caps.morphTargets); // ['mouthSmile', 'eyeBlinkLeft', ...]
-console.log(caps.bones);        // ['Neck', 'RightHand', ...]
-
 // Get compact LLM context for system prompt
 const context = studio.getLLMContext();
 
 // Play a dynamic motion from LLM JSON
-await studio.playDynamic('{"custom_wave": {"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}}');
-
-// Get motions for prompt injection
-const prompt = studio.getMotionsForPrompt('compact');
+await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}');
 ```
 
 ---
@@ -143,9 +117,10 @@ const prompt = studio.getMotionsForPrompt('compact');
 | `play(name, dur?)` | `Promise<void>` | Play motion with multi-track routing |
 | `playSequence(names)` | `Promise<void>` | Play motions sequentially |
 | `stop()` | — | Force-stop current action |
+| `freeze(enabled?)` | — | Stop all idle animations (breathing, blinking, etc.) |
 | `getMotionNames()` | `string[]` | All registered motion names |
 | `getRegisteredMotions()` | `object` | Internal motions dict (for Studio) |
-| `update(dt)` | — | Frame hook: overlays + mood blending |
+| `update(dt)` | — | Frame hook: bone overlays |
 
 #### Properties
 
@@ -163,7 +138,6 @@ const prompt = studio.getMotionsForPrompt('compact');
 |---|---|---|
 | `aliases` | `{}` | Morph name aliases |
 | `boneAliases` | `{}` | Bone name aliases |
-| `autoWrapMorphs` | `false` | Auto-wrap bare morph names |
 | `morphWhitelist` | ARKit standard | For `getAvatarCapabilities()` |
 | `boneWhitelist` | Common anchors | For `getAvatarCapabilities()` |
 
@@ -172,7 +146,6 @@ const prompt = studio.getMotionsForPrompt('compact');
 | Method | Returns | Description |
 |---|---|---|
 | `getAvatarCapabilities()` | `{morphTargets, bones}` | Scan avatar anatomy |
-| `getMotionNames()` | `string[]` | All registered motion names |
 | `getMotions()` | `Array<{name, description, tags, track}>` | Full metadata |
 | `getMotionsCompact()` | `Object<tag, names[]>` | Grouped by primary tag |
 | `getMotionsForPrompt(level?)` | `string` | `'full'` / `'compact'` / `'minimal'` |
@@ -180,83 +153,11 @@ const prompt = studio.getMotionsForPrompt('compact');
 | `parseDynamic(json)` | `{name, motion}` | Parse raw JSON from LLM |
 | `playDynamic(json)` | `Promise<void>` | Parse + register + play |
 | `registerDynamic(name, obj)` | — | Register with alias normalization |
-| `setAliases(morphAliases)` | — | Configure morph aliases |
-| `setBoneAliases(boneAliases)` | — | Configure bone aliases |
-| `applyMorphAliases(vs)` | `object` | Transform vs through aliases |
-| `applyBoneAliases(bones)` | `object` | Transform bones through aliases |
 | `wrapMorph(name, opts?)` | `object` | Bare morph → full motion definition |
 
 ---
 
-## Built-in Motions (54)
-
-### Moods (14 — persistent, blended with actions)
-
-| Motion | Description |
-|---|---|
-| `thinking` | Deep thought with asymmetric brow and tilted head |
-| `angry` | Intense anger with furrowed brows and clenched fists |
-| `sad` | Deep sadness with drooped brows and slumped posture |
-| `nervous` | Nervous fidgeting with quick head shifts |
-| `shy` | Bashful head turn with downcast gaze |
-| `listen` | Attentive listening with tilted head |
-| `smirk` | Sly one-sided smirk with side glance |
-| `grimace` | Pained grimace with clenched teeth |
-| `pleading` | Puppy-dog pleading with big eyes |
-| `sleeping` | Peacefully sleeping with closed eyes |
-| `frown` | Displeased frown with furrowed brows |
-| `squint` | Squinting, suspicious or scrutinizing |
-| `curious` | Curious tilted head with wide eyes |
-| `disgust` | Disgusted nose scrunch and recoil |
-
-### Actions (40 — temporal, interrupt each other)
-
-| Motion | Description |
-|---|---|
-| `wave_right` | Friendly wave with right hand and warm smile |
-| `wave_left` | Friendly wave with left hand and warm smile |
-| `thumbup_right` | Enthusiastic thumbs up with big smile |
-| `thumbdown_right` | Disapproving thumbs down with frown |
-| `point` | Pointing gesture with focused expression |
-| `ok_wink` | OK hand sign with playful wink |
-| `shrug_confused` | Confused shrug with raised eyebrows |
-| `namaste_bow` | Respectful namaste with prayer hands |
-| `nod_yes` | Affirmative head nod with subtle smile |
-| `shake_no` | Disapproving head shake with frown |
-| `look_up` | Looking upward as if pondering |
-| `look_down` | Looking downward, reflective or shy |
-| `bow` | Respectful bow with closed eyes |
-| `jump` | Excited jump with wide eyes |
-| `celebrate` | Joyful celebration with raised hand |
-| `turn_around` | Playful 360-degree spin |
-| `surprised` | Shocked expression with wide eyes and open mouth |
-| `wink` | Playful wink with body lean |
-| `laugh` | Hearty laugh with body shakes and spine oscillation |
-| `yawn` | Tired yawn with wide jaw and squinted eyes |
-| `applause` | Clapping hands with joyful expression |
-| `dance` | Rhythmic dance with hip bounce and spine sway |
-| `facepalm` | Facepalm with hand to forehead |
-| `excited` | Bursting with excitement — wide eyes, rapid hand wave |
-| `dismiss` | Dismissive wave-off with head turn |
-| `tongueout` | Playful tongue sticking out |
-| `kiss` | Blowing a kiss with wink and pursed lips |
-| `eyeroll` | Dramatic eye roll with head tilt |
-| `sigh` | Deep sigh with chest inhale and slumped body |
-| `raise_eyebrows` | Raised eyebrows expressing surprise |
-| `open_mouth` | Mouth wide open in awe or shock |
-| `cheek_puff` | Puffed cheeks, playful or holding breath |
-| `close_eyes` | Gently closed eyes, relaxed or meditating |
-| `look_left` | Looking left with eyes and slight head turn |
-| `look_right` | Looking right with eyes and slight head turn |
-| `head_circles` | Slow circular head movement |
-| `shiver` | Shivering with rapid small tremors |
-| `chew` | Chewing motion with rhythmic jaw |
-| `deep_breath` | Deep inhale and exhale with chest expansion |
-| `vibrate` | Rapid vibration effect, excitement or buzzing |
-
----
-
-## Custom Motions Format
+## Motion Format
 
 ```json
 {
@@ -282,25 +183,20 @@ const prompt = studio.getMotionsForPrompt('compact');
 ```
 
 The `_track` field controls routing:
-- `"mood"` — persistent, blended procedurally via `update()`
-- `"action"` — temporal, uses TalkingHead gesture playback
+- `"mood"` — persistent emotional state, injected into TH's native mood system
+- `"action"` — temporal gesture, uses TalkingHead gesture playback (default)
 
 ---
 
-## Demo
+## Development
 
 ```bash
 git clone https://github.com/lhupyn/motion-engine.git
 cd motion-engine
 npm install
-npm run demo
-```
-
-## Tests
-
-```bash
-npm test
-npm run test:watch
+npm run demo        # dev server with hot reload
+npm test            # run tests
+npm run test:watch  # watch mode
 ```
 
 ---

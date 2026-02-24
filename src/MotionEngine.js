@@ -231,6 +231,42 @@ export class MotionEngine {
     return Object.keys(this._motions);
   }
 
+  /**
+   * Stop all idle animations (breathing, blinking, head move, eye contact).
+   * Useful for testing bone positions or for very focused interactions.
+   *
+   * @param {boolean} [enabled=true]
+   */
+  freeze(enabled = true) {
+    if (enabled) {
+      this._previousMood = this.tracks.mood.name || 'neutral';
+      this._previousIdle = {
+        eye: this.head.opt.avatarIdleEyeContact,
+        head: this.head.opt.avatarIdleHeadMove,
+        spkEye: this.head.opt.avatarSpeakingEyeContact,
+        spkHead: this.head.opt.avatarSpeakingHeadMove
+      };
+
+      this.head.animMoods['frozen'] = {
+        baseline: {},
+        speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
+        anims: []
+      };
+      this.head.setMood('frozen');
+      this.head.opt.avatarIdleEyeContact = 0;
+      this.head.opt.avatarIdleHeadMove = 0;
+      this.head.opt.avatarSpeakingEyeContact = 0;
+      this.head.opt.avatarSpeakingHeadMove = 0;
+      this.head.animQueue = [];
+    } else if (this._previousIdle) {
+      this.head.setMood(this._previousMood || 'neutral');
+      this.head.opt.avatarIdleEyeContact = this._previousIdle.eye;
+      this.head.opt.avatarIdleHeadMove = this._previousIdle.head;
+      this.head.opt.avatarSpeakingEyeContact = this._previousIdle.spkEye;
+      this.head.opt.avatarSpeakingHeadMove = this._previousIdle.spkHead;
+    }
+  }
+
   // ===========================================================================
   // Private — Track Playback
   // ===========================================================================

@@ -5,25 +5,18 @@
  * @param {Object} opts
  * @param {string} opts.provider  - 'openai' | 'gemini' | 'claude'
  * @param {string} opts.apiKey
- * @param {string} opts.model     - model id override (optional)
+ * @param {string} opts.model     - model id
  * @param {string} opts.system    - system prompt
  * @param {string} opts.prompt    - user prompt
  * @returns {Promise<string>}     - the model's text reply
  */
-
-const DEFAULTS = {
-  openai: 'gpt-5.2',
-  gemini: 'gemini-3.1-pro-preview',
-  claude: 'claude-opus-4-6',
-};
-
 export async function callLLM({ provider, apiKey, model, system, prompt }) {
-  const m = model || DEFAULTS[provider];
   if (!apiKey) throw new Error(`API key required for ${provider}`);
+  if (!model) throw new Error(`Model required for ${provider}`);
 
-  if (provider === 'openai') return callOpenAI(apiKey, m, system, prompt);
-  if (provider === 'gemini') return callGemini(apiKey, m, system, prompt);
-  if (provider === 'claude') return callClaude(apiKey, m, system, prompt);
+  if (provider === 'openai') return callOpenAI(apiKey, model, system, prompt);
+  if (provider === 'gemini') return callGemini(apiKey, model, system, prompt);
+  if (provider === 'claude') return callClaude(apiKey, model, system, prompt);
   throw new Error(`Unknown provider: ${provider}`);
 }
 

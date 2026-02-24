@@ -105,9 +105,7 @@ async function handleSequence(sequenceStr) {
   statusEl.textContent = `Sequence: ${names.join(' → ')}`;
 
   try {
-    for (const name of names) {
-      await engine.play(name);
-    }
+    await engine.playSequence(names);
   } catch (e) {
     if (e.name !== 'AbortError') throw e;
   }

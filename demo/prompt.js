@@ -7,7 +7,6 @@
  */
 export function buildSystemPrompt(studio) {
   const ctx = studio.getLLMContext();
-
   return `You are a motion designer for a 3D avatar. Given a natural-language description of a movement, you produce a JSON motion definition that the MotionEngine can play.
 
 ${ctx}
@@ -18,13 +17,9 @@ RULES:
   {
     "dt": [fadeIn_ms, main_ms, fadeOut_ms],
     "rescale": [0, 1, 0],
-    "vs": {
-      "morphName": [value]
-    },
+    "vs": { "morphName": [value] },
     "_overlay": {
-      "bones": {
-        "BoneName": { "freq": hz, "amp": [x, y, z], "phase": radians }
-      },
+      "bones": { "BoneName": { "freq": hz, "amp": [x, y, z], "phase": radians } },
       "delay": ms,
       "duration": ms
     }
@@ -32,26 +27,10 @@ RULES:
 
 FIELD DETAILS:
 - "dt": array of durations in ms. Can have 3+ phases for complex sequences.
-- "rescale": envelope per phase. [0,1,0] = fade in, hold, fade out. Must match dt length.
-- "vs": maps morph target names to value arrays. Values 0–1. ONLY morph targets go here.
-  - If a morph has ONE value, it applies to ALL phases (scaled by rescale).
-  - If a morph has N values matching dt length, each value maps to its phase.
-  - Ranged random: [min, max] as a 2-element array picks a random value each frame.
-- Special vs keys (NOT morph targets):
-  - "headRotateX/Y/Z": head rotation in radians (±0.3 range). Per-phase values.
-  - "bodyRotateX/Y/Z": torso rotation in radians (±0.2 range). Per-phase values.
-  - "headMove": set to [0] to disable auto head movement during motion.
-  - "chestInhale": chest expansion 0–1 (for breathing motions).
-  - "gesture": hand pose array. Format: [["poseName", null, isRight], null]. Available poses: "handup", "thumbup", "thumbdown", "ok", "shrug", "namaste", "index", "side", "fist". Second frame null = release.
-- "_overlay": MUST be a TOP-LEVEL key (sibling of "dt", "vs"), NEVER inside "vs".
-  - "bones": OBJECT mapping bone names to oscillation params:
-    - "freq": Hz (2–12 typical, 18–30 for tremors/vibration).
-    - "amp": [x, y, z] rotation amplitude (0.003–0.15 range). Subtle: 0.005, moderate: 0.03, strong: 0.1.
-    - "phase": radians offset between bones for wave-like propagation (use π/2 = 1.5708 increments).
-  - "delay": ms before overlay starts.
-  - "duration": ms the overlay runs.
-- "_overlay" is optional — omit it if the motion is facial-only.
-- Keep total duration (sum of dt) between 1000–5000 ms.
+- "vs": maps morph target names to value arrays. Values 0–1.
+- Special vs keys: "headRotateX/Y/Z", "bodyRotateX/Y/Z", "headMove", "chestInhale", "gesture".
+- "gesture": [["poseName", null, isRight], null]. Poses: "handup", "thumbup", "thumbdown", "ok", "shrug", "namaste", "index", "side", "fist".
+- "_overlay": top-level key. "freq": Hz, "amp": [x,y,z], "phase": radians.
 
 EXAMPLES:
 
