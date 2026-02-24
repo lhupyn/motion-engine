@@ -10,7 +10,7 @@ A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that turn
 
 ## What this PoC explores
 
-TalkingHead already includes a solid animation system: 8 moods, 8 hand gestures, 10 pose templates, and 60+ emoji-triggered expressions. MotionEngine builds on top of it to explore a few ideas:
+TalkingHead already includes a solid animation system. MotionEngine builds on top of it to explore a few ideas:
 
 - **Compound motions as data** — Define face + hands + body + bone overlays in a single JSON object, instead of coordinating multiple API calls
 - **Multi-track playback** — Keep a persistent mood active while temporal actions (gestures, expressions) play on top and finish
