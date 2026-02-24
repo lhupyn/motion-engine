@@ -1,10 +1,48 @@
 # MotionEngine
 
-> **Multi-track motion engine for 3D avatars** — Data-driven animation control.
+> **Semantic motion layer for LLM-driven 3D avatars.**
 
-MotionEngine is a plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that adds expressive, multi-layered animations (gestures + facial expressions + procedural bone oscillations). It is designed specifically for **AI Agents** that need a semantic vocabulary to control avatars.
+A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that turns low-level avatar animation into a simple semantic vocabulary. Instead of making LLMs reason about morph targets, bone rotations, and animation timing, MotionEngine lets them pick from a curated catalog of named motions — saving tokens and improving reliability.
 
 **[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)**
+
+---
+
+## Why
+
+TalkingHead provides powerful low-level animation primitives: morph targets (52+ ARKit blendshapes), gesture templates, pose templates, mood baselines, and `poseDelta` bone control. But asking an LLM to use them directly means:
+
+- Sending the full anatomy (morph names, bone hierarchy, value ranges) in every system prompt
+- The LLM must reason about timing arrays, value envelopes, and coordinate systems
+- Face, hands, and body are separate API calls that the LLM must orchestrate
+- High token cost and frequent malformed output
+
+**MotionEngine solves this with a semantic abstraction layer:**
+
+```
+// Without MotionEngine — LLM must produce this:
+{"dt":[300,2000,500],"rescale":[0,1,0],
+ "vs":{"mouthSmile":[0.6],"eyeSquintLeft":[0.3],"eyeSquintRight":[0.3],
+       "browInnerUp":[0.3],"gesture":[["handup",null,true],null]},
+ "_overlay":{"bones":{"RightHand":{"freq":8,"amp":[0,0.12,0.12]}},"delay":400,"duration":2500}}
+
+// With MotionEngine — LLM just says:
+engine.play('wave_right')
+```
+
+### What it adds over vanilla TalkingHead
+
+| | TalkingHead | + MotionEngine |
+|---|---|---|
+| **LLM interface** | Raw morph targets + timing arrays | Semantic names: `play('thinking')` |
+| **Compound motions** | Face, hands, body = separate APIs | One JSON defines all layers |
+| **Concurrency** | Manual state management | Multi-track: mood persists while action plays on top |
+| **Bone animation** | Manual `poseDelta` per frame | Declarative oscillations with auto fade in/out |
+| **Sequencing** | Not built-in | `playSequence(['wave', 'bow'])` with interruption |
+| **LLM discovery** | Not built-in | `getLLMContext()` → compact catalog for system prompt |
+| **Token cost** | Full anatomy + format + examples | Semantic tags, ~75% fewer tokens |
+
+> **PoC status**: This is a proof of concept for a plugin architecture on top of TalkingHead. The goal is to demonstrate that a semantic layer dramatically simplifies LLM-driven avatar control.
 
 ---
 
