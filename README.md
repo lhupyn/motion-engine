@@ -8,41 +8,25 @@ A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that turn
 
 ---
 
-## Why
+## What this PoC explores
 
-TalkingHead provides powerful low-level animation primitives: morph targets (52+ ARKit blendshapes), gesture templates, pose templates, mood baselines, and `poseDelta` bone control. But asking an LLM to use them directly means:
+TalkingHead already includes a solid animation system: 8 moods, 8 hand gestures, 10 pose templates, and 60+ emoji-triggered expressions. MotionEngine builds on top of it to explore a few ideas:
 
-- Sending the full anatomy (morph names, bone hierarchy, value ranges) in every system prompt
-- The LLM must reason about timing arrays, value envelopes, and coordinate systems
-- Face, hands, and body are separate API calls that the LLM must orchestrate
-- High token cost and frequent malformed output
+- **Compound motions as data** — Define face + hands + body + bone overlays in a single JSON object, instead of coordinating multiple API calls
+- **Multi-track playback** — Keep a persistent mood active while temporal actions (gestures, expressions) play on top and finish
+- **Expanded vocabulary** — 137+ data-driven motions with fine-grained nuance (`shy`, `nervous`, `curious`, `smirk`...) that extend TH's built-in set
+- **Declarative bone overlays** — Sinusoidal oscillations on bones (body shakes, arm waves, shivers) with automatic fade in/out, defined as parameters instead of per-frame code
+- **LLM-friendly discovery** — `getLLMContext()` produces a compact, token-efficient catalog that can be injected into system prompts
+- **LLM-generated motions** — The [Playground](https://lhupyn.github.io/motion-engine/playground.html) demonstrates using an LLM to create new motions from natural language descriptions, which can then be played directly or saved to the catalog
+- **Motion sequencing** — Chain motions with interruption support
 
-**MotionEngine solves this with a semantic abstraction layer:**
-
-```
-// Without MotionEngine — LLM must produce this:
-{"dt":[300,2000,500],"rescale":[0,1,0],
- "vs":{"mouthSmile":[0.6],"eyeSquintLeft":[0.3],"eyeSquintRight":[0.3],
-       "browInnerUp":[0.3],"gesture":[["handup",null,true],null]},
- "_overlay":{"bones":{"RightHand":{"freq":8,"amp":[0,0.12,0.12]}},"delay":400,"duration":2500}}
-
-// With MotionEngine — LLM just says:
-engine.play('wave_right')
+```js
+// Mood persists while action plays on top:
+engine.play('happy');       // mood stays active...
+engine.play('wave_right');  // ...compound action plays and finishes
 ```
 
-### What it adds over vanilla TalkingHead
-
-| | TalkingHead | + MotionEngine |
-|---|---|---|
-| **LLM interface** | Raw morph targets + timing arrays | Semantic names: `play('thinking')` |
-| **Compound motions** | Face, hands, body = separate APIs | One JSON defines all layers |
-| **Concurrency** | Manual state management | Multi-track: mood persists while action plays on top |
-| **Bone animation** | Manual `poseDelta` per frame | Declarative oscillations with auto fade in/out |
-| **Sequencing** | Not built-in | `playSequence(['wave', 'bow'])` with interruption |
-| **LLM discovery** | Not built-in | `getLLMContext()` → compact catalog for system prompt |
-| **Token cost** | Full anatomy + format + examples | Semantic tags, ~75% fewer tokens |
-
-> **PoC status**: This is a proof of concept for a plugin architecture on top of TalkingHead. The goal is to demonstrate that a semantic layer dramatically simplifies LLM-driven avatar control.
+> This is a **proof of concept** for a plugin architecture on top of TalkingHead. None of this replaces TH's built-in system — it's an exploration of what a data-driven semantic layer could look like for LLM-driven avatar control.
 
 ---
 
