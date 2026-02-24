@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bone Atlas — Empirical Testing</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0c10; color: #e0e0e0; font-family: system-ui, sans-serif; display: flex; height: 100vh; }
+    #avatar-container { flex: 1; position: relative; background: #111318; }
+    #avatar-container canvas { width: 100% !important; height: 100% !important; }
+    #panel {
+      width: 400px; padding: 16px; overflow-y: auto;
+      background: #14161c; border-left: 1px solid #2a2d3a;
+    }
+    h1 { font-size: 1.2em; margin-bottom: 4px; color: #60a5fa; }
+    .subtitle { color: #888; font-size: 0.8em; margin-bottom: 12px; }
+    .status { padding: 8px; border-radius: 6px; background: #1c2030; text-align: center; margin-bottom: 12px; font-size: 0.85em; }
+
+    .section { margin-bottom: 16px; border: 1px solid #2a2d3a; border-radius: 8px; padding: 12px; }
+    .section h2 { font-size: 0.95em; margin-bottom: 8px; color: #fff; border-bottom: 1px solid #2a2d3a; padding-bottom: 6px; }
+    label { font-size: 0.8em; color: #aaa; display: block; margin-bottom: 2px; }
+    select, input[type=range], input[type=number] {
+      width: 100%; padding: 4px; background: #1c2030; color: #fff; border: 1px solid #333; border-radius: 4px;
+      margin-bottom: 8px; font-size: 0.85em;
+    }
+    input[type=range] { padding: 0; }
+    .axis-row { display: grid; grid-template-columns: 40px 1fr 50px; gap: 6px; align-items: center; margin-bottom: 4px; }
+    .axis-label { font-weight: 700; font-size: 0.9em; }
+    .axis-label.x { color: #ef4444; }
+    .axis-label.y { color: #22c55e; }
+    .axis-label.z { color: #3b82f6; }
+    .val { font-size: 0.85em; text-align: right; font-family: monospace; color: #fff; }
+
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    button {
+      padding: 8px; border: none; border-radius: 6px;
+      font-size: 0.85em; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    button:hover { filter: brightness(1.15); }
+    .btn-apply { background: #3b82f6; color: #fff; }
+    .btn-reset { background: #333; color: #ccc; }
+    .btn-freeze { background: #f59e0b; color: #000; grid-column: span 2; }
+
+    .current { font-size: 0.75em; color: #666; margin-top: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 80px; overflow-y: auto; }
+
+    #log { margin-top: 8px; font-size: 0.75em; color: #888; font-family: monospace; max-height: 150px; overflow-y: auto; border: 1px solid #2a2d3a; border-radius: 6px; padding: 8px; }
+    #log div { margin-bottom: 2px; }
+    #log .good { color: #22c55e; }
+    #log .info { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <div id="avatar-container"></div>
+  <div id="panel">
+    <h1>Bone Atlas Lab</h1>
+    <p class="subtitle">Empirical poseDelta testing — frozen avatar, tight clothing</p>
+    <div class="status" id="status">Loading...</div>
+
+    <div class="section">
+      <h2>Freeze Controls</h2>
+      <button class="btn-freeze" id="btn-freeze" onclick="freezeAvatar()">Freeze Avatar (stop all idle)</button>
+      <p style="font-size:0.7em; color:#666; margin-top:4px;">Sets idle eye/head to 0, creates empty mood, clears all animation queues</p>
+    </div>
+
+    <div class="section">
+      <h2>Bone Selection</h2>
+      <label>Bone</label>
+      <select id="bone-select">
+        <optgroup label="Spine chain">
+          <option value="Hips">Hips</option>
+          <option value="Spine">Spine</option>
+          <option value="Spine1">Spine1</option>
+          <option value="Neck">Neck</option>
+          <option value="Head">Head</option>
+        </optgroup>
+        <optgroup label="Right Arm">
+          <option value="RightArm" selected>RightArm</option>
+          <option value="RightForeArm">RightForeArm</option>
+          <option value="RightHand">RightHand</option>
+        </optgroup>
+        <optgroup label="Left Arm">
+          <option value="LeftArm">LeftArm</option>
+          <option value="LeftForeArm">LeftForeArm</option>
+          <option value="LeftHand">LeftHand</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="section">
+      <h2>poseDelta Values</h2>
+      <p style="font-size:0.7em; color:#666; margin-bottom:8px;">These are quaternion delta components applied each frame via poseDelta.props</p>
+
+      <div class="axis-row">
+        <span class="axis-label x">X</span>
+        <input type="range" id="slider-x" min="-1.5" max="1.5" step="0.05" value="0">
+        <span class="val" id="val-x">0.00</span>
+      </div>
+      <div class="axis-row">
+        <span class="axis-label y">Y</span>
+        <input type="range" id="slider-y" min="-1.5" max="1.5" step="0.05" value="0">
+        <span class="val" id="val-y">0.00</span>
+      </div>
+      <div class="axis-row">
+        <span class="axis-label z">Z</span>
+        <input type="range" id="slider-z" min="-1.5" max="1.5" step="0.05" value="0">
+        <span class="val" id="val-z">0.00</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-apply" onclick="applyDelta()">Apply (hold)</button>
+        <button class="btn-reset" onclick="resetDelta()">Reset to 0</button>
+      </div>
+      <div class="current" id="current-vals"></div>
+    </div>
+
+    <div class="section">
+      <h2>Quick Presets</h2>
+      <div class="btn-row" style="grid-template-columns: 1fr 1fr 1fr;">
+        <button style="background:#ef4444;color:#fff;font-size:0.75em;" onclick="quickTest('x', 0.5)">X +0.5</button>
+        <button style="background:#ef4444;color:#fff;font-size:0.75em;" onclick="quickTest('x', -0.5)">X -0.5</button>
+        <button style="background:#ef4444;color:#fff;font-size:0.75em;" onclick="quickTest('x', 1.0)">X +1.0</button>
+      </div>
+      <div class="btn-row" style="grid-template-columns: 1fr 1fr 1fr; margin-top: 4px;">
+        <button style="background:#22c55e;color:#000;font-size:0.75em;" onclick="quickTest('y', 0.5)">Y +0.5</button>
+        <button style="background:#22c55e;color:#000;font-size:0.75em;" onclick="quickTest('y', -0.5)">Y -0.5</button>
+        <button style="background:#22c55e;color:#000;font-size:0.75em;" onclick="quickTest('y', 1.0)">Y +1.0</button>
+      </div>
+      <div class="btn-row" style="grid-template-columns: 1fr 1fr 1fr; margin-top: 4px;">
+        <button style="background:#3b82f6;color:#fff;font-size:0.75em;" onclick="quickTest('z', 0.5)">Z +0.5</button>
+        <button style="background:#3b82f6;color:#fff;font-size:0.75em;" onclick="quickTest('z', -0.5)">Z -0.5</button>
+        <button style="background:#3b82f6;color:#fff;font-size:0.75em;" onclick="quickTest('z', 1.0)">Z +1.0</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Motion Tests (Atlas Values)</h2>
+      <div class="btn-row">
+        <button style="background:#f59e0b;color:#000;" onclick="engine.play('celebrate_atlas')">Celebrate</button>
+        <button style="background:#8b5cf6;color:#fff;" onclick="engine.play('guitar_atlas')">Guitar</button>
+      </div>
+      <div class="btn-row" style="margin-top:4px;">
+        <button class="btn-reset" onclick="engine.stop()">Stop</button>
+      </div>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+    }
+  }
+  </script>
+  <script type="module">
+    import { TalkingHead } from 'talkinghead';
+    import { MotionEngine } from '../src/MotionEngine.js';
+
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    let head = null;
+    let engine = null;
+    let frozen = false;
+    let holdInterval = null;
+
+    function log(msg, cls = '') {
+      const d = document.createElement('div');
+      d.className = cls;
+      d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.prepend(d);
+    }
+
+    // ── Init ──
+    async function init() {
+      statusEl.textContent = 'Loading TalkingHead...';
+      const container = document.getElementById('avatar-container');
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      head = new TalkingHead(container, {
+        audioCtx,
+        showProgressBar: false,
+        dracoEnabled: true,
+        pcmSampleRate: 16000,
+        cameraView: 'full',
+        // Kill idle from the start
+        avatarIdleEyeContact: 0,
+        avatarIdleHeadMove: 0,
+        avatarSpeakingEyeContact: 0,
+        avatarSpeakingHeadMove: 0,
+      });
+
+      statusEl.textContent = 'Loading tight-fit avatar...';
+      await head.showAvatar({
+        url: './atlas-avatar.glb',
+        body: 'F',
+        avatarMood: 'neutral',
+        avatarIdleEyeContact: 0,
+        avatarIdleHeadMove: 0,
+      });
+      head.start();
+
+      window.head = head;
+
+      // Init MotionEngine for motion playback tests
+      engine = new MotionEngine(head);
+      window.engine = engine;
+      head.opt.update = (dt) => engine.update(dt);
+
+      // Register atlas test motions
+      engine.registerMotions({
+        celebrate_atlas: {
+          _track: 'action',
+          dt: [400,600,1000,600,400], rescale: [0,1,1,1,0],
+          vs: { mouthSmile:[0.9], eyeSquintLeft:[0.7], eyeSquintRight:[0.8], cheekSquintLeft:[0.5], cheekSquintRight:[0.6], browInnerUp:[0.6], noseSneerLeft:[0.2], chestInhale:[0,0.3,0.5,0.3,0], gesture:[["fist",null,true],null] },
+          _overlay: { bones: {
+            RightArm:{freq:4,amp:[0.03,0.02,0.02],kf:[[0,0,0],[1.0,0,0],[1.3,0,0],[1.0,0,0],[0,0,0]]},
+            LeftArm:{freq:4,amp:[0.03,0.02,0.02],kf:[[0,0,0],[1.0,0,0],[1.3,0,0],[1.0,0,0],[0,0,0]]},
+            RightForeArm:{kf:[[0,0,0],[0.6,0,0],[0.8,0,0],[0.6,0,0],[0,0,0]]},
+            LeftForeArm:{kf:[[0,0,0],[0.6,0,0],[0.8,0,0],[0.6,0,0],[0,0,0]]},
+            Spine:{freq:3,amp:[0.02,0,0.01]}
+          }, delay:100, duration:2900 }
+        },
+        guitar_atlas: {
+          _track: 'action',
+          dt: [400,350,350,400,350,350,400,500,400,400], rescale: [0.3,0.6,0.8,1,1,1,0.9,1,0.6,0],
+          vs: { eyesClosed:[0.2,0.3,0.4,0.6,0.5,0.7,0.8,0.6,0.3,0], mouthSmileLeft:[0.2,0.3,0.4,0.6,0.5,0.7,0.8,0.6,0.4,0], mouthSmileRight:[0.3,0.4,0.5,0.7,0.6,0.5,0.6,0.5,0.3,0], browInnerUp:[0.2,0.3,0.5,0.7,0.6,0.8,0.7,0.9,0.4,0], eyeSquintLeft:[0.3,0.4,0.5,0.7,0.6,0.8,0.7,0.5,0.3,0], gesture:[["fist",null,true],["fist",null,false],null] },
+          _overlay: { bones: {
+            RightArm:{freq:6,amp:[0.03,0.02,0.02],kf:[[0,0,0],[0.8,0,0],[0.5,0,0],[0.8,0,0],[0.5,0,0],[0.8,0,0],[0.5,0,0],[0.6,0,0],[0.3,0,0],[0,0,0]]},
+            RightForeArm:{freq:6,amp:[0.03,0.04,0.02],kf:[[0,0,0],[0.5,0,0],[0.3,0,0],[0.5,0,0],[0.3,0,0],[0.5,0,0],[0.3,0,0],[0.4,0,0],[0.2,0,0],[0,0,0]]},
+            LeftArm:{freq:2,amp:[0.02,0.01,0.01],kf:[[0,0,0],[0.9,0,0],[0.9,0,0],[0.9,0,0],[1.0,0,0],[1.0,0,0],[1.0,0,0],[0.8,0,0],[0.4,0,0],[0,0,0]]},
+            LeftForeArm:{freq:3,amp:[0.03,0.01,0.02],kf:[[0,0,0],[0.7,0,0],[0.7,0,0],[0.7,0,0],[0.8,0,0],[0.8,0,0],[0.8,0,0],[0.6,0,0],[0.3,0,0],[0,0,0]]},
+            Spine:{freq:2,amp:[0.04,0,0.03]},
+            Head:{freq:4,amp:[0.05,0,0.02],phase:1.5708}
+          }, delay:100, duration:3800 }
+        }
+      });
+
+      log('Avatar loaded + MotionEngine ready, 2 atlas motions registered', 'good');
+      statusEl.textContent = 'Ready. Click "Freeze Avatar" then test bones, or play motions.';
+
+      // Update display loop
+      setInterval(updateCurrentDisplay, 200);
+    }
+
+    // ── Freeze: stop ALL idle animations ──
+    window.freezeAvatar = function() {
+      if (!head) return;
+
+      // Create a completely empty mood
+      head.animMoods['frozen'] = {
+        baseline: {},
+        speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
+        anims: []  // No breathing, no blinking, no head movement, nothing
+      };
+      head.setMood('frozen');
+
+      // Clear any queued animations
+      head.animQueue = [];
+      head.animClips = [];
+      head.animPoses = [];
+
+      // Force idle params to 0
+      head.opt.avatarIdleEyeContact = 0;
+      head.opt.avatarIdleHeadMove = 0;
+      head.opt.avatarSpeakingEyeContact = 0;
+      head.opt.avatarSpeakingHeadMove = 0;
+
+      frozen = true;
+      document.getElementById('btn-freeze').textContent = 'Frozen!';
+      document.getElementById('btn-freeze').style.background = '#22c55e';
+      log('Avatar frozen — all idle animations disabled', 'good');
+      statusEl.textContent = 'Frozen. Select a bone and test.';
+    };
+
+    // ── Apply poseDelta values from sliders ──
+    window.applyDelta = function() {
+      if (!head) return;
+      const bone = document.getElementById('bone-select').value;
+      const x = parseFloat(document.getElementById('slider-x').value);
+      const y = parseFloat(document.getElementById('slider-y').value);
+      const z = parseFloat(document.getElementById('slider-z').value);
+
+      const quatKey = `${bone}.quaternion`;
+      const props = head.poseDelta?.props;
+      if (!props || !props[quatKey]) {
+        log(`ERROR: ${quatKey} not found in poseDelta`, '');
+        return;
+      }
+
+      // Clear any previous hold
+      if (holdInterval) clearInterval(holdInterval);
+
+      // Apply continuously to fight any residual system
+      holdInterval = setInterval(() => {
+        const p = props[quatKey];
+        if (p) { p.x = x; p.y = y; p.z = z; }
+      }, 16); // Every frame (~60fps)
+
+      log(`HOLD: ${bone} → x:${x.toFixed(2)} y:${y.toFixed(2)} z:${z.toFixed(2)}`, 'info');
+    };
+
+    // ── Reset to zero ──
+    window.resetDelta = function() {
+      if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+
+      const bone = document.getElementById('bone-select').value;
+      const quatKey = `${bone}.quaternion`;
+      const props = head.poseDelta?.props;
+      if (props?.[quatKey]) {
+        const p = props[quatKey];
+        p.x = 0; p.y = 0; p.z = 0;
+      }
+
+      document.getElementById('slider-x').value = 0;
+      document.getElementById('slider-y').value = 0;
+      document.getElementById('slider-z').value = 0;
+      document.getElementById('val-x').textContent = '0.00';
+      document.getElementById('val-y').textContent = '0.00';
+      document.getElementById('val-z').textContent = '0.00';
+
+      log(`RESET: ${bone}`, 'info');
+    };
+
+    // ── Quick test: set one axis ──
+    window.quickTest = function(axis, val) {
+      document.getElementById('slider-x').value = axis === 'x' ? val : 0;
+      document.getElementById('slider-y').value = axis === 'y' ? val : 0;
+      document.getElementById('slider-z').value = axis === 'z' ? val : 0;
+      updateSliderLabels();
+      applyDelta();
+    };
+
+    // ── Slider labels ──
+    function updateSliderLabels() {
+      document.getElementById('val-x').textContent = parseFloat(document.getElementById('slider-x').value).toFixed(2);
+      document.getElementById('val-y').textContent = parseFloat(document.getElementById('slider-y').value).toFixed(2);
+      document.getElementById('val-z').textContent = parseFloat(document.getElementById('slider-z').value).toFixed(2);
+    }
+    document.getElementById('slider-x').addEventListener('input', () => { updateSliderLabels(); applyDelta(); });
+    document.getElementById('slider-y').addEventListener('input', () => { updateSliderLabels(); applyDelta(); });
+    document.getElementById('slider-z').addEventListener('input', () => { updateSliderLabels(); applyDelta(); });
+
+    // ── Current values display ──
+    function updateCurrentDisplay() {
+      if (!head?.poseDelta?.props) return;
+      const bone = document.getElementById('bone-select').value;
+      const quatKey = `${bone}.quaternion`;
+      const p = head.poseDelta.props[quatKey];
+      if (p) {
+        document.getElementById('current-vals').textContent =
+          `Live ${bone}.quat: x=${p.x?.toFixed(4)} y=${p.y?.toFixed(4)} z=${p.z?.toFixed(4)} w=${p.w?.toFixed(4)}`;
+      }
+    }
+
+    // Reset when switching bones
+    document.getElementById('bone-select').addEventListener('change', () => {
+      resetDelta();
+    });
+
+    init().catch(e => { statusEl.textContent = 'Error: ' + e.message; console.error(e); });
+  </script>
+</body>
+</html>
