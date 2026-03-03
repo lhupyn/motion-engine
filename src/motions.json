@@ -1,6 +1,6 @@
 {
   "neutral": {
-    "_description": "Default relaxed state with no strong emotion \u2014 use to reset after any mood",
+    "_description": "Default relaxed state with no strong emotion — use to reset after any mood",
     "_tags": [
       "calm",
       "default",
@@ -19,10 +19,15 @@
     "_detect": {
       "mouthSmileLeft": 0.5,
       "mouthSmileRight": 0.5
+    },
+    "_react": {
+      "mood": "happy",
+      "intensity": 0.3,
+      "gesture": "slight_smile"
     }
   },
   "sleep": {
-    "_description": "Eyes closed, slow breathing, drowsy head sway \u2014 deep sleep or very tired",
+    "_description": "Eyes closed, slow breathing, drowsy head sway — deep sleep or very tired",
     "_tags": [
       "tired",
       "sleeping",
@@ -973,6 +978,11 @@
       "eyeSquintRight": 0.15,
       "mouthPucker": 0.2,
       "mouthRight": 0.15
+    },
+    "_react": {
+      "mood": "curious",
+      "intensity": 0.25,
+      "gesture": "look_up"
     }
   },
   "surprised": {
@@ -1144,6 +1154,11 @@
       "noseSneerRight": 0.15,
       "mouthFrownLeft": 0.1,
       "mouthFrownRight": 0.1
+    },
+    "_react": {
+      "mood": "pleading",
+      "intensity": 0.25,
+      "gesture": "deep_breath"
     }
   },
   "sad": {
@@ -1203,6 +1218,11 @@
       "browInnerUp": 0.2,
       "eyeSquintLeft": 0.1,
       "eyeSquintRight": 0.1
+    },
+    "_react": {
+      "mood": "pleading",
+      "intensity": 0.25,
+      "gesture": "close_eyes"
     }
   },
   "laugh": {
@@ -1739,7 +1759,7 @@
     "_track": "mood"
   },
   "excited": {
-    "_description": "Bursting with excitement \u2014 wide eyes, rapid hand wave, and hip bounce",
+    "_description": "Bursting with excitement — wide eyes, rapid hand wave, and hip bounce",
     "_tags": [
       "excitement",
       "energy",
@@ -2154,6 +2174,11 @@
       "eyeSquintLeft": 0.15,
       "mouthLeft": 0.15,
       "browInnerUp": 0.1
+    },
+    "_react": {
+      "mood": "smirk",
+      "intensity": 0.2,
+      "gesture": "smug"
     }
   },
   "grimace": {
@@ -2237,6 +2262,11 @@
       "eyeSquintRight": 0.1,
       "mouthPressLeft": 0.025,
       "mouthPressRight": 0.025
+    },
+    "_react": {
+      "mood": "sad",
+      "intensity": 0.2,
+      "gesture": "pensive"
     }
   },
   "pleading": {
@@ -2324,6 +2354,11 @@
       "mouthFrownLeft": 0.1,
       "mouthFrownRight": 0.1,
       "mouthPucker": 0.15
+    },
+    "_react": {
+      "mood": "sad",
+      "intensity": 0.3,
+      "gesture": "adoring"
     }
   },
   "sleeping": {
@@ -2544,6 +2579,11 @@
       "browDownRight": 0.25,
       "mouthFrownLeft": 0.25,
       "mouthFrownRight": 0.25
+    },
+    "_react": {
+      "mood": "neutral",
+      "intensity": 0.2,
+      "gesture": "nod"
     }
   },
   "open_mouth": {
@@ -2702,6 +2742,11 @@
       "browDownRight": 0.15,
       "noseSneerLeft": 0.05,
       "noseSneerRight": 0.05
+    },
+    "_react": {
+      "mood": "curious",
+      "intensity": 0.2,
+      "gesture": "look_down"
     }
   },
   "look_left": {
@@ -3118,11 +3163,16 @@
     },
     "_track": "mood",
     "_detect": {
-      "browInnerUp": 0.35,
-      "eyeWideLeft": 0.2,
-      "eyeWideRight": 0.2,
-      "browOuterUpLeft": 0.15,
-      "browOuterUpRight": 0.1
+      "browOuterUpLeft": 0.25,
+      "browOuterUpRight": 0.25,
+      "browInnerUp": 0.2,
+      "eyeWideLeft": 0.15,
+      "eyeWideRight": 0.15
+    },
+    "_react": {
+      "mood": "curious",
+      "intensity": 0.3,
+      "gesture": "raise_eyebrows"
     }
   },
   "disgust": {
@@ -3180,12 +3230,18 @@
     },
     "_track": "mood",
     "_detect": {
-      "noseSneerLeft": 0.3,
-      "noseSneerRight": 0.3,
+      "noseSneerLeft": 0.25,
+      "noseSneerRight": 0.25,
       "mouthUpperUpLeft": 0.15,
       "mouthUpperUpRight": 0.15,
+      "mouthShrugUpper": 0.1,
       "mouthFrownLeft": 0.05,
       "mouthFrownRight": 0.05
+    },
+    "_react": {
+      "mood": "neutral",
+      "intensity": 0.2,
+      "gesture": "side_glance"
     }
   },
   "neutral_face": {
@@ -5028,13 +5084,17 @@
       ]
     },
     "_detect": {
+      "eyeWideLeft": 0.25,
+      "eyeWideRight": 0.25,
       "browInnerUp": 0.2,
-      "eyeWideLeft": 0.2,
-      "eyeWideRight": 0.2,
       "mouthFunnel": 0.15,
-      "mouthShrugLower": 0.1,
       "mouthShrugUpper": 0.1,
-      "jawOpen": 0.05
+      "mouthShrugLower": 0.05
+    },
+    "_react": {
+      "mood": "pleading",
+      "intensity": 0.25,
+      "gesture": "slight_smile"
     }
   },
   "love": {
@@ -5095,6 +5155,28 @@
       "mouthUpperUpRight": [
         0.1
       ]
+    }
+  },
+  "surprise": {
+    "_description": "Surprised with wide eyes and open mouth",
+    "_tags": [
+      "shock",
+      "amazed",
+      "wow"
+    ],
+    "_track": "mood",
+    "_detect": {
+      "jawOpen": 0.35,
+      "eyeWideLeft": 0.15,
+      "eyeWideRight": 0.15,
+      "browInnerUp": 0.15,
+      "browOuterUpLeft": 0.1,
+      "browOuterUpRight": 0.1
+    },
+    "_react": {
+      "mood": "curious",
+      "intensity": 0.3,
+      "gesture": "raise_eyebrows"
     }
   }
 }

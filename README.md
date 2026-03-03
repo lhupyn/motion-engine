@@ -19,7 +19,7 @@ TalkingHead already includes a solid animation system. MotionEngine builds on to
 - **LLM-friendly discovery** — `getLLMContext()` produces a compact, token-efficient catalog that can be injected into system prompts
 - **LLM-generated motions** — The [Playground](https://lhupyn.github.io/motion-engine/playground.html) demonstrates using an LLM to create new motions from natural language descriptions, which can then be played directly or saved to the catalog
 - **Motion sequencing** — Chain motions with interruption support
-- **Face mirroring** — Detect user facial expressions via MediaPipe and mirror them as avatar moods in real-time
+- **Face mirroring** — Detect user facial expressions via MediaPipe and mirror them as avatar moods in real-time, with an empathic mode that reacts naturally instead of cloning
 
 ```js
 // Mood persists while action plays on top:
@@ -116,7 +116,12 @@ const context = studio.getLLMContext();
 await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}');
 ```
 
-### Face Mirror (webcam expression mirroring)
+### Face Mirror (webcam expression detection)
+
+FaceMirror supports two modes:
+
+- **mirror** (default) — 1:1 mood cloning. User smiles -> avatar smiles at full intensity.
+- **empathic** — avatar *reacts* to user emotions with attenuated intensity and complementary gestures. User smiles -> avatar smiles softly (30%) + subtle gesture.
 
 ```js
 import { MotionEngine } from 'motion-engine';
@@ -126,8 +131,14 @@ const engine = new MotionEngine(talkingHead);
 engine.registerMotions(motions);
 talkingHead.opt.update = (dt) => engine.update(dt);
 
-// Start mirroring from a video element
+// Mirror mode (default) — 1:1 mood cloning
 await engine.startMirror(videoEl, { threshold: 0.3, cooldown: 2000 });
+
+// Empathic mode — avatar reacts naturally instead of cloning
+await engine.startMirror(videoEl, { mode: 'empathic' });
+
+// Empathic mode also supports head pose tracking
+await engine.startMirror(videoEl, { headPose: true }); // on by default
 
 // Pause/resume (e.g. while avatar is speaking)
 engine.pauseMirror();
@@ -137,18 +148,43 @@ engine.resumeMirror();
 engine.stopMirror();
 ```
 
+#### Empathic API (direct use)
+
+```js
+// Play a mood at reduced intensity (0-1)
+engine.playMoodAttenuated('happy', 0.3);
+
+// Set head pose (radians)
+engine.setHeadPose(pitch, yaw, roll);
+```
+
 #### Standalone usage (without MotionEngine)
 
 ```js
 import { FaceMirror } from 'motion-engine/mirror';
 import motions from 'motion-engine/motions';
 
-const mirror = new FaceMirror({ threshold: 0.3, cooldown: 2000 });
+const mirror = new FaceMirror({
+  mode: 'empathic',
+  threshold: 0.3,
+  cooldown: 2000,
+  blendSpeed: 0.08,
+  headPose: true,
+  headPoseScale: 0.25,
+});
 mirror.loadMotions(motions);
 await mirror.init();
 
 mirror.onMood = (mood, score, blendshapes) => {
   console.log(`Detected: ${mood} (${score.toFixed(2)})`);
+};
+
+mirror.onReaction = (reactionMood, intensity, gesture, detectedMood) => {
+  console.log(`${detectedMood} -> ${reactionMood} @${intensity}`);
+};
+
+mirror.onValues = (morphValues, headPose) => {
+  // Smoothed values every frame for direct application
 };
 
 mirror.start(videoEl);
@@ -187,10 +223,12 @@ mirror.update(dt);
 | `getMotionNames()` | `string[]` | All registered motion names |
 | `getRegisteredMotions()` | `object` | Internal motions dict (for Studio) |
 | `update(dt)` | — | Frame hook: bone overlays + face mirror |
-| `startMirror(videoEl, opts?)` | `Promise<void>` | Start face mirroring from webcam |
-| `stopMirror()` | — | Stop and dispose face mirror |
+| `startMirror(videoEl, opts?)` | `Promise<void>` | Start face mirroring (empathic or mirror mode) |
+| `stopMirror()` | — | Stop and dispose face mirror, clean up empathic state |
 | `pauseMirror()` | — | Pause face detection |
 | `resumeMirror()` | — | Resume face detection |
+| `playMoodAttenuated(name, intensity)` | — | Play a mood at reduced intensity (0-1) |
+| `setHeadPose(pitch, yaw, roll)` | — | Set avatar head rotation (radians) |
 
 #### Properties
 
@@ -210,6 +248,10 @@ mirror.update(dt);
 | `threshold` | `0.3` | Min score to trigger mood change |
 | `cooldown` | `2000` | Ms between mood changes |
 | `detectInterval` | `200` | Ms between detections (5 FPS) |
+| `mode` | `'mirror'` | `'mirror'` (1:1 clone) or `'empathic'` (react with attenuation) |
+| `blendSpeed` | `0.08` | Lerp factor per frame for smooth blending |
+| `headPose` | `false` | Enable head pose tracking |
+| `headPoseScale` | `0.25` | Attenuation for head rotation |
 
 #### Methods
 
@@ -227,8 +269,10 @@ mirror.update(dt);
 
 | Callback | Signature | Description |
 |---|---|---|
-| `onMood` | `(mood, score, blendshapes)` | Fired on mood change (after cooldown) |
+| `onMood` | `(mood, score, blendshapes)` | Fired on mood change (both modes) |
 | `onDetect` | `(blendshapes)` | Fired on every detection frame |
+| `onReaction` | `(reactionMood, intensity, gesture, detectedMood)` | Fired on mood transition (empathic mode) |
+| `onValues` | `(morphValues, headPose)` | Fired every frame with smoothed values (empathic mode) |
 
 ### `_detect` schema
 
@@ -247,6 +291,26 @@ Mood entries in `motions.json` can include a `_detect` object for face mirroring
 ```
 
 Keys are MediaPipe ARKit blendshape names, values are linear weights. The classifier computes a weighted average: `score = sum(blendshape * weight) / sum(weights)`. The highest-scoring mood above `threshold` wins; otherwise falls back to `neutral`.
+
+### `_react` schema
+
+Mood entries can also include a `_react` object for empathic mode. This defines how the avatar *reacts* when that emotion is detected on the user:
+
+```json
+{
+  "happy": {
+    "_track": "mood",
+    "_detect": { "mouthSmileLeft": 0.5, "mouthSmileRight": 0.5 },
+    "_react": { "mood": "happy", "intensity": 0.3, "gesture": "nod_yes" }
+  }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `mood` | `string` | Avatar mood to play (can differ from detected mood) |
+| `intensity` | `number` | Attenuation factor (0-1), applied to mood baselines |
+| `gesture` | `string\|undefined` | Optional action to play alongside (e.g. `"nod_yes"`) |
 
 ### `new MotionStudio(engine, options?)`
 

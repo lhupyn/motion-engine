@@ -388,31 +388,61 @@ export class MotionEngine {
 
   /**
    * Start face mirroring from a video element.
-   * Creates a FaceMirror, loads classifiers from registered motions,
-   * and wires `onMood` to play the detected mood.
+   *
+   * In **empathic** mode (default): avatar reacts to user emotions with attenuated
+   * intensity and complementary gestures via `playMoodAttenuated()` and `setHeadPose()`.
+   *
+   * In **mirror** mode: 1:1 mood cloning (v1 behavior) — detected mood plays directly.
    *
    * @param {HTMLVideoElement} videoEl - Live camera feed
-   * @param {object} [options] - FaceMirror options (threshold, cooldown, detectInterval)
+   * @param {object} [options] - FaceMirror options
+   * @param {string} [options.mode='empathic'] - 'empathic' | 'mirror'
+   * @param {boolean} [options.headPose=true]  - Enable head pose tracking (empathic only)
    * @returns {Promise<void>}
    */
   async startMirror(videoEl, options = {}) {
     if (this._mirror) this.stopMirror();
 
-    this._mirror = new FaceMirror(options);
+    const opts = { mode: 'mirror', ...options };
+    this._mirror = new FaceMirror(opts);
     this._mirror.loadMotions(this._motions);
     await this._mirror.init();
-    this._mirror.onMood = (mood) => this.play(mood);
+
+    if (opts.mode === 'empathic') {
+      this._mirror.onReaction = (reactionMood, intensity, gesture) => {
+        this.playMoodAttenuated(reactionMood, intensity);
+        if (gesture && this._motions[gesture]) this.play(gesture);
+      };
+      this._mirror.onValues = (_, headPose) => {
+        if (opts.headPose && !this.tracks.action.active) {
+          this.setHeadPose(headPose.pitch, headPose.yaw, headPose.roll);
+        }
+      };
+    } else {
+      this._mirror.onMood = (mood) => this.play(mood);
+    }
+
     this._mirror.start(videoEl);
   }
 
   /**
-   * Stop and dispose face mirroring.
+   * Stop and dispose face mirroring. Cleans up empathic mood and resets head pose.
    */
   stopMirror() {
     if (!this._mirror) return;
     this._mirror.stop();
     this._mirror.dispose();
     this._mirror = null;
+
+    // Clean up empathic mood entry
+    if (this.head.animMoods) {
+      for (const key of Object.keys(this.head.animMoods)) {
+        if (key.startsWith('_empathic_')) delete this.head.animMoods[key];
+      }
+    }
+
+    // Reset head pose
+    this.setHeadPose(0, 0, 0);
   }
 
   /**
@@ -435,6 +465,66 @@ export class MotionEngine {
    */
   get mirror() {
     return this._mirror;
+  }
+
+  // ===========================================================================
+  // Empathic API
+  // ===========================================================================
+
+  /**
+   * Play a mood at reduced intensity for empathic reactions.
+   *
+   * Looks up the mood's baseline from `head.animMoods`, creates an attenuated
+   * copy as `_empathic_<name>`, registers it, and sets it as the active mood.
+   *
+   * @param {string} name - Mood name (must exist in animMoods)
+   * @param {number} intensity - Attenuation factor (0-1)
+   */
+  playMoodAttenuated(name, intensity) {
+    const source = this.head.animMoods?.[name];
+    if (!source) return;
+
+    // Clean up previous empathic mood
+    for (const key of Object.keys(this.head.animMoods)) {
+      if (key.startsWith('_empathic_')) delete this.head.animMoods[key];
+    }
+
+    // Create attenuated baseline
+    const baseline = {};
+    if (source.baseline) {
+      for (const [key, val] of Object.entries(source.baseline)) {
+        baseline[key] = val * intensity;
+      }
+    }
+
+    const empathicName = `_empathic_${name}`;
+    const neutral = this.head.animMoods['neutral'];
+    this.head.animMoods[empathicName] = {
+      baseline,
+      speech: source.speech || { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
+      anims: neutral?.anims ? [...neutral.anims] : [],
+    };
+
+    this.head.setMood(empathicName);
+    this.tracks.mood = {
+      active: true, name: empathicName,
+      startTime: performance.now(), motion: null, isNative: false,
+    };
+  }
+
+  /**
+   * Set avatar head rotation for empathic head pose mirroring.
+   *
+   * @param {number} pitch - X rotation (nod)
+   * @param {number} yaw   - Y rotation (shake)
+   * @param {number} roll  - Z rotation (tilt)
+   */
+  setHeadPose(pitch, yaw, roll) {
+    const mt = this.head.mtAvatar;
+    if (!mt) return;
+    if (mt.headRotateX) { mt.headRotateX.newvalue = pitch; mt.headRotateX.needsUpdate = true; }
+    if (mt.headRotateY) { mt.headRotateY.newvalue = yaw; mt.headRotateY.needsUpdate = true; }
+    if (mt.headRotateZ) { mt.headRotateZ.newvalue = roll; mt.headRotateZ.needsUpdate = true; }
   }
 
   // ===========================================================================

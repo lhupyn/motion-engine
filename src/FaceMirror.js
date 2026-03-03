@@ -1,8 +1,14 @@
 /**
- * FaceMirror — Standalone face expression mirroring via MediaPipe.
+ * FaceMirror — Standalone face expression detection with empathic reaction mapping.
  *
  * Detects user facial expressions from a video feed and classifies them
  * into mood names using `_detect` weights from a motion dictionary.
+ *
+ * Two modes:
+ * - **mirror** (v1): 1:1 mood cloning — detected mood fires `onMood` directly.
+ * - **empathic** (v2): avatar REACTS to user emotion with attenuated intensity,
+ *   complementary gestures, and smooth morph blending via `onReaction`/`onValues`.
+ *
  * No hard dependency on MotionEngine — can be used standalone.
  *
  * @module FaceMirror
@@ -16,11 +22,18 @@ const MEDIAPIPE_WASM_CDN =
 const FACE_LANDMARKER_MODEL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
+/** Morph keys to skip when extracting mood baselines */
+const SKIP_KEYS = new Set(['gesture', 'headMove']);
+
 /** Default configuration */
 const DEFAULTS = {
   threshold: 0.3,
   cooldown: 2000,
   detectInterval: 200,
+  mode: 'mirror',
+  blendSpeed: 0.08,
+  headPose: false,
+  headPoseScale: 0.25,
 };
 
 /**
@@ -29,15 +42,25 @@ const DEFAULTS = {
 export class FaceMirror {
   /**
    * @param {object} [options]
-   * @param {number} [options.threshold=0.3]       - Min score to trigger mood
-   * @param {number} [options.cooldown=2000]        - Ms between mood changes
-   * @param {number} [options.detectInterval=200]   - Ms between detections (5 FPS)
+   * @param {number}  [options.threshold=0.3]        - Min score to trigger mood
+   * @param {number}  [options.cooldown=2000]         - Ms between mood changes
+   * @param {number}  [options.detectInterval=200]    - Ms between detections (5 FPS)
+   * @param {string}  [options.mode='empathic']       - 'empathic' | 'mirror'
+   * @param {number}  [options.blendSpeed=0.08]       - Lerp factor per update tick
+   * @param {boolean} [options.headPose=false]         - Enable head pose tracking
+   * @param {number}  [options.headPoseScale=0.25]    - Attenuation for head rotation
    */
   constructor(options = {}) {
     this.opt = { ...DEFAULTS, ...options };
 
     /** @type {Array<{mood: string, weights: Object<string,number>, total: number}>} */
     this._classifiers = [];
+
+    /** @type {Object<string, {mood: string, intensity: number, gesture?: string}>} */
+    this._reactions = {};
+
+    /** @type {Object<string, Object<string, number>>} */
+    this._moodBaselines = {};
 
     /** @private */
     this._landmarker = null;
@@ -54,10 +77,24 @@ export class FaceMirror {
     /** @private */
     this._currentMood = null;
 
+    /** Smooth blending state for empathic mode */
+    /** @type {Object<string, number>} */
+    this._targetValues = {};
+    /** @type {Object<string, number>} */
+    this._currentValues = {};
+    /** @type {{pitch: number, yaw: number, roll: number}} */
+    this._targetHeadPose = { pitch: 0, yaw: 0, roll: 0 };
+    /** @type {{pitch: number, yaw: number, roll: number}} */
+    this._currentHeadPose = { pitch: 0, yaw: 0, roll: 0 };
+
     /** @type {function(string, number, object):void|null} */
     this.onMood = null;
     /** @type {function(object):void|null} */
     this.onDetect = null;
+    /** @type {function(string, number, string|null, string):void|null} */
+    this.onReaction = null;
+    /** @type {function(Object<string,number>, {pitch:number,yaw:number,roll:number}):void|null} */
+    this.onValues = null;
   }
 
   // ===========================================================================
@@ -65,16 +102,35 @@ export class FaceMirror {
   // ===========================================================================
 
   /**
-   * Extract `_detect` classifiers from a motion dictionary.
-   * Only picks entries with `_track: "mood"` and `_detect` object.
+   * Extract `_detect` classifiers and `_react` mappings from a motion dictionary.
+   * Also extracts mood baselines from `vs` for empathic blending.
    *
    * @param {object} motions - Motion dictionary (same format as motions.json)
    * @returns {number} Number of classifiers loaded
    */
   loadMotions(motions) {
     this._classifiers = [];
+    this._reactions = {};
+    this._moodBaselines = {};
 
     for (const [name, entry] of Object.entries(motions)) {
+      // Extract mood baselines from vs (for empathic target computation)
+      if (entry._track === 'mood' && entry.vs) {
+        const baseline = {};
+        for (const [key, val] of Object.entries(entry.vs)) {
+          if (SKIP_KEYS.has(key)) continue;
+          const arr = Array.isArray(val) ? val : [val];
+          const picked = arr.length >= 2 ? arr[1] : arr[0];
+          if (typeof picked === 'number' && isFinite(picked)) {
+            baseline[key] = picked;
+          }
+        }
+        if (Object.keys(baseline).length > 0) {
+          this._moodBaselines[name] = baseline;
+        }
+      }
+
+      // Extract classifiers and reactions
       if (entry._track !== 'mood' || !entry._detect) continue;
 
       const weights = entry._detect;
@@ -82,6 +138,10 @@ export class FaceMirror {
       if (total <= 0) continue;
 
       this._classifiers.push({ mood: name, weights, total });
+
+      if (entry._react) {
+        this._reactions[name] = entry._react;
+      }
     }
 
     return this._classifiers.length;
@@ -113,7 +173,7 @@ export class FaceMirror {
         delegate: options.delegate || 'GPU',
       },
       outputFaceBlendshapes: true,
-      outputFacialTransformationMatrixes: false,
+      outputFacialTransformationMatrixes: this.opt.headPose,
       runningMode: 'VIDEO',
       numFaces: 1,
     });
@@ -135,6 +195,10 @@ export class FaceMirror {
     this._elapsedSinceDetect = 0;
     this._elapsedSinceMood = this.opt.cooldown + 1; // allow immediate first mood
     this._currentMood = null;
+    this._targetValues = {};
+    this._currentValues = {};
+    this._targetHeadPose = { pitch: 0, yaw: 0, roll: 0 };
+    this._currentHeadPose = { pitch: 0, yaw: 0, roll: 0 };
   }
 
   /**
@@ -145,6 +209,10 @@ export class FaceMirror {
     this._paused = false;
     this._videoEl = null;
     this._currentMood = null;
+    this._targetValues = {};
+    this._currentValues = {};
+    this._targetHeadPose = { pitch: 0, yaw: 0, roll: 0 };
+    this._currentHeadPose = { pitch: 0, yaw: 0, roll: 0 };
   }
 
   /**
@@ -171,6 +239,12 @@ export class FaceMirror {
     this._videoEl = null;
     this._currentMood = null;
     this._classifiers = [];
+    this._reactions = {};
+    this._moodBaselines = {};
+    this._targetValues = {};
+    this._currentValues = {};
+    this._targetHeadPose = { pitch: 0, yaw: 0, roll: 0 };
+    this._currentHeadPose = { pitch: 0, yaw: 0, roll: 0 };
     this._landmarker?.close();
     this._landmarker = null;
   }
@@ -180,12 +254,20 @@ export class FaceMirror {
   // ===========================================================================
 
   /**
-   * Frame update — accumulates delta time and runs detection at configured FPS.
+   * Frame update — runs smooth blending every frame and detection at configured FPS.
    * Call this from your render loop.
    *
    * @param {number} dt - Delta time in ms
    */
   update(dt) {
+    // Always blend + emit values (smooth output every frame), even without detection
+    if (this._active && this.opt.mode === 'empathic') {
+      this._blend(dt);
+      if (this.onValues) {
+        this.onValues({ ...this._currentValues }, { ...this._currentHeadPose });
+      }
+    }
+
     if (!this._active || this._paused || !this._landmarker || !this._videoEl) return;
     if (this._videoEl.readyState < 2) return;
 
@@ -210,6 +292,18 @@ export class FaceMirror {
 
     if (this.onDetect) this.onDetect(b);
 
+    // Head pose extraction
+    if (this.opt.headPose && result.facialTransformationMatrixes?.length) {
+      const matrix = result.facialTransformationMatrixes[0].data;
+      const pose = this._extractPose(matrix);
+      const scale = this.opt.headPoseScale;
+      this._targetHeadPose = {
+        pitch: pose.pitch * scale,
+        yaw: pose.yaw * scale,
+        roll: pose.roll * scale,
+      };
+    }
+
     // Classify
     const { mood, score } = this._classify(b);
 
@@ -217,8 +311,107 @@ export class FaceMirror {
     if (mood !== this._currentMood && this._elapsedSinceMood > this.opt.cooldown) {
       this._currentMood = mood;
       this._elapsedSinceMood = 0;
+
+      if (this.opt.mode === 'empathic') {
+        this._applyReaction(mood, score, b);
+      }
+
       if (this.onMood) this.onMood(mood, score, b);
     }
+  }
+
+  // ===========================================================================
+  // Empathic Reaction
+  // ===========================================================================
+
+  /**
+   * Compute target morph values from the reaction map and fire `onReaction`.
+   *
+   * @param {string} mood - Detected mood name
+   * @param {number} score - Detection confidence score
+   * @param {object} b - Blendshape map
+   */
+  _applyReaction(mood, score, b) {
+    const reaction = this._reactions[mood];
+
+    if (!reaction) {
+      // No reaction defined — clear targets (neutral fallback)
+      this._targetValues = {};
+      if (this.onReaction) this.onReaction('neutral', 0, null, mood);
+      return;
+    }
+
+    const baseline = this._moodBaselines[reaction.mood];
+    if (baseline) {
+      const targets = {};
+      for (const [key, val] of Object.entries(baseline)) {
+        targets[key] = val * reaction.intensity;
+      }
+      this._targetValues = targets;
+    } else {
+      this._targetValues = {};
+    }
+
+    if (this.onReaction) {
+      this.onReaction(reaction.mood, reaction.intensity, reaction.gesture || null, mood);
+    }
+  }
+
+  // ===========================================================================
+  // Smooth Blending
+  // ===========================================================================
+
+  /**
+   * Lerp current values toward targets. Decays orphan keys toward 0.
+   * Called every frame for smooth transitions.
+   *
+   * @param {number} dt - Delta time in ms
+   */
+  _blend(dt) {
+    const speed = this.opt.blendSpeed;
+
+    // Blend toward target values
+    const allKeys = new Set([
+      ...Object.keys(this._targetValues),
+      ...Object.keys(this._currentValues),
+    ]);
+
+    for (const key of allKeys) {
+      const target = this._targetValues[key] ?? 0;
+      const current = this._currentValues[key] ?? 0;
+      const next = current + (target - current) * speed;
+      // Remove keys that have decayed to near-zero
+      if (Math.abs(next) < 0.001 && !(key in this._targetValues)) {
+        delete this._currentValues[key];
+      } else {
+        this._currentValues[key] = next;
+      }
+    }
+
+    // Blend head pose axes
+    for (const axis of ['pitch', 'yaw', 'roll']) {
+      const target = this._targetHeadPose[axis];
+      const current = this._currentHeadPose[axis];
+      this._currentHeadPose[axis] = current + (target - current) * speed;
+    }
+  }
+
+  // ===========================================================================
+  // Head Pose
+  // ===========================================================================
+
+  /**
+   * Decompose MediaPipe's 4x4 column-major transformation matrix to euler angles.
+   *
+   * @param {Float32Array|number[]} m - 4x4 column-major matrix (16 elements)
+   * @returns {{pitch: number, yaw: number, roll: number}} Euler angles in radians
+   */
+  _extractPose(m) {
+    // Column-major: m[col * 4 + row]
+    const pitch = -Math.asin(-m[6]);  // negated: MediaPipe pitch is inverted vs TalkingHead
+    const yaw = Math.atan2(m[2], m[10]); // m[0][2] / m[2][2]
+    const roll = Math.atan2(m[4], m[5]); // m[1][0] / m[1][1]
+    return { pitch, yaw, roll };
   }
 
   // ===========================================================================
@@ -229,7 +422,7 @@ export class FaceMirror {
    * Score blendshapes against loaded classifiers.
    * Public for testing.
    *
-   * @param {Object<string,number>} b - Blendshape name→score map
+   * @param {Object<string,number>} b - Blendshape name->score map
    * @returns {{mood: string, score: number}}
    */
   _classify(b) {
