@@ -44,6 +44,7 @@
     .btn:hover { background: #3a3a3a; border-color: #666; }
     .btn:active { background: #444; }
     .btn.active { background: #1a5a2a; border-color: #2a8a4a; }
+    .btn.empathic { background: #1a3a5a; border-color: #2a6a8a; }
     .btn.mood { background: #2a1a2a; border-color: #5a2a5a; }
     .btn.mood:hover { background: #3a2a3a; border-color: #6a3a6a; }
 
@@ -135,8 +136,8 @@
     }
   }
   </script>
-  <script type="module" crossorigin src="/motion-engine/assets/mirror-rrbN6bHl.js"></script>
-  <link rel="modulepreload" crossorigin href="/motion-engine/assets/motions_th-BLpqu1lu.js">
+  <script type="module" crossorigin src="/motion-engine/assets/mirror-DtCkzNEk.js"></script>
+  <link rel="modulepreload" crossorigin href="/motion-engine/assets/motions_th-DcAy4Mz_.js">
 </head>
 
 <body>
@@ -157,9 +158,19 @@
     <div style="display:flex;gap:8px">
       <button class="btn active" id="btn-mirror" style="flex:1">Start Mirror</button>
       <button class="btn" id="btn-pause" style="flex:1" disabled>Pause</button>
+      <button class="btn empathic" id="btn-mode" style="flex:1">Empathic</button>
     </div>
 
     <div id="mood-status">neutral</div>
+
+    <div>
+      <h2>Reaction</h2>
+      <div id="reaction-status" style="font-size:13px;color:#6cf;padding:4px 0">-</div>
+    </div>
+    <div>
+      <h2>Head Pose</h2>
+      <div id="head-pose" style="font-size:13px;color:#fc6;font-family:monospace;padding:4px 0">0, 0, 0</div>
+    </div>
 
     <h2>Score Bars</h2>
     <div id="score-bars" class="score-bar-container"></div>
@@ -193,6 +204,12 @@
       <button class="btn mood" data-mood="squint">Squint</button>
       <button class="btn mood" data-mood="pleading">Pleading</button>
     </div>
+
+    <h2 style="display:flex;justify-content:space-between;align-items:center">
+      Raw Blendshapes
+      <button class="btn" id="btn-debug" style="font-size:11px;padding:4px 10px">Show</button>
+    </h2>
+    <div id="debug-blendshapes" style="display:none;font-family:monospace;font-size:10px;background:#0a0a0a;border-radius:6px;padding:8px;min-height:200px;overflow-y:auto;line-height:1.6"></div>
 
     <h2>Log</h2>
     <div id="log"></div>
