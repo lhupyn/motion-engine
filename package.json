@@ -9,7 +9,16 @@
     "./studio": "./src/MotionStudio.js",
     "./overlay": "./src/OverlayManager.js",
     "./motions": "./src/motions.json",
-    "./motions-th": "./src/motions_th.json"
+    "./motions-th": "./src/motions_th.json",
+    "./mirror": "./src/FaceMirror.js"
+  },
+  "peerDependencies": {
+    "@mediapipe/tasks-vision": ">=0.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@mediapipe/tasks-vision": {
+      "optional": true
+    }
   },
   "scripts": {
     "demo": "vite --open",
@@ -28,8 +37,9 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "talkinghead": "github:met4citizen/TalkingHead",
+    "@mediapipe/tasks-vision": "^0.10.32",
     "gh-pages": "^6.0.0",
+    "talkinghead": "github:met4citizen/TalkingHead",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"
   }
