@@ -22,8 +22,7 @@ const MEDIAPIPE_WASM_CDN =
 const FACE_LANDMARKER_MODEL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
-/** Morph keys to skip when extracting mood baselines */
-const SKIP_KEYS = new Set(['gesture', 'headMove']);
+import { extractBaseline, SKIP_KEYS } from './utils.js';
 
 /** Default configuration */
 const DEFAULTS = {
@@ -45,7 +44,7 @@ export class FaceMirror {
    * @param {number}  [options.threshold=0.3]        - Min score to trigger mood
    * @param {number}  [options.cooldown=2000]         - Ms between mood changes
    * @param {number}  [options.detectInterval=200]    - Ms between detections (5 FPS)
-   * @param {string}  [options.mode='empathic']       - 'empathic' | 'mirror'
+   * @param {string}  [options.mode='mirror']          - 'empathic' | 'mirror'
    * @param {number}  [options.blendSpeed=0.08]       - Lerp factor per update tick
    * @param {boolean} [options.headPose=false]         - Enable head pose tracking
    * @param {number}  [options.headPoseScale=0.25]    - Attenuation for head rotation
@@ -116,15 +115,7 @@ export class FaceMirror {
     for (const [name, entry] of Object.entries(motions)) {
       // Extract mood baselines from vs (for empathic target computation)
       if (entry._track === 'mood' && entry.vs) {
-        const baseline = {};
-        for (const [key, val] of Object.entries(entry.vs)) {
-          if (SKIP_KEYS.has(key)) continue;
-          const arr = Array.isArray(val) ? val : [val];
-          const picked = arr.length >= 2 ? arr[1] : arr[0];
-          if (typeof picked === 'number' && isFinite(picked)) {
-            baseline[key] = picked;
-          }
-        }
+        const baseline = extractBaseline(entry.vs);
         if (Object.keys(baseline).length > 0) {
           this._moodBaselines[name] = baseline;
         }
@@ -159,24 +150,51 @@ export class FaceMirror {
   async init(options = {}) {
     if (this._landmarker) return;
 
-    const { FaceLandmarker, FilesetResolver } = await import(
-      '@mediapipe/tasks-vision'
-    );
+    let FaceLandmarker, FilesetResolver;
+    try {
+      ({ FaceLandmarker, FilesetResolver } = await import(
+        '@mediapipe/tasks-vision'
+      ));
+    } catch (err) {
+      throw new Error(
+        `[FaceMirror] Failed to import @mediapipe/tasks-vision. ` +
+        `Install it with: npm install @mediapipe/tasks-vision`,
+        { cause: err },
+      );
+    }
 
-    const vision = await FilesetResolver.forVisionTasks(
-      options.wasmPath || MEDIAPIPE_WASM_CDN,
-    );
+    let vision;
+    try {
+      vision = await FilesetResolver.forVisionTasks(
+        options.wasmPath || MEDIAPIPE_WASM_CDN,
+      );
+    } catch (err) {
+      throw new Error(
+        `[FaceMirror] Failed to load MediaPipe WASM runtime from: ` +
+        `${options.wasmPath || MEDIAPIPE_WASM_CDN}`,
+        { cause: err },
+      );
+    }
 
-    this._landmarker = await FaceLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: options.modelPath || FACE_LANDMARKER_MODEL,
-        delegate: options.delegate || 'GPU',
-      },
-      outputFaceBlendshapes: true,
-      outputFacialTransformationMatrixes: this.opt.headPose,
-      runningMode: 'VIDEO',
-      numFaces: 1,
-    });
+    try {
+      this._landmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: options.modelPath || FACE_LANDMARKER_MODEL,
+          delegate: options.delegate || 'GPU',
+        },
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: this.opt.headPose,
+        runningMode: 'VIDEO',
+        numFaces: 1,
+      });
+    } catch (err) {
+      throw new Error(
+        `[FaceMirror] Failed to create FaceLandmarker. ` +
+        `Model: ${options.modelPath || FACE_LANDMARKER_MODEL}, ` +
+        `Delegate: ${options.delegate || 'GPU'}`,
+        { cause: err },
+      );
+    }
   }
 
   // ===========================================================================

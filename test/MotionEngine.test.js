@@ -304,10 +304,26 @@ describe('MotionEngine', () => {
       expect(engine.tracks.action.active).toBe(false);
       expect(head.stopGesture).toHaveBeenCalled();
     });
+
+    it('clears overlay timer on interrupt', () => {
+      engine.registerMotions({
+        overlay_action: {
+          dt: [500, 2000, 500],
+          vs: { mouthSmile: [0.5] },
+          _track: 'action',
+          _overlay: { bones: {}, duration: 2000, delay: 100 },
+        },
+      });
+      engine.play('overlay_action');
+      expect(engine.tracks.action.overlayTimer).not.toBeNull();
+
+      engine.stop();
+      expect(engine.tracks.action.overlayTimer).toBeNull();
+    });
   });
 
   describe('playSequence', () => {
-    it('plays first mood, stops sequence after since action track is inactive', async () => {
+    it('plays all moods in sequence', async () => {
       const played = [];
       engine.onStart = (name) => played.push(name);
       engine.registerMotions({
@@ -315,10 +331,25 @@ describe('MotionEngine', () => {
         mood2: { dt: [500], vs: { browInnerUp: [0.8] }, _track: 'mood' },
       });
 
-      // playSequence checks action track — moods don't use it, so it exits after first
       await engine.playSequence(['mood1', 'mood2']);
-      expect(played).toContain('mood1');
-      // mood2 is skipped because action track is not active after mood1
+      expect(played).toEqual(['mood1', 'mood2']);
+    });
+
+    it('plays mixed sequence (mood + action starts)', async () => {
+      const played = [];
+      engine.onStart = (name) => played.push(name);
+      engine.registerMotions({
+        mood1: { dt: [500], vs: { mouthSmile: [0.5] }, _track: 'mood' },
+        action1: { dt: [100], vs: { mouthSmile: [0.3] }, _track: 'action' },
+      });
+
+      // Don't await — action won't resolve in test (no real timers)
+      engine.playSequence(['mood1', 'action1']);
+      // mood1 plays immediately (sync), then action1 starts
+      await vi.waitFor(() => {
+        expect(played).toContain('mood1');
+        expect(played).toContain('action1');
+      });
     });
 
     it('starts action sequence correctly', async () => {
@@ -326,10 +357,26 @@ describe('MotionEngine', () => {
         action1: { dt: [100], vs: { mouthSmile: [0.5] }, _track: 'action' },
       });
 
-      // Play a single action in sequence — should trigger playback
       engine.playSequence(['action1']);
       expect(engine.tracks.action.active).toBe(true);
       expect(engine.tracks.action.name).toBe('action1');
+    });
+
+    it('stop() cancels remaining sequence items', async () => {
+      const played = [];
+      engine.onStart = (name) => played.push(name);
+      engine.registerMotions({
+        mood1: { dt: [500], vs: { mouthSmile: [0.5] }, _track: 'mood' },
+        mood2: { dt: [500], vs: { browInnerUp: [0.8] }, _track: 'mood' },
+      });
+
+      // Start sequence, then stop before second item
+      const seqPromise = engine.playSequence(['mood1', 'mood2']);
+      // mood1 plays synchronously, now stop before mood2
+      engine.stop();
+      await seqPromise;
+      // mood1 played, mood2 should be skipped
+      expect(played).toEqual(['mood1']);
     });
   });
 

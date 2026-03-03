@@ -15,6 +15,7 @@
 
 import { OverlayManager } from './OverlayManager.js';
 import { FaceMirror } from './FaceMirror.js';
+import { extractBaseline, EMPATHIC_PREFIX, SKIP_KEYS } from './utils.js';
 
 /** Default timing options (ms) */
 const DEFAULTS = {
@@ -211,9 +212,10 @@ export class MotionEngine {
    * @param {string[]} names - Array of motion names to play sequentially
    */
   async playSequence(names) {
-    for (let i = 0; i < names.length; i++) {
-      if (!this.tracks.action.active && i > 0) return;
-      await this.play(names[i]);
+    this._sequenceStopped = false;
+    for (const name of names) {
+      if (this._sequenceStopped) return;
+      await this.play(name);
     }
   }
 
@@ -222,6 +224,7 @@ export class MotionEngine {
    * and resets the action track immediately.
    */
   stop() {
+    this._sequenceStopped = true;
     this._interruptAction();
   }
 
@@ -348,6 +351,10 @@ export class MotionEngine {
       try {
         await this._waitAction(totalMs);
         if (this.tracks.action.active && this.tracks.action.name === name) {
+          if (this.tracks.action.overlayTimer) {
+            clearTimeout(this.tracks.action.overlayTimer);
+            this.tracks.action.overlayTimer = null;
+          }
           this.head.stopGesture(this.opt.gestureFadeOut);
           await this._waitAction(this.opt.stopSettleTime);
           this.tracks.action.active = false;
@@ -396,7 +403,7 @@ export class MotionEngine {
    *
    * @param {HTMLVideoElement} videoEl - Live camera feed
    * @param {object} [options] - FaceMirror options
-   * @param {string} [options.mode='empathic'] - 'empathic' | 'mirror'
+   * @param {string} [options.mode='mirror'] - 'empathic' | 'mirror'
    * @param {boolean} [options.headPose=true]  - Enable head pose tracking (empathic only)
    * @returns {Promise<void>}
    */
@@ -437,7 +444,7 @@ export class MotionEngine {
     // Clean up empathic mood entry
     if (this.head.animMoods) {
       for (const key of Object.keys(this.head.animMoods)) {
-        if (key.startsWith('_empathic_')) delete this.head.animMoods[key];
+        if (key.startsWith(EMPATHIC_PREFIX)) delete this.head.animMoods[key];
       }
     }
 
@@ -486,7 +493,7 @@ export class MotionEngine {
 
     // Clean up previous empathic mood
     for (const key of Object.keys(this.head.animMoods)) {
-      if (key.startsWith('_empathic_')) delete this.head.animMoods[key];
+      if (key.startsWith(EMPATHIC_PREFIX)) delete this.head.animMoods[key];
     }
 
     // Create attenuated baseline
@@ -497,7 +504,7 @@ export class MotionEngine {
       }
     }
 
-    const empathicName = `_empathic_${name}`;
+    const empathicName = `${EMPATHIC_PREFIX}${name}`;
     const neutral = this.head.animMoods['neutral'];
     this.head.animMoods[empathicName] = {
       baseline,
@@ -560,24 +567,7 @@ export class MotionEngine {
    * @param {object} entry - Motion definition with `vs` morph targets
    */
   _registerMood(name, entry) {
-    // Build baseline from vs morph targets (skip non-morph keys)
-    const SKIP_KEYS = new Set(['gesture', 'headMove']);
-    const baseline = {};
-
-    if (entry.vs) {
-      for (const [key, val] of Object.entries(entry.vs)) {
-        if (SKIP_KEYS.has(key)) continue;
-        const arr = Array.isArray(val) ? val : [val];
-        // For 3-frame [ramp, hold, ramp-down]: use hold (index 1)
-        // For 1-frame [value]: use that value
-        // For 2-frame [a, b]: use first
-        const picked = arr.length >= 2 ? arr[1] : arr[0];
-        // Only include finite numbers — skip range arrays and oscillation patterns
-        if (typeof picked === 'number' && isFinite(picked)) {
-          baseline[key] = picked;
-        }
-      }
-    }
+    const baseline = extractBaseline(entry.vs);
 
     // Copy idle animations from neutral mood (breathing, eyes, blink, etc.)
     const neutral = this.head.animMoods?.['neutral'];

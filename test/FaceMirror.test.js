@@ -57,6 +57,18 @@ describe('FaceMirror', () => {
   });
 
   // ===========================================================================
+  // init
+  // ===========================================================================
+
+  describe('init', () => {
+    it('throws informative error when @mediapipe/tasks-vision import fails', async () => {
+      // FaceMirror uses dynamic import — we can't easily mock it in vitest,
+      // but we can verify the error wrapping by checking the message pattern
+      await expect(mirror.init()).rejects.toThrow(/FaceMirror/);
+    });
+  });
+
+  // ===========================================================================
   // loadMotions
   // ===========================================================================
 
