@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MotionEngine } from '../src/MotionEngine.js';
+import { FaceMirror } from '../src/FaceMirror.js';
 
 // --- TalkingHead mock ---
 function createMockHead() {
@@ -413,6 +414,92 @@ describe('MotionEngine', () => {
       const motions = engine.getRegisteredMotions();
       expect(motions).toHaveProperty('test');
       expect(motions.test.dt).toEqual([500]);
+    });
+  });
+
+  // ===========================================================================
+  // Face Mirror integration
+  // ===========================================================================
+
+  describe('mirror integration', () => {
+    it('update() ticks mirror when present', () => {
+      const mockMirror = { update: vi.fn() };
+      engine._mirror = mockMirror;
+      engine.update(16);
+      expect(mockMirror.update).toHaveBeenCalledWith(16);
+    });
+
+    it('update() works without mirror', () => {
+      expect(engine._mirror).toBeNull();
+      engine.update(16); // should not throw
+    });
+
+    it('stopMirror() disposes and nulls mirror', () => {
+      const mockMirror = { stop: vi.fn(), dispose: vi.fn() };
+      engine._mirror = mockMirror;
+      engine.stopMirror();
+      expect(mockMirror.stop).toHaveBeenCalled();
+      expect(mockMirror.dispose).toHaveBeenCalled();
+      expect(engine._mirror).toBeNull();
+    });
+
+    it('stopMirror() is safe when no mirror', () => {
+      engine.stopMirror(); // should not throw
+      expect(engine._mirror).toBeNull();
+    });
+
+    it('pauseMirror() delegates to mirror', () => {
+      const mockMirror = { pause: vi.fn() };
+      engine._mirror = mockMirror;
+      engine.pauseMirror();
+      expect(mockMirror.pause).toHaveBeenCalled();
+    });
+
+    it('resumeMirror() delegates to mirror', () => {
+      const mockMirror = { resume: vi.fn() };
+      engine._mirror = mockMirror;
+      engine.resumeMirror();
+      expect(mockMirror.resume).toHaveBeenCalled();
+    });
+
+    it('mirror getter returns internal mirror', () => {
+      expect(engine.mirror).toBeNull();
+      const mockMirror = {};
+      engine._mirror = mockMirror;
+      expect(engine.mirror).toBe(mockMirror);
+    });
+
+    it('startMirror() loads classifiers from registered motions', async () => {
+      // Register motions with _detect
+      engine.registerMotions({
+        happy: {
+          _track: 'mood',
+          _detect: { mouthSmileLeft: 0.5, mouthSmileRight: 0.5 },
+          dt: [500],
+          vs: { mouthSmile: [0.6] },
+        },
+        sad: {
+          _track: 'mood',
+          _detect: { mouthFrownLeft: 0.3 },
+          dt: [500],
+          vs: {},
+        },
+      });
+
+      // Mock FaceMirror's init (avoid real MediaPipe load)
+      const initSpy = vi.spyOn(FaceMirror.prototype, 'init').mockResolvedValue();
+      const loadSpy = vi.spyOn(FaceMirror.prototype, 'loadMotions');
+
+      const videoEl = {};
+      await engine.startMirror(videoEl);
+
+      expect(loadSpy).toHaveBeenCalled();
+      expect(initSpy).toHaveBeenCalled();
+      expect(engine._mirror).toBeInstanceOf(FaceMirror);
+      expect(engine._mirror._active).toBe(true);
+
+      initSpy.mockRestore();
+      loadSpy.mockRestore();
     });
   });
 

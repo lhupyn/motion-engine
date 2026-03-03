@@ -4,7 +4,7 @@
 
 A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that turns low-level avatar animation into a simple semantic vocabulary. Instead of making LLMs reason about morph targets, bone rotations, and animation timing, MotionEngine lets them pick from a curated catalog of named motions — saving tokens and improving reliability.
 
-**[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)**
+**[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** · **[Face Mirror](https://lhupyn.github.io/motion-engine/mirror.html)**
 
 ---
 
@@ -19,6 +19,7 @@ TalkingHead already includes a solid animation system. MotionEngine builds on to
 - **LLM-friendly discovery** — `getLLMContext()` produces a compact, token-efficient catalog that can be injected into system prompts
 - **LLM-generated motions** — The [Playground](https://lhupyn.github.io/motion-engine/playground.html) demonstrates using an LLM to create new motions from natural language descriptions, which can then be played directly or saved to the catalog
 - **Motion sequencing** — Chain motions with interruption support
+- **Face mirroring** — Detect user facial expressions via MediaPipe and mirror them as avatar moods in real-time
 
 ```js
 // Mood persists while action plays on top:
@@ -115,6 +116,49 @@ const context = studio.getLLMContext();
 await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}');
 ```
 
+### Face Mirror (webcam expression mirroring)
+
+```js
+import { MotionEngine } from 'motion-engine';
+import motions from 'motion-engine/motions';
+
+const engine = new MotionEngine(talkingHead);
+engine.registerMotions(motions);
+talkingHead.opt.update = (dt) => engine.update(dt);
+
+// Start mirroring from a video element
+await engine.startMirror(videoEl, { threshold: 0.3, cooldown: 2000 });
+
+// Pause/resume (e.g. while avatar is speaking)
+engine.pauseMirror();
+engine.resumeMirror();
+
+// Stop and dispose
+engine.stopMirror();
+```
+
+#### Standalone usage (without MotionEngine)
+
+```js
+import { FaceMirror } from 'motion-engine/mirror';
+import motions from 'motion-engine/motions';
+
+const mirror = new FaceMirror({ threshold: 0.3, cooldown: 2000 });
+mirror.loadMotions(motions);
+await mirror.init();
+
+mirror.onMood = (mood, score, blendshapes) => {
+  console.log(`Detected: ${mood} (${score.toFixed(2)})`);
+};
+
+mirror.start(videoEl);
+
+// Call in your render loop:
+mirror.update(dt);
+```
+
+> **Peer dependency:** `@mediapipe/tasks-vision >= 0.10.0` (optional — only needed when using FaceMirror).
+
 ---
 
 ## API
@@ -142,7 +186,11 @@ await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}'
 | `freeze(enabled?)` | — | Stop all idle animations (breathing, blinking, etc.) |
 | `getMotionNames()` | `string[]` | All registered motion names |
 | `getRegisteredMotions()` | `object` | Internal motions dict (for Studio) |
-| `update(dt)` | — | Frame hook: bone overlays |
+| `update(dt)` | — | Frame hook: bone overlays + face mirror |
+| `startMirror(videoEl, opts?)` | `Promise<void>` | Start face mirroring from webcam |
+| `stopMirror()` | — | Stop and dispose face mirror |
+| `pauseMirror()` | — | Pause face detection |
+| `resumeMirror()` | — | Resume face detection |
 
 #### Properties
 
@@ -153,6 +201,52 @@ await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}'
 | `onStart` | `function\|null` | Callback when motion starts |
 | `onEnd` | `function\|null` | Callback when motion finishes |
 | `onError` | `function\|null` | Callback when motion fails |
+| `mirror` | `FaceMirror\|null` (getter) | Access FaceMirror for advanced config |
+
+### `new FaceMirror(options?)`
+
+| Option | Default | Description |
+|---|---|---|
+| `threshold` | `0.3` | Min score to trigger mood change |
+| `cooldown` | `2000` | Ms between mood changes |
+| `detectInterval` | `200` | Ms between detections (5 FPS) |
+
+#### Methods
+
+| Method | Returns | Description |
+|---|---|---|
+| `loadMotions(motions)` | `number` | Extract classifiers from `_detect` in mood entries |
+| `init(opts?)` | `Promise<void>` | Load MediaPipe FaceLandmarker |
+| `start(videoEl)` | — | Start detection from video element |
+| `stop()` | — | Stop detection, keep MediaPipe loaded |
+| `pause()` / `resume()` | — | Pause/resume detection |
+| `_classify(blendshapes)` | `{mood, score}` | Score blendshapes (public for testing) |
+| `dispose()` | — | Release all resources |
+
+#### Callbacks
+
+| Callback | Signature | Description |
+|---|---|---|
+| `onMood` | `(mood, score, blendshapes)` | Fired on mood change (after cooldown) |
+| `onDetect` | `(blendshapes)` | Fired on every detection frame |
+
+### `_detect` schema
+
+Mood entries in `motions.json` can include a `_detect` object for face mirroring:
+
+```json
+{
+  "happy": {
+    "_track": "mood",
+    "_detect": {
+      "mouthSmileLeft": 0.5,
+      "mouthSmileRight": 0.5
+    }
+  }
+}
+```
+
+Keys are MediaPipe ARKit blendshape names, values are linear weights. The classifier computes a weighted average: `score = sum(blendshape * weight) / sum(weights)`. The highest-scoring mood above `threshold` wins; otherwise falls back to `neutral`.
 
 ### `new MotionStudio(engine, options?)`
 

@@ -14,6 +14,7 @@
  */
 
 import { OverlayManager } from './OverlayManager.js';
+import { FaceMirror } from './FaceMirror.js';
 
 /** Default timing options (ms) */
 const DEFAULTS = {
@@ -54,6 +55,8 @@ export class MotionEngine {
 
     this._motions = {};
     this._overlays = new OverlayManager(talkingHead);
+    /** @type {FaceMirror|null} */
+    this._mirror = null;
 
     /** @type {function(string):void|null} */
     this.onStart = null;
@@ -380,18 +383,74 @@ export class MotionEngine {
   }
 
   // ===========================================================================
+  // Face Mirror
+  // ===========================================================================
+
+  /**
+   * Start face mirroring from a video element.
+   * Creates a FaceMirror, loads classifiers from registered motions,
+   * and wires `onMood` to play the detected mood.
+   *
+   * @param {HTMLVideoElement} videoEl - Live camera feed
+   * @param {object} [options] - FaceMirror options (threshold, cooldown, detectInterval)
+   * @returns {Promise<void>}
+   */
+  async startMirror(videoEl, options = {}) {
+    if (this._mirror) this.stopMirror();
+
+    this._mirror = new FaceMirror(options);
+    this._mirror.loadMotions(this._motions);
+    await this._mirror.init();
+    this._mirror.onMood = (mood) => this.play(mood);
+    this._mirror.start(videoEl);
+  }
+
+  /**
+   * Stop and dispose face mirroring.
+   */
+  stopMirror() {
+    if (!this._mirror) return;
+    this._mirror.stop();
+    this._mirror.dispose();
+    this._mirror = null;
+  }
+
+  /**
+   * Pause face mirroring (e.g. while avatar is speaking).
+   */
+  pauseMirror() {
+    this._mirror?.pause();
+  }
+
+  /**
+   * Resume face mirroring after pause.
+   */
+  resumeMirror() {
+    this._mirror?.resume();
+  }
+
+  /**
+   * Access the FaceMirror instance for advanced configuration.
+   * @returns {FaceMirror|null}
+   */
+  get mirror() {
+    return this._mirror;
+  }
+
+  // ===========================================================================
   // Render Loop
   // ===========================================================================
 
   /**
-   * Frame update hook — delegates to OverlayManager for bone overlays.
-   * Mood morphs are handled entirely by TH's native mood system.
+   * Frame update hook — delegates to OverlayManager for bone overlays
+   * and FaceMirror for expression detection.
    * Connect to TalkingHead via: `head.opt.update = (dt) => engine.update(dt);`
    *
    * @param {number} dt - Delta time from TalkingHead render loop
    */
   update(dt) {
     this._overlays.update(dt);
+    this._mirror?.update(dt);
   }
 
   // ===========================================================================

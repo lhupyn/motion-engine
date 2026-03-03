@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'demo/index.html'),
         playground: resolve(__dirname, 'demo/playground.html'),
+        mirror: resolve(__dirname, 'demo/mirror.html'),
       },
       external: ['three', 'talkinghead'],
     },
@@ -19,5 +20,8 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
     },
+  },
+  optimizeDeps: {
+    include: ['@mediapipe/tasks-vision'],
   },
 });
