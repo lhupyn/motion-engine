@@ -403,7 +403,7 @@ export class MotionEngine {
   async startMirror(videoEl, options = {}) {
     if (this._mirror) this.stopMirror();
 
-    const opts = { mode: 'mirror', ...options };
+    const opts = { mode: 'mirror', headPose: true, ...options };
     this._mirror = new FaceMirror(opts);
     this._mirror.loadMotions(this._motions);
     await this._mirror.init();
