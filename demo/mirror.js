@@ -3,6 +3,10 @@
  *
  * Left: avatar with mood mirroring from user's webcam.
  * Right: camera preview, score bars, config sliders, manual overrides.
+ *
+ * Supports two modes:
+ * - **empathic** (default): avatar reacts with attenuated intensity + gestures.
+ * - **mirror**: 1:1 mood cloning (v1 behavior).
  */
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine } from '../src/MotionEngine.js';
@@ -18,20 +22,29 @@ const container = document.getElementById('avatar-container');
 const statusEl = document.getElementById('status');
 const logEl = document.getElementById('log');
 const moodStatusEl = document.getElementById('mood-status');
+const reactionStatusEl = document.getElementById('reaction-status');
+const headPoseEl = document.getElementById('head-pose');
 const scoreBarsEl = document.getElementById('score-bars');
 const videoEl = document.getElementById('camera-preview');
 const btnMirror = document.getElementById('btn-mirror');
 const btnPause = document.getElementById('btn-pause');
+const btnMode = document.getElementById('btn-mode');
 const sliderThreshold = document.getElementById('slider-threshold');
 const sliderCooldown = document.getElementById('slider-cooldown');
 const valThreshold = document.getElementById('val-threshold');
 const valCooldown = document.getElementById('val-cooldown');
+
+// --- Debug panel refs ---
+const debugEl = document.getElementById('debug-blendshapes');
+const btnDebug = document.getElementById('btn-debug');
 
 // --- State ---
 let head = null;
 let engine = null;
 let mirroring = false;
 let paused = false;
+let currentMode = 'mirror';
+let debugVisible = false;
 
 // --- Logging ---
 function log(msg, level = 'info') {
@@ -101,8 +114,29 @@ async function initAvatar() {
   head.opt.update = (dt) => engine.update(dt);
 
   initScoreBars();
+  updateModeButton();
   statusEl.textContent = 'Ready. Click "Start Mirror" to begin.';
   log('Avatar ready.');
+}
+
+// =============================================================================
+// Mode Toggle
+// =============================================================================
+function updateModeButton() {
+  btnMode.textContent = currentMode === 'empathic' ? 'Empathic' : 'Mirror';
+  btnMode.classList.toggle('empathic', currentMode === 'empathic');
+  reactionStatusEl.parentElement.style.display = currentMode === 'empathic' ? '' : 'none';
+  headPoseEl.parentElement.style.display = currentMode === 'empathic' ? '' : 'none';
+}
+
+function toggleMode() {
+  if (mirroring) {
+    log('Stop mirror before switching mode.', 'warn');
+    return;
+  }
+  currentMode = currentMode === 'empathic' ? 'mirror' : 'empathic';
+  updateModeButton();
+  log(`Mode: ${currentMode}`);
 }
 
 // =============================================================================
@@ -139,6 +173,8 @@ async function toggleMirror() {
     btnPause.disabled = true;
     btnPause.textContent = 'Pause';
     moodStatusEl.textContent = 'neutral';
+    reactionStatusEl.textContent = '-';
+    headPoseEl.textContent = '0, 0, 0';
     statusEl.textContent = 'Mirror stopped.';
     log('Mirror stopped.');
     return;
@@ -149,28 +185,44 @@ async function toggleMirror() {
   if (!ok) return;
 
   statusEl.textContent = 'Loading MediaPipe...';
-  log('Loading MediaPipe FaceLandmarker...');
+  log(`Loading MediaPipe FaceLandmarker (mode: ${currentMode})...`);
 
   try {
     await engine.startMirror(videoEl, {
+      mode: currentMode,
       threshold: parseFloat(sliderThreshold.value),
       cooldown: parseInt(sliderCooldown.value),
     });
 
     // Wire callbacks for UI
-    engine.mirror.onMood = (mood, score, b) => {
-      engine.play(mood);
+    engine.mirror.onMood = ((prevOnMood) => (mood, score, b) => {
+      if (prevOnMood) prevOnMood(mood, score, b);
       moodStatusEl.textContent = `${mood} (${score.toFixed(2)})`;
       updateScoreBar(mood, score);
-      log(`Mirror: ${mood} (${score.toFixed(2)})`);
-    };
+      log(`Detected: ${mood} (${score.toFixed(2)})`);
+    })(engine.mirror.onMood);
+
+    if (currentMode === 'empathic') {
+      const prevOnReaction = engine.mirror.onReaction;
+      engine.mirror.onReaction = (reactionMood, intensity, gesture, detectedMood) => {
+        if (prevOnReaction) prevOnReaction(reactionMood, intensity, gesture, detectedMood);
+        const gestureStr = gesture ? ` + ${gesture}` : '';
+        reactionStatusEl.textContent = `${detectedMood} -> ${reactionMood} (${(intensity * 100).toFixed(0)}%)${gestureStr}`;
+        log(`Reaction: ${detectedMood} -> ${reactionMood} @${(intensity * 100).toFixed(0)}%${gestureStr}`);
+      };
+
+      const prevOnValues = engine.mirror.onValues;
+      engine.mirror.onValues = (values, headPose) => {
+        if (prevOnValues) prevOnValues(values, headPose);
+        const p = (v) => (v * 100).toFixed(1);
+        headPoseEl.textContent = `P:${p(headPose.pitch)} Y:${p(headPose.yaw)} R:${p(headPose.roll)}`;
+      };
+    }
 
     engine.mirror.onDetect = (b) => {
       // Update all score bars on each detection
       if (!engine.mirror) return;
-      const result = engine.mirror._classify(b);
       for (const [name, els] of Object.entries(scoreBarEls)) {
-        // Re-classify per mood for visualization
         const classifier = engine.mirror._classifiers.find((c) => c.mood === name);
         if (!classifier) continue;
         let score = 0;
@@ -182,13 +234,28 @@ async function toggleMirror() {
         els.fill.style.background = score >= engine.mirror.opt.threshold ? '#6c9' : '#555';
         els.value.textContent = score.toFixed(2);
       }
+
+      // Debug: show top raw blendshapes sorted by value
+      if (debugVisible) {
+        const sorted = Object.entries(b)
+          .filter(([, v]) => v > 0.01)
+          .sort((a, c) => c[1] - a[1]);
+        debugEl.innerHTML = sorted
+          .map(([name, val]) => {
+            const pct = (val * 100).toFixed(0);
+            const bar = '|'.repeat(Math.min(Math.round(val * 30), 30));
+            const color = val > 0.5 ? '#6c9' : val > 0.2 ? '#fc6' : '#666';
+            return `<span style="color:${color}">${name.padEnd(28)} ${pct.padStart(3)}% <span style="color:${color}">${bar}</span></span>`;
+          })
+          .join('<br>');
+      }
     };
 
     mirroring = true;
     btnMirror.textContent = 'Stop Mirror';
     btnMirror.classList.add('active');
     btnPause.disabled = false;
-    statusEl.textContent = 'Mirroring active.';
+    statusEl.textContent = `Mirroring active (${currentMode}).`;
     log('Mirror started.');
   } catch (e) {
     log(`Mirror init failed: ${e.message}`, 'error');
@@ -208,7 +275,7 @@ function togglePause() {
   } else {
     engine.resumeMirror();
     btnPause.textContent = 'Pause';
-    statusEl.textContent = 'Mirroring active.';
+    statusEl.textContent = `Mirroring active (${currentMode}).`;
     log('Mirror resumed.');
   }
 }
@@ -216,6 +283,12 @@ function togglePause() {
 // --- Events ---
 btnMirror.addEventListener('click', toggleMirror);
 btnPause.addEventListener('click', togglePause);
+btnMode.addEventListener('click', toggleMode);
+btnDebug.addEventListener('click', () => {
+  debugVisible = !debugVisible;
+  debugEl.style.display = debugVisible ? '' : 'none';
+  btnDebug.textContent = debugVisible ? 'Hide' : 'Show';
+});
 
 // Config sliders
 sliderThreshold.addEventListener('input', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MotionEngine } from '../src/MotionEngine.js';
 import { FaceMirror } from '../src/FaceMirror.js';
 
@@ -29,7 +29,9 @@ function createMockHead() {
       browInnerUp: { newvalue: 0, baseline: 0, needsUpdate: false },
       mouthSmile: { newvalue: 0, baseline: 0, needsUpdate: false },
       eyeSquintLeft: { newvalue: 0, baseline: 0, needsUpdate: false },
+      headRotateX: { newvalue: 0, baseline: 0, needsUpdate: false },
       headRotateY: { newvalue: 0, baseline: 0, needsUpdate: false },
+      headRotateZ: { newvalue: 0, baseline: 0, needsUpdate: false },
     },
     avatar: { baseline: {} },
     poseDelta: { props: {} },
@@ -525,6 +527,152 @@ describe('MotionEngine', () => {
 
       engine.play('nonexistent_motion');
       expect(onError).toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // playMoodAttenuated (empathic API)
+  // ===========================================================================
+
+  describe('playMoodAttenuated', () => {
+    it('creates _empathic_* animMood at correct intensity', () => {
+      engine.playMoodAttenuated('happy', 0.3);
+      const empathic = head.animMoods['_empathic_happy'];
+      expect(empathic).toBeDefined();
+      // happy baseline: { mouthSmile: 0.2, eyesLookDown: 0.1 }
+      expect(empathic.baseline.mouthSmile).toBeCloseTo(0.06, 4);
+      expect(empathic.baseline.eyesLookDown).toBeCloseTo(0.03, 4);
+    });
+
+    it('calls setMood with _empathic_* name', () => {
+      engine.playMoodAttenuated('happy', 0.3);
+      expect(head.setMood).toHaveBeenCalledWith('_empathic_happy');
+    });
+
+    it('cleans up previous empathic mood', () => {
+      engine.playMoodAttenuated('happy', 0.3);
+      expect(head.animMoods['_empathic_happy']).toBeDefined();
+
+      engine.playMoodAttenuated('neutral', 0.2);
+      expect(head.animMoods['_empathic_happy']).toBeUndefined();
+      expect(head.animMoods['_empathic_neutral']).toBeDefined();
+    });
+
+    it('updates mood track state', () => {
+      engine.playMoodAttenuated('happy', 0.3);
+      expect(engine.tracks.mood.active).toBe(true);
+      expect(engine.tracks.mood.name).toBe('_empathic_happy');
+    });
+
+    it('copies neutral anims into empathic mood', () => {
+      engine.playMoodAttenuated('happy', 0.3);
+      const empathic = head.animMoods['_empathic_happy'];
+      expect(empathic.anims).toHaveLength(2);
+      expect(empathic.anims[0].name).toBe('breathing');
+    });
+
+    it('does nothing if source mood not found', () => {
+      engine.playMoodAttenuated('nonexistent', 0.3);
+      expect(head.setMood).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // setHeadPose (empathic API)
+  // ===========================================================================
+
+  describe('setHeadPose', () => {
+    it('sets morph target values for head rotation', () => {
+      engine.setHeadPose(0.1, -0.05, 0.02);
+      expect(head.mtAvatar.headRotateX.newvalue).toBe(0.1);
+      expect(head.mtAvatar.headRotateX.needsUpdate).toBe(true);
+      expect(head.mtAvatar.headRotateY.newvalue).toBe(-0.05);
+      expect(head.mtAvatar.headRotateY.needsUpdate).toBe(true);
+      expect(head.mtAvatar.headRotateZ.newvalue).toBe(0.02);
+      expect(head.mtAvatar.headRotateZ.needsUpdate).toBe(true);
+    });
+
+    it('handles missing morph targets gracefully', () => {
+      head.mtAvatar = {};
+      engine.setHeadPose(0.1, 0.1, 0.1); // should not throw
+    });
+
+    it('handles null mtAvatar gracefully', () => {
+      head.mtAvatar = null;
+      engine.setHeadPose(0.1, 0.1, 0.1); // should not throw
+    });
+  });
+
+  // ===========================================================================
+  // startMirror empathic mode
+  // ===========================================================================
+
+  describe('startMirror empathic mode', () => {
+    let initSpy, loadSpy;
+
+    beforeEach(() => {
+      initSpy = vi.spyOn(FaceMirror.prototype, 'init').mockResolvedValue();
+      loadSpy = vi.spyOn(FaceMirror.prototype, 'loadMotions');
+    });
+
+    afterEach(() => {
+      initSpy.mockRestore();
+      loadSpy.mockRestore();
+    });
+
+    it('defaults to mirror mode', async () => {
+      await engine.startMirror({});
+      expect(engine._mirror.opt.mode).toBe('mirror');
+      expect(engine._mirror.onMood).toBeTypeOf('function');
+    });
+
+    it('empathic mode wires onReaction', async () => {
+      await engine.startMirror({}, { mode: 'empathic' });
+      expect(engine._mirror.opt.mode).toBe('empathic');
+      expect(engine._mirror.onReaction).toBeTypeOf('function');
+      expect(engine._mirror.onValues).toBeTypeOf('function');
+    });
+
+    it('mirror mode does not wire onReaction', async () => {
+      await engine.startMirror({});
+      expect(engine._mirror.onReaction).toBeNull();
+    });
+
+    it('passes custom options through', async () => {
+      await engine.startMirror({}, { threshold: 0.5, cooldown: 1000 });
+      expect(engine._mirror.opt.threshold).toBe(0.5);
+      expect(engine._mirror.opt.cooldown).toBe(1000);
+    });
+  });
+
+  // ===========================================================================
+  // stopMirror cleanup
+  // ===========================================================================
+
+  describe('stopMirror cleanup', () => {
+    it('cleans up _empathic_* animMood entries', () => {
+      head.animMoods['_empathic_happy'] = { baseline: {}, speech: {}, anims: [] };
+      head.animMoods['_empathic_sad'] = { baseline: {}, speech: {}, anims: [] };
+      const mockMirror = { stop: vi.fn(), dispose: vi.fn() };
+      engine._mirror = mockMirror;
+
+      engine.stopMirror();
+      expect(head.animMoods['_empathic_happy']).toBeUndefined();
+      expect(head.animMoods['_empathic_sad']).toBeUndefined();
+      // Regular moods should be preserved
+      expect(head.animMoods['happy']).toBeDefined();
+    });
+
+    it('resets head pose to zero', () => {
+      head.mtAvatar.headRotateX.newvalue = 0.1;
+      head.mtAvatar.headRotateY.newvalue = -0.05;
+      const mockMirror = { stop: vi.fn(), dispose: vi.fn() };
+      engine._mirror = mockMirror;
+
+      engine.stopMirror();
+      expect(head.mtAvatar.headRotateX.newvalue).toBe(0);
+      expect(head.mtAvatar.headRotateY.newvalue).toBe(0);
+      expect(head.mtAvatar.headRotateZ.newvalue).toBe(0);
     });
   });
 });
