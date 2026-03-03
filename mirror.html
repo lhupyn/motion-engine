@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MotionEngine — Face Mirror Demo</title>
+
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; color: #eee; font-family: system-ui, sans-serif; display: flex; height: 100vh; }
+
+    #avatar-container {
+      flex: 1;
+      position: relative;
+      background: #1a1a2e;
+    }
+    #avatar-container canvas { width: 100% !important; height: 100% !important; }
+
+    #panel {
+      width: 380px;
+      padding: 20px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      border-left: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    h2 { font-size: 16px; color: #aaa; border-bottom: 1px solid #333; padding-bottom: 8px; }
+
+    .btn {
+      padding: 10px 16px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a2a;
+      color: #eee;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all .15s;
+    }
+    .btn:hover { background: #3a3a3a; border-color: #666; }
+    .btn:active { background: #444; }
+    .btn.active { background: #1a5a2a; border-color: #2a8a4a; }
+    .btn.mood { background: #2a1a2a; border-color: #5a2a5a; }
+    .btn.mood:hover { background: #3a2a3a; border-color: #6a3a6a; }
+
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    #camera-preview {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      transform: scaleX(-1);
+    }
+
+    #mood-status {
+      font-size: 24px;
+      text-align: center;
+      padding: 16px;
+      background: #0a0a0a;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    .score-bar-container { display: flex; flex-direction: column; gap: 4px; }
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+    }
+    .score-bar label { width: 60px; text-align: right; color: #888; }
+    .score-bar .bar {
+      flex: 1;
+      height: 14px;
+      background: #222;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .score-bar .bar-fill {
+      height: 100%;
+      background: #6c9;
+      border-radius: 4px;
+      transition: width 0.2s;
+    }
+    .score-bar .value { width: 36px; font-family: monospace; color: #666; }
+
+    .slider-group { display: flex; flex-direction: column; gap: 8px; }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .slider-row label { width: 80px; color: #888; }
+    .slider-row input[type="range"] { flex: 1; }
+    .slider-row .val { width: 40px; font-family: monospace; color: #666; text-align: right; }
+
+    #log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #0a0a0a;
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      flex: 1;
+      min-height: 80px;
+    }
+    .log-info { color: #6c9; }
+    .log-warn { color: #fc6; }
+    .log-error { color: #f66; }
+
+    #status {
+      font-size: 12px;
+      color: #888;
+      padding: 8px;
+      background: #0a0a0a;
+      border-radius: 6px;
+      text-align: center;
+    }
+  </style>
+  <script type="importmap">
+  { "imports":
+    {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
+      "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/+esm"
+    }
+  }
+  </script>
+  <script type="module" crossorigin src="/motion-engine/assets/mirror-rrbN6bHl.js"></script>
+  <link rel="modulepreload" crossorigin href="/motion-engine/assets/motions_th-BLpqu1lu.js">
+</head>
+
+<body>
+  <div id="avatar-container"></div>
+  <div id="panel">
+    <nav style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="border:none;padding:0">Face Mirror</h2>
+      <span style="display:flex;gap:12px">
+        <a href="./index.html" style="color:#6cf;font-size:12px;text-decoration:none">&larr; Demo</a>
+        <a href="./playground.html" style="color:#6cf;font-size:12px;text-decoration:none">Playground &rarr;</a>
+      </span>
+    </nav>
+
+    <div id="status">Loading avatar...</div>
+
+    <video id="camera-preview" autoplay muted playsinline></video>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn active" id="btn-mirror" style="flex:1">Start Mirror</button>
+      <button class="btn" id="btn-pause" style="flex:1" disabled>Pause</button>
+    </div>
+
+    <div id="mood-status">neutral</div>
+
+    <h2>Score Bars</h2>
+    <div id="score-bars" class="score-bar-container"></div>
+
+    <h2>Config</h2>
+    <div class="slider-group">
+      <div class="slider-row">
+        <label>Threshold</label>
+        <input type="range" id="slider-threshold" min="0.1" max="0.8" step="0.05" value="0.3" />
+        <span class="val" id="val-threshold">0.3</span>
+      </div>
+      <div class="slider-row">
+        <label>Cooldown</label>
+        <input type="range" id="slider-cooldown" min="500" max="5000" step="250" value="2000" />
+        <span class="val" id="val-cooldown">2s</span>
+      </div>
+    </div>
+
+    <h2>Manual Moods</h2>
+    <div class="btn-grid">
+      <button class="btn mood" data-mood="neutral">Neutral</button>
+      <button class="btn mood" data-mood="happy">Happy</button>
+      <button class="btn mood" data-mood="sad">Sad</button>
+      <button class="btn mood" data-mood="angry">Angry</button>
+      <button class="btn mood" data-mood="curious">Curious</button>
+      <button class="btn mood" data-mood="thinking">Thinking</button>
+      <button class="btn mood" data-mood="disgust">Disgust</button>
+      <button class="btn mood" data-mood="fear">Fear</button>
+      <button class="btn mood" data-mood="smirk">Smirk</button>
+      <button class="btn mood" data-mood="frown">Frown</button>
+      <button class="btn mood" data-mood="squint">Squint</button>
+      <button class="btn mood" data-mood="pleading">Pleading</button>
+    </div>
+
+    <h2>Log</h2>
+    <div id="log"></div>
+  </div>
+
+</body>
+
+</html>
