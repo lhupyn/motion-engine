@@ -320,6 +320,7 @@ npm run test:watch  # watch mode
 ## Credits
 
 - **[TalkingHead](https://github.com/met4citizen/TalkingHead)** by Mika Suominen — MIT License.
+- **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** by Google — used for real-time blendshape detection in FaceMirror.
 - **Demo avatar**: Created with [Ready Player Me](https://readyplayer.me/).
 
 ## License
