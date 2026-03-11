@@ -2,77 +2,112 @@
 
 > **Semantic motion layer for LLM-driven 3D avatars.**
 
-A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that turns low-level avatar animation into a simple semantic vocabulary. Instead of making LLMs reason about morph targets, bone rotations, and animation timing, MotionEngine lets them pick from a curated catalog of named motions — saving tokens and improving reliability.
+A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that gives 3D avatars rich body language — without burdening the LLM. Instead of making models reason about morph targets and bone rotations, MotionEngine lets them pick from a curated catalog of **137+ named motions**, saving tokens and improving real-time responsiveness.
 
-**[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** · **[Face Mirror](https://lhupyn.github.io/motion-engine/mirror.html)**
-
----
-
-## What this PoC explores
-
-TalkingHead already includes a solid animation system. MotionEngine builds on top of it to explore a few ideas:
-
-- **Compound motions as data** — Define face + hands + body + bone overlays in a single JSON object, instead of coordinating multiple API calls
-- **Multi-track playback** — Keep a persistent mood active while temporal actions (gestures, expressions) play on top and finish
-- **Expanded vocabulary** — 137+ data-driven motions with fine-grained nuance (`shy`, `nervous`, `curious`, `smirk`...) that extend TH's built-in set
-- **Declarative bone overlays** — Sinusoidal oscillations on bones (body shakes, arm waves, shivers) with automatic fade in/out, defined as parameters instead of per-frame code
-- **LLM-friendly discovery** — `getLLMContext()` produces a compact, token-efficient catalog that can be injected into system prompts
-- **LLM-generated motions** — The [Playground](https://lhupyn.github.io/motion-engine/playground.html) demonstrates using an LLM to create new motions from natural language descriptions, which can then be played directly or saved to the catalog
-- **Motion sequencing** — Chain motions with interruption support
-- **Face mirroring** — Detect user facial expressions via MediaPipe and mirror them as avatar moods in real-time, with an empathic mode that reacts naturally instead of cloning
-
-```js
-// Mood persists while action plays on top:
-engine.play('happy');       // mood stays active...
-engine.play('wave_right');  // ...compound action plays and finishes
-```
-
-> This is a **proof of concept** for a plugin architecture on top of TalkingHead. None of this replaces TH's built-in system — it's an exploration of what a data-driven semantic layer could look like for LLM-driven avatar control.
+**[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[Face Mirror](https://lhupyn.github.io/motion-engine/mirror.html)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** · **[Reference Implementation](https://doacam.com)**
 
 ---
+
+## Why MotionEngine exists
+
+We started by asking Gemini Live to animate a 3D avatar directly — generating gestures from examples via system prompt while holding a real-time conversation. It failed in three ways: the model got distracted from the conversation, tool calls on the preview model threw errors, and the time to generate each animation was unacceptable for real-time.
+
+That failure shaped our core philosophy: **don't make the LLM do work it doesn't need to do.**
+
+Every function we could delegate to the client meant fewer tokens consumed, lower latency, and a model that could focus on what it does best — talk. This led us to build MotionEngine: a layer that handles all avatar animation logic outside the LLM, so the model only needs to name a gesture and keep talking.
+
+## How it works
+
+MotionEngine creates **two distinct avatar states** that together produce a seamless experience:
+
+### When the avatar speaks — Markers in the stream
+
+Instead of using tool calls (which break conversational flow and add latency), the LLM embeds lightweight `::marker::` tokens directly in its speech. The model is instructed not to read them aloud. On the frontend, markers are detected via regex in the transcription, routed to the appropriate animation track, and stripped from the user-facing output.
+
+The LLM never leaves its conversational context. Animations stay coupled to the exact moment in speech where they belong.
+
+### When the avatar listens — Empathic vision
+
+When the avatar isn't speaking, a local algorithm powered by [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) reads the user's facial expressions through the webcam. Instead of sending this data to the LLM (more tokens, more latency), the algorithm generates empathic avatar responses entirely on the client — a soft smile when the user smiles, a nod, a tilt of the head.
+
+It doesn't clone the user's face. It *reacts* naturally with attenuated intensity and complementary gestures.
+
+| Avatar state | Animation source | LLM involved? |
+|---|---|---|
+| **Speaking** | `::markers::` in transcriptions | Yes (gesture names only) |
+| **Listening** | Empathic vision via MediaPipe | No |
 
 ## Architecture
 
-### `MotionEngine` — The Player (runtime)
-Core playback engine. Every consumer imports this.
+```mermaid
+graph TB
+    subgraph Cloud["Google Cloud"]
+        BE["Backend<br/>(Cloud Run)"]
+        GEMINI["Gemini Live API<br/>(GenAI SDK)"]
+        BE <--> GEMINI
+    end
 
-- **Multi-track state machine**: 3 parallel tracks (`pose`, `mood`, `action`)
-- **Track routing**: reads `_track` from motion metadata, falls back to heuristics
-- **Native mood injection**: custom moods are registered into TH's `animMoods` for seamless transitions
-- **Registration**: `registerMotions()` — parses metadata, registers animEmojis
-- **Playback**: `play(name, dur)`, `playSequence(names)`, `stop()`
-- **Render loop**: `update(dt)` — bone overlay oscillations per-frame
+    subgraph Browser["User's Browser"]
+        subgraph Frontend["Frontend (Firebase Hosting)"]
+            direction TB
+            TH["TalkingHead<br/>3D Avatar Renderer"]
 
-### `MotionStudio` — Authoring & Discovery (optional)
-Wraps a MotionEngine instance. LLM integration, discovery, dynamic creation, aliases.
+            subgraph ME["MotionEngine"]
+                direction LR
+                TRACKS["Multi-track Player<br/>pose | mood | action"]
+                MOTIONS["Motion Dictionary<br/>137+ named motions"]
+                OVERLAYS["Bone Overlays<br/>shivers, waves, shakes"]
+            end
 
-- **Discovery**: `getMotions()`, `getMotionsCompact()`, `getMotionsForPrompt()`, `getLLMContext()`
-- **Avatar inspection**: `getAvatarCapabilities()` — morph targets + bones
-- **Dynamic motions**: `parseDynamic()`, `playDynamic()`, `registerDynamic()`
-- **Aliases**: morph name mapping, bone name mapping
-- **Utilities**: `wrapMorph()` — bare morph target → full motion definition
+            subgraph FM["FaceMirror"]
+                direction LR
+                MP["MediaPipe<br/>Face Landmarker"]
+                CLASSIFY["Emotion<br/>Classifier"]
+                REACT["Empathic<br/>Reactions"]
+                MP --> CLASSIFY --> REACT
+            end
 
-### Track System
+            STUDIO["MotionStudio<br/>LLM Context Generator"]
+        end
 
-| Track | Behavior | Example |
-|-------|----------|---------|
-| **pose** | Persistent body position | `standing`, `sitting` |
-| **mood** | Persistent emotional state | `thinking`, `angry`, `shy` |
-| **action** | Temporal, interrupts previous | `wave_right`, `nod_yes`, `laugh` |
+        WEBCAM["Webcam"]
+    end
 
-Moods persist while actions play on top. Actions interrupt each other. Poses and moods apply immediately.
+    BE -->|"audio + transcription<br/>with ::markers::"| PARSE
+    PARSE["Marker Parser<br/>(regex)"] -->|"gesture name"| TRACKS
+    TRACKS --> TH
+    MOTIONS --> TRACKS
+    OVERLAYS --> TH
+
+    WEBCAM -->|"video feed"| MP
+    REACT -->|"attenuated mood<br/>+ gesture"| TRACKS
+
+    STUDIO -.->|"getLLMContext()"| BE
+```
+
+**Three components, one pipeline:**
+
+- **MotionEngine** (runtime) — Multi-track playback system with three parallel tracks: `pose` (persistent body position), `mood` (persistent emotional state), and `action` (temporal gestures). Moods persist while actions play on top and finish. Includes declarative bone overlays for physical effects like shivers and waves.
+
+- **FaceMirror** (vision) — Real-time facial expression detection using MediaPipe. A weighted classifier maps blendshapes to emotional states. In empathic mode, detected emotions trigger attenuated avatar reactions defined by a `_react` schema in the motion data.
+
+- **MotionStudio** (authoring, optional) — Discovery and LLM integration layer. `getLLMContext()` produces a token-efficient motion catalog for system prompts. Can also parse and play dynamic motions from LLM-generated JSON.
+
+**Reference deployment** ([doacam.com](https://doacam.com)):
+- Backend on **Google Cloud Run** using **Google GenAI SDK** with **Gemini Live API**
+- Frontend on **Firebase Hosting** with TalkingHead + MotionEngine
 
 ---
 
-## Install
+## Quick start
+
+### Install
 
 ```bash
 npm install github:lhupyn/motion-engine
 ```
 
-## Usage
-
-### Player only (most consumers)
+### Basic usage
 
 ```js
 import { MotionEngine } from 'motion-engine';
@@ -81,7 +116,7 @@ import motions from 'motion-engine/motions';
 const engine = new MotionEngine(talkingHead);
 engine.registerMotions(motions);
 
-// Hook into TalkingHead render loop (required for overlays)
+// Hook into TalkingHead render loop (required for bone overlays)
 talkingHead.opt.update = (dt) => engine.update(dt);
 
 // Set a mood (persists)
@@ -94,53 +129,32 @@ await engine.play('nod_yes');
 await engine.playSequence(['wave_right', 'thumbup_right']);
 ```
 
-### Player + Studio (LLM integration)
+### LLM integration
 
 ```js
-import { MotionEngine } from 'motion-engine';
 import { MotionStudio } from 'motion-engine/studio';
-import motions from 'motion-engine/motions';
 
-const engine = new MotionEngine(talkingHead);
-const studio = new MotionStudio(engine, {
-  aliases: { eyesClosed: ['eyeBlinkLeft', 'eyeBlinkRight'] },
-});
+const studio = new MotionStudio(engine);
 
-engine.registerMotions(motions);
-talkingHead.opt.update = (dt) => engine.update(dt);
-
-// Get compact LLM context for system prompt
+// Get compact motion catalog for system prompts
 const context = studio.getLLMContext();
 
-// Play a dynamic motion from LLM JSON
+// Play a dynamic motion from LLM-generated JSON
 await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}');
 ```
 
-### Face Mirror (webcam expression detection)
+### Face Mirror
 
 FaceMirror supports two modes:
 
-- **mirror** (default) — 1:1 mood cloning. User smiles -> avatar smiles at full intensity.
-- **empathic** — avatar *reacts* to user emotions with attenuated intensity and complementary gestures. User smiles -> avatar smiles softly (30%) + subtle gesture.
+- **mirror** — 1:1 mood cloning. User smiles, avatar smiles at full intensity.
+- **empathic** — Avatar *reacts* with attenuated intensity and complementary gestures. User smiles, avatar smiles softly (30%) + subtle nod.
 
 ```js
-import { MotionEngine } from 'motion-engine';
-import motions from 'motion-engine/motions';
-
-const engine = new MotionEngine(talkingHead);
-engine.registerMotions(motions);
-talkingHead.opt.update = (dt) => engine.update(dt);
-
-// Mirror mode (default) — 1:1 mood cloning
-await engine.startMirror(videoEl, { threshold: 0.3, cooldown: 2000 });
-
 // Empathic mode — avatar reacts naturally instead of cloning
 await engine.startMirror(videoEl, { mode: 'empathic' });
 
-// Empathic mode also supports head pose tracking
-await engine.startMirror(videoEl, { headPose: true }); // on by default
-
-// Pause/resume (e.g. while avatar is speaking)
+// Pause while avatar is speaking, resume when listening
 engine.pauseMirror();
 engine.resumeMirror();
 
@@ -148,196 +162,15 @@ engine.resumeMirror();
 engine.stopMirror();
 ```
 
-#### Empathic API (direct use)
-
-```js
-// Play a mood at reduced intensity (0-1)
-engine.playMoodAttenuated('happy', 0.3);
-
-// Set head pose (radians)
-engine.setHeadPose(pitch, yaw, roll);
-```
-
-#### Standalone usage (without MotionEngine)
-
-```js
-import { FaceMirror } from 'motion-engine/mirror';
-import motions from 'motion-engine/motions';
-
-const mirror = new FaceMirror({
-  mode: 'empathic',
-  threshold: 0.3,
-  cooldown: 2000,
-  blendSpeed: 0.08,
-  headPose: true,
-  headPoseScale: 0.25,
-});
-mirror.loadMotions(motions);
-await mirror.init();
-
-mirror.onMood = (mood, score, blendshapes) => {
-  console.log(`Detected: ${mood} (${score.toFixed(2)})`);
-};
-
-mirror.onReaction = (reactionMood, intensity, gesture, detectedMood) => {
-  console.log(`${detectedMood} -> ${reactionMood} @${intensity}`);
-};
-
-mirror.onValues = (morphValues, headPose) => {
-  // Smoothed values every frame for direct application
-};
-
-mirror.start(videoEl);
-
-// Call in your render loop:
-mirror.update(dt);
-```
+Standalone usage without MotionEngine is also supported — see [API docs](docs/API.md).
 
 > **Peer dependency:** `@mediapipe/tasks-vision >= 0.10.0` (optional — only needed when using FaceMirror).
 
 ---
 
-## API
+## Motion format
 
-### `new MotionEngine(talkingHead, options?)`
-
-| Option | Default | Description |
-|---|---|---|
-| `gestureFadeIn` | `800` | Fade-in for gesture playback (ms) |
-| `gestureFadeOut` | `800` | Fade-out when stopping a gesture (ms) |
-| `stopFade` | `100` | Quick fade for interrupt stops (ms) |
-| `stopSettleTime` | `1000` | Wait after stopGesture before cleanup (ms) |
-| `poseFadeIn` | `1500` | Transition time for pose changes (ms) |
-| `poseSettleTime` | `1700` | Wait after setPoseFromTemplate (ms) |
-| `nativeDuration` | `3` | Default duration for native gestures (s) |
-
-#### Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `registerMotions(motions)` | `number` | Register motion dictionary, returns count |
-| `play(name, dur?)` | `Promise<void>` | Play motion with multi-track routing |
-| `playSequence(names)` | `Promise<void>` | Play motions sequentially |
-| `stop()` | — | Force-stop current action |
-| `freeze(enabled?)` | — | Stop all idle animations (breathing, blinking, etc.) |
-| `getMotionNames()` | `string[]` | All registered motion names |
-| `getRegisteredMotions()` | `object` | Internal motions dict (for Studio) |
-| `update(dt)` | — | Frame hook: bone overlays + face mirror |
-| `startMirror(videoEl, opts?)` | `Promise<void>` | Start face mirroring (empathic or mirror mode) |
-| `stopMirror()` | — | Stop and dispose face mirror, clean up empathic state |
-| `pauseMirror()` | — | Pause face detection |
-| `resumeMirror()` | — | Resume face detection |
-| `playMoodAttenuated(name, intensity)` | — | Play a mood at reduced intensity (0-1) |
-| `setHeadPose(pitch, yaw, roll)` | — | Set avatar head rotation (radians) |
-
-#### Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `playing` | `boolean` (getter) | Whether an action is currently playing |
-| `tracks` | `object` | Multi-track state: `{ pose, mood, action }` |
-| `onStart` | `function\|null` | Callback when motion starts |
-| `onEnd` | `function\|null` | Callback when motion finishes |
-| `onError` | `function\|null` | Callback when motion fails |
-| `mirror` | `FaceMirror\|null` (getter) | Access FaceMirror for advanced config |
-
-### `new FaceMirror(options?)`
-
-| Option | Default | Description |
-|---|---|---|
-| `threshold` | `0.3` | Min score to trigger mood change |
-| `cooldown` | `2000` | Ms between mood changes |
-| `detectInterval` | `200` | Ms between detections (5 FPS) |
-| `mode` | `'mirror'` | `'mirror'` (1:1 clone) or `'empathic'` (react with attenuation) |
-| `blendSpeed` | `0.08` | Lerp factor per frame for smooth blending |
-| `headPose` | `false` | Enable head pose tracking |
-| `headPoseScale` | `0.25` | Attenuation for head rotation |
-
-#### Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `loadMotions(motions)` | `number` | Extract classifiers from `_detect` in mood entries |
-| `init(opts?)` | `Promise<void>` | Load MediaPipe FaceLandmarker |
-| `start(videoEl)` | — | Start detection from video element |
-| `stop()` | — | Stop detection, keep MediaPipe loaded |
-| `pause()` / `resume()` | — | Pause/resume detection |
-| `_classify(blendshapes)` | `{mood, score}` | Score blendshapes (public for testing) |
-| `dispose()` | — | Release all resources |
-
-#### Callbacks
-
-| Callback | Signature | Description |
-|---|---|---|
-| `onMood` | `(mood, score, blendshapes)` | Fired on mood change (both modes) |
-| `onDetect` | `(blendshapes)` | Fired on every detection frame |
-| `onReaction` | `(reactionMood, intensity, gesture, detectedMood)` | Fired on mood transition (empathic mode) |
-| `onValues` | `(morphValues, headPose)` | Fired every frame with smoothed values (empathic mode) |
-
-### `_detect` schema
-
-Mood entries in `motions.json` can include a `_detect` object for face mirroring:
-
-```json
-{
-  "happy": {
-    "_track": "mood",
-    "_detect": {
-      "mouthSmileLeft": 0.5,
-      "mouthSmileRight": 0.5
-    }
-  }
-}
-```
-
-Keys are MediaPipe ARKit blendshape names, values are linear weights. The classifier computes a weighted average: `score = sum(blendshape * weight) / sum(weights)`. The highest-scoring mood above `threshold` wins; otherwise falls back to `neutral`.
-
-### `_react` schema
-
-Mood entries can also include a `_react` object for empathic mode. This defines how the avatar *reacts* when that emotion is detected on the user:
-
-```json
-{
-  "happy": {
-    "_track": "mood",
-    "_detect": { "mouthSmileLeft": 0.5, "mouthSmileRight": 0.5 },
-    "_react": { "mood": "happy", "intensity": 0.3, "gesture": "nod_yes" }
-  }
-}
-```
-
-| Field | Type | Description |
-|---|---|---|
-| `mood` | `string` | Avatar mood to play (can differ from detected mood) |
-| `intensity` | `number` | Attenuation factor (0-1), applied to mood baselines |
-| `gesture` | `string\|undefined` | Optional action to play alongside (e.g. `"nod_yes"`) |
-
-### `new MotionStudio(engine, options?)`
-
-| Option | Default | Description |
-|---|---|---|
-| `aliases` | `{}` | Morph name aliases |
-| `boneAliases` | `{}` | Bone name aliases |
-| `morphWhitelist` | ARKit standard | For `getAvatarCapabilities()` |
-| `boneWhitelist` | Common anchors | For `getAvatarCapabilities()` |
-
-#### Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `getAvatarCapabilities()` | `{morphTargets, bones}` | Scan avatar anatomy |
-| `getMotions()` | `Array<{name, description, tags, track}>` | Full metadata |
-| `getMotionsCompact()` | `Object<tag, names[]>` | Grouped by primary tag |
-| `getMotionsForPrompt(level?)` | `string` | `'full'` / `'compact'` / `'minimal'` |
-| `getLLMContext()` | `string` | Compact context for system prompts |
-| `parseDynamic(json)` | `{name, motion}` | Parse raw JSON from LLM |
-| `playDynamic(json)` | `Promise<void>` | Parse + register + play |
-| `registerDynamic(name, obj)` | — | Register with alias normalization |
-| `wrapMorph(name, opts?)` | `object` | Bare morph → full motion definition |
-
----
-
-## Motion Format
+Motions are defined as JSON data. Each motion combines face morphs, hand gestures, body poses, and bone overlays in a single object:
 
 ```json
 {
@@ -366,6 +199,16 @@ The `_track` field controls routing:
 - `"mood"` — persistent emotional state, injected into TH's native mood system
 - `"action"` — temporal gesture, uses TalkingHead gesture playback (default)
 
+Moods can include `_detect` (blendshape classifier for face mirroring) and `_react` (empathic response definition) schemas. See [API docs](docs/API.md) for details.
+
+---
+
+## What's next
+
+- **On-demand vision** — Stop sending webcam frames while the avatar speaks. Let the LLM request images only when it needs them. Empathic vision handles the rest locally.
+- **On-device micro-LLM** — Delegate animation decisions to a small local model like Gemma, pushing the philosophy further: the main LLM only talks, everything else runs on the device.
+- **Beyond avatars** — The same semantic motion layer could drive physical robots. Empathic reactions, gesture vocabularies, and marker-based animation apply to servos and actuators just as they do to 3D meshes.
+
 ---
 
 ## Development
@@ -381,10 +224,16 @@ npm run test:watch  # watch mode
 
 ---
 
+## API Reference
+
+Full API documentation for MotionEngine, MotionStudio, and FaceMirror is available in [docs/API.md](docs/API.md).
+
+---
+
 ## Credits
 
 - **[TalkingHead](https://github.com/met4citizen/TalkingHead)** by Mika Suominen — MIT License.
-- **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** by Google — used for real-time blendshape detection in FaceMirror.
+- **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** by Google — real-time blendshape detection in FaceMirror.
 - **Demo avatar**: Created with [Ready Player Me](https://readyplayer.me/).
 
 ## License

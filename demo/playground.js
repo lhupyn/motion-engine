@@ -17,9 +17,7 @@ const AVATAR_MODEL = './female_1.glb';
 const AVATAR_BODY = 'F';
 
 const MODELS = {
-  openai: 'gpt-5.2',
   gemini: 'gemini-3.1-pro-preview',
-  claude: 'claude-opus-4-6',
 };
 
 // --- DOM refs ---

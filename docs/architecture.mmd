@@ -1,0 +1,58 @@
+graph TB
+    subgraph Cloud["Google Cloud"]
+        BE["Backend<br/>(Cloud Run)"]
+        GEMINI["Gemini Live API<br/>(GenAI SDK)"]
+        BE <--> GEMINI
+    end
+
+    subgraph Browser["User's Browser"]
+        subgraph Frontend["Frontend (Firebase Hosting)"]
+            direction TB
+            TH["TalkingHead<br/>3D Avatar Renderer"]
+
+            subgraph ME["MotionEngine"]
+                direction LR
+                TRACKS["Multi-track Player<br/>pose | mood | action"]
+                MOTIONS["Motion Dictionary<br/>137+ named motions"]
+                OVERLAYS["Bone Overlays<br/>shivers, waves, shakes"]
+            end
+
+            subgraph FM["FaceMirror"]
+                direction LR
+                MP["MediaPipe<br/>Face Landmarker"]
+                CLASSIFY["Emotion<br/>Classifier"]
+                REACT["Empathic<br/>Reactions"]
+                MP --> CLASSIFY --> REACT
+            end
+
+            STUDIO["MotionStudio<br/>LLM Context Generator"]
+        end
+
+        WEBCAM["Webcam"]
+    end
+
+    %% Speaking flow
+    BE -->|"audio + transcription<br/>with ::markers::"| PARSE
+    PARSE["Marker Parser<br/>(regex)"] -->|"gesture name"| TRACKS
+    TRACKS --> TH
+    MOTIONS --> TRACKS
+    OVERLAYS --> TH
+
+    %% Listening flow
+    WEBCAM -->|"video feed"| MP
+    REACT -->|"attenuated mood<br/>+ gesture"| TRACKS
+
+    %% LLM context
+    STUDIO -.->|"getLLMContext()"| BE
+
+    %% Styling
+    classDef cloud fill:#4285F4,stroke:#1a73e8,color:#fff
+    classDef browser fill:#1a1a2e,stroke:#333,color:#eee
+    classDef engine fill:#1a3a5a,stroke:#2a6a9a,color:#eee
+    classDef mirror fill:#1a5a2a,stroke:#2a8a4a,color:#eee
+    classDef component fill:#2a2a2a,stroke:#555,color:#eee
+
+    class BE,GEMINI cloud
+    class TH,PARSE,STUDIO,WEBCAM component
+    class TRACKS,MOTIONS,OVERLAYS engine
+    class MP,CLASSIFY,REACT mirror
