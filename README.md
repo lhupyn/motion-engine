@@ -2,7 +2,7 @@
 
 > **Semantic motion layer for LLM-driven 3D avatars.**
 
-A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that gives 3D avatars rich body language — without burdening the LLM. Instead of making models reason about morph targets and bone rotations, MotionEngine lets them pick from a curated catalog of **137+ named motions**, saving tokens and improving real-time responsiveness.
+A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that gives 3D avatars rich body language — without burdening the LLM. Instead of making models reason about morph targets and bone rotations, MotionEngine lets them pick from a curated catalog of **98 named motions**, saving tokens and improving real-time responsiveness.
 
 **[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[Face Mirror](https://lhupyn.github.io/motion-engine/mirror.html)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** · **[Reference Implementation](https://doacam.com)**
 
@@ -55,7 +55,7 @@ graph TB
             subgraph ME["MotionEngine"]
                 direction LR
                 TRACKS["Multi-track Player<br/>pose | mood | action"]
-                MOTIONS["Motion Dictionary<br/>137+ named motions"]
+                MOTIONS["Motion Dictionary<br/>98 named motions"]
                 OVERLAYS["Bone Overlays<br/>shivers, waves, shakes"]
             end
 
@@ -147,7 +147,7 @@ await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}'
 
 When the avatar isn't speaking, it shouldn't just freeze. FaceMirror reads the user's facial expressions through the webcam using [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) and translates them into subtle avatar reactions — all on the client, no LLM tokens spent.
 
-It detects **18 expressions** (happy, sad, angry, surprised, yawn, wink, tongue out, and more) and maps each to an avatar response. Pause it while the avatar speaks, resume when it listens:
+It detects **20 expressions** (happy, sad, angry, surprised, yawn, wink, tongue out, and more) and maps each to an avatar response. Pause it while the avatar speaks, resume when it listens:
 
 ```js
 // Start when the avatar begins listening

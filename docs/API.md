@@ -64,7 +64,7 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror.
 
 | Method | Returns | Description |
 |---|---|---|
-| `loadMotions(motions)` | `number` | Extract classifiers from `_detect` in mood entries |
+| `loadMotions(motions)` | `number` | Extract classifiers from `_detect` in any motion entry |
 | `init(opts?)` | `Promise<void>` | Load MediaPipe FaceLandmarker |
 | `start(videoEl)` | — | Start detection from video element |
 | `stop()` | — | Stop detection, keep MediaPipe loaded |
@@ -83,7 +83,7 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror.
 
 ### `_detect` schema
 
-Mood entries in `motions.json` can include a `_detect` object for face mirroring:
+Any motion entry in `motions.json` (mood or action) can include a `_detect` object for face mirroring:
 
 ```json
 {
