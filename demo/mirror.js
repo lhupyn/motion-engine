@@ -61,7 +61,7 @@ const scoreBarEls = {};
 function initScoreBars() {
   // Build bars for each mood that has _detect
   for (const [name, entry] of Object.entries(motions)) {
-    if (entry._track !== 'mood' || !entry._detect) continue;
+    if (!entry._detect) continue;
 
     const row = document.createElement('div');
     row.className = 'score-bar';
