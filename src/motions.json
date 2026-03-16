@@ -1144,8 +1144,8 @@
     },
     "_react": {
       "mood": "happy",
-      "intensity": 0.25,
-      "gesture": "slight_smile"
+      "intensity": 0.3,
+      "gesture": "smug"
     }
   },
   "angry": {
@@ -1361,7 +1361,21 @@
       "delay": 200,
       "duration": 1800
     },
-    "_track": "action"
+    "_track": "action",
+    "_detect": {
+      "mouthSmileLeft": 0.2,
+      "mouthSmileRight": 0.2,
+      "jawOpen": 0.2,
+      "cheekSquintLeft": 0.15,
+      "cheekSquintRight": 0.15,
+      "eyeSquintLeft": 0.05,
+      "eyeSquintRight": 0.05
+    },
+    "_react": {
+      "mood": "happy",
+      "intensity": 0.3,
+      "gesture": "slight_smile"
+    }
   },
   "yawn": {
     "_description": "Tired yawn with wide jaw, squinted eyes, and slight lean back",
@@ -2104,7 +2118,18 @@
         0
       ]
     },
-    "_track": "action"
+    "_track": "action",
+    "_detect": {
+      "mouthPucker": 0.5,
+      "mouthShrugUpper": 0.2,
+      "mouthClose": 0.15,
+      "browInnerUp": 0.15
+    },
+    "_react": {
+      "mood": "love",
+      "intensity": 0.3,
+      "gesture": "adoring"
+    }
   },
   "eyeroll": {
     "_description": "Dramatic eye roll with head tilt back and pursed lips",
@@ -2239,9 +2264,9 @@
       "browInnerUp": 0.1
     },
     "_react": {
-      "mood": "smirk",
+      "mood": "happy",
       "intensity": 0.2,
-      "gesture": "smug"
+      "gesture": "side_glance"
     }
   },
   "grimace": {
@@ -2644,7 +2669,7 @@
       "mouthFrownRight": 0.25
     },
     "_react": {
-      "mood": "neutral",
+      "mood": "pleading",
       "intensity": 0.2,
       "gesture": "nod"
     }
@@ -3302,9 +3327,9 @@
       "mouthFrownRight": 0.05
     },
     "_react": {
-      "mood": "neutral",
+      "mood": "pleading",
       "intensity": 0.2,
-      "gesture": "side_glance"
+      "gesture": "pensive"
     }
   },
   "neutral_face": {
@@ -3842,8 +3867,8 @@
     },
     "_react": {
       "mood": "happy",
-      "intensity": 0.2,
-      "gesture": "slight_smile"
+      "intensity": 0.25,
+      "gesture": "raise_eyebrows"
     }
   },
   "crying_laugh": {
@@ -5164,8 +5189,8 @@
     },
     "_react": {
       "mood": "pleading",
-      "intensity": 0.25,
-      "gesture": "slight_smile"
+      "intensity": 0.3,
+      "gesture": "deep_breath"
     }
   },
   "love": {

@@ -89,7 +89,7 @@ graph TB
 
 - **MotionEngine** (runtime) — Multi-track playback system with three parallel tracks: `pose` (persistent body position), `mood` (persistent emotional state), and `action` (temporal gestures). Moods persist while actions play on top and finish. Includes declarative bone overlays for physical effects like shivers and waves.
 
-- **FaceMirror** (vision) — Real-time facial expression detection using MediaPipe. A weighted classifier maps blendshapes to emotional states. In empathic mode, detected emotions trigger attenuated avatar reactions defined by a `_react` schema in the motion data.
+- **FaceMirror** (vision) — Gives the avatar presence while listening. Uses MediaPipe to read the user's webcam and classify 18 facial expressions into avatar reactions. In empathic mode, the avatar responds with attenuated moods and complementary gestures — it doesn't mirror the user, it *reacts* to them.
 
 - **MotionStudio** (authoring, optional) — Discovery and LLM integration layer. `getLLMContext()` produces a token-efficient motion catalog for system prompts. Can also parse and play dynamic motions from LLM-generated JSON.
 
@@ -145,26 +145,35 @@ await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}'
 
 ### Face Mirror
 
-FaceMirror supports two modes:
+When the avatar isn't speaking, it shouldn't just freeze. FaceMirror reads the user's facial expressions through the webcam using [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) and translates them into subtle avatar reactions — all on the client, no LLM tokens spent.
 
-- **mirror** — 1:1 mood cloning. User smiles, avatar smiles at full intensity.
-- **empathic** — Avatar *reacts* with attenuated intensity and complementary gestures. User smiles, avatar smiles softly (30%) + subtle nod.
+It detects **18 expressions** (happy, sad, angry, surprised, yawn, wink, tongue out, and more) and maps each to an avatar response. Pause it while the avatar speaks, resume when it listens:
 
 ```js
-// Empathic mode — avatar reacts naturally instead of cloning
+// Start when the avatar begins listening
 await engine.startMirror(videoEl, { mode: 'empathic' });
 
-// Pause while avatar is speaking, resume when listening
+// Pause while speaking (so the avatar doesn't react to itself)
 engine.pauseMirror();
-engine.resumeMirror();
 
-// Stop and dispose
-engine.stopMirror();
+// Resume when listening again
+engine.resumeMirror();
 ```
 
-Standalone usage without MotionEngine is also supported — see [API docs](docs/API.md).
+#### Mirror vs Empathic
 
-> **Peer dependency:** `@mediapipe/tasks-vision >= 0.10.0` (optional — only needed when using FaceMirror).
+| | `mirror` | `empathic` |
+|---|---|---|
+| **Behavior** | Copies user's expression 1:1 | Reacts with a complementary gesture |
+| **You smile** | Avatar smiles at full intensity | Avatar smiles softly (30%) |
+| **You yawn** | Avatar yawns | Avatar nods and gets slightly sleepy |
+| **Head tracking** | No | Yes, attenuated (25%) |
+| **Transitions** | Instant switch | Smooth lerp every frame |
+| **Best for** | Debugging, demos | Production, conversations |
+
+In empathic mode, each detected expression has a `_react` rule in the motion data that defines *how* the avatar responds — which mood to enter, at what intensity, and what gesture to play. The result feels like someone who's listening and present, not a mirror.
+
+> **Peer dependency:** `@mediapipe/tasks-vision >= 0.10.0` (optional — only needed when using FaceMirror). Standalone usage without MotionEngine is also supported — see [API docs](docs/API.md).
 
 ---
 
@@ -199,7 +208,7 @@ The `_track` field controls routing:
 - `"mood"` — persistent emotional state, injected into TH's native mood system
 - `"action"` — temporal gesture, uses TalkingHead gesture playback (default)
 
-Moods can include `_detect` (blendshape classifier for face mirroring) and `_react` (empathic response definition) schemas. See [API docs](docs/API.md) for details.
+Any motion can include `_detect` (blendshape classifier for face mirroring) and `_react` (empathic response definition) schemas. See [API docs](docs/API.md) for details.
 
 ---
 
