@@ -122,7 +122,7 @@ export class FaceMirror {
       }
 
       // Extract classifiers and reactions
-      if (entry._track !== 'mood' || !entry._detect) continue;
+      if (!entry._detect) continue;
 
       const weights = entry._detect;
       const total = Object.values(weights).reduce((s, w) => s + w, 0);

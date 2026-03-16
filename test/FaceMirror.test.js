@@ -78,11 +78,11 @@ describe('FaceMirror', () => {
       expect(count).toBe(5); // happy, sad, angry, pleading, curious
     });
 
-    it('ignores non-mood entries', () => {
+    it('loads _detect from any track (not just mood)', () => {
       const count = mirror.loadMotions({
         wave: { _track: 'action', _detect: { mouthSmileLeft: 0.5 } },
       });
-      expect(count).toBe(0);
+      expect(count).toBe(1);
     });
 
     it('ignores moods without _detect', () => {

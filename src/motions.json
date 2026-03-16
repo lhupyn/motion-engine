@@ -33,7 +33,46 @@
       "sleeping",
       "rest"
     ],
-    "_track": "mood"
+    "_track": "mood",
+    "dt": [
+      1000,
+      3000,
+      1000
+    ],
+    "vs": {
+      "eyeBlinkLeft": [
+        0.9
+      ],
+      "eyeBlinkRight": [
+        0.9
+      ],
+      "eyeSquintLeft": [
+        0.5
+      ],
+      "eyeSquintRight": [
+        0.5
+      ],
+      "browDownLeft": [
+        0.2
+      ],
+      "browDownRight": [
+        0.2
+      ],
+      "jawOpen": [
+        0.05
+      ]
+    },
+    "_detect": {
+      "eyeBlinkLeft": 0.4,
+      "eyeBlinkRight": 0.4,
+      "eyeSquintLeft": 0.1,
+      "eyeSquintRight": 0.1
+    },
+    "_react": {
+      "mood": "sleep",
+      "intensity": 0.3,
+      "gesture": "close_eyes"
+    }
   },
   "wave_right": {
     "_description": "Friendly wave with right hand oscillation and warm smile",
@@ -1096,7 +1135,18 @@
         0
       ]
     },
-    "_track": "action"
+    "_track": "action",
+    "_detect": {
+      "eyeBlinkLeft": 0.5,
+      "mouthSmileLeft": 0.2,
+      "mouthSmileRight": 0.2,
+      "cheekSquintLeft": 0.1
+    },
+    "_react": {
+      "mood": "happy",
+      "intensity": 0.25,
+      "gesture": "slight_smile"
+    }
   },
   "angry": {
     "_description": "Intense anger with furrowed brows, frown, clenched fists, and forward lean",
@@ -1363,7 +1413,20 @@
         0
       ]
     },
-    "_track": "action"
+    "_track": "action",
+    "_detect": {
+      "jawOpen": 0.35,
+      "mouthFunnel": 0.2,
+      "eyeSquintLeft": 0.15,
+      "eyeSquintRight": 0.15,
+      "eyeBlinkLeft": 0.1,
+      "eyeBlinkRight": 0.05
+    },
+    "_react": {
+      "mood": "sleep",
+      "intensity": 0.25,
+      "gesture": "nod"
+    }
   },
   "nervous": {
     "_description": "Nervous fidgeting with quick head shifts and tense expression",
@@ -3773,6 +3836,14 @@
         1,
         0
       ]
+    },
+    "_detect": {
+      "tongueOut": 1.0
+    },
+    "_react": {
+      "mood": "happy",
+      "intensity": 0.2,
+      "gesture": "slight_smile"
     }
   },
   "crying_laugh": {
@@ -5155,6 +5226,19 @@
       "mouthUpperUpRight": [
         0.1
       ]
+    },
+    "_detect": {
+      "cheekSquintLeft": 0.2,
+      "cheekSquintRight": 0.2,
+      "mouthSmileLeft": 0.15,
+      "mouthSmileRight": 0.15,
+      "eyeSquintLeft": 0.15,
+      "eyeSquintRight": 0.15
+    },
+    "_react": {
+      "mood": "happy",
+      "intensity": 0.25,
+      "gesture": "adoring"
     }
   },
   "surprise": {
