@@ -39,6 +39,10 @@ const DEFAULTS = {
  * symbols → happy/celebrate, etc.). Tune it from what your model actually emits in
  * audio. Mood-track names persist (first per turn wins); everything else plays once.
  * Override per consumer via `setEmojiMap()`. Names must exist in the registered catalog.
+ *
+ * A value may be a single motion name OR an array of names: a celebration emoji
+ * fires the `celebrate` action AND arms the `happy` mood, so the face matches the
+ * gesture instead of staying neutral.
  */
 const DEFAULT_EMOJI_MAP = {
   // ---- moods (persistent — only the first per turn is honored) ----
@@ -71,7 +75,9 @@ const DEFAULT_EMOJI_MAP = {
   // ---- actions (temporal — fired on every occurrence) ----
   '👋': 'wave_right', '👍': 'thumbup_right', '👎': 'thumbdown_right',
   '👏': 'applause', '🙏': 'pray', '🤷': 'shrug_both', '👌': 'ok_sign',
-  '🎉': 'celebrate', '🎊': 'celebrate', '🥳': 'celebrate', '🎂': 'celebrate', '🍾': 'celebrate',
+  // celebration: fire the action AND arm the happy mood so the face matches it
+  '🎉': ['celebrate', 'happy'], '🎊': ['celebrate', 'happy'], '🥳': ['celebrate', 'happy'],
+  '🎂': ['celebrate', 'happy'], '🍾': ['celebrate', 'happy'],
   '💥': 'excited', '🔥': 'excited', '⚡': 'excited',
   '😂': 'laugh', '🤣': 'laugh', '😆': 'laugh',
   '😉': 'wink', '🙄': 'eyeroll', '🤦': 'facepalm', '🥱': 'yawn', '💃': 'dance', '🕺': 'dance',
@@ -316,11 +322,18 @@ export class MotionEngine {
       this._routeName(m[1].toLowerCase());
     }
 
-    // Emoji — the natural control channel.
+    // Emoji — the natural control channel. A mapped value is a motion name or
+    // an array of names (e.g. a celebration emoji fires the `celebrate` action
+    // AND arms the `happy` mood, so the face matches the gesture).
     for (const e of text.matchAll(EMOJI_RE)) {
       const raw = e[0];
-      const name = this._emojiMap[raw] || this._emojiMap[raw.replace(VARIATION_SELECTOR_RE, '')];
-      if (name) this._routeName(name);
+      const mapped = this._emojiMap[raw] || this._emojiMap[raw.replace(VARIATION_SELECTOR_RE, '')];
+      if (!mapped) continue;
+      if (Array.isArray(mapped)) {
+        for (const name of mapped) this._routeName(name);
+      } else {
+        this._routeName(mapped);
+      }
     }
   }
 

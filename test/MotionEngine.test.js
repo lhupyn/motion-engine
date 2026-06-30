@@ -740,6 +740,7 @@ describe('handleTranscript', () => {
       wave_right: { _track: 'action', dt: [300, 1000, 300], vs: {} },
       wave_left: { _track: 'action', dt: [300, 1000, 300], vs: {} },
       love: { _track: 'mood', dt: [500], vs: { mouthSmile: [0.5] } },
+      celebrate: { _track: 'action', dt: [300, 1000, 300], vs: {} },
     });
     // Spy on play so we assert routing without running async gesture timers.
     playSpy = vi.spyOn(engine, 'play').mockResolvedValue();
@@ -782,6 +783,21 @@ describe('handleTranscript', () => {
     engine.handleTranscript('😊 hi 👋');
     expect(playSpy).toHaveBeenCalledWith('happy');
     expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires both the action and the mood for an array-valued emoji (🥳 → celebrate + happy)', () => {
+    engine.handleTranscript('🥳 we did it');
+    expect(playSpy).toHaveBeenCalledWith('celebrate');
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('array-valued emoji still honors one-mood-per-turn (😊 then 🥳 keeps happy once)', () => {
+    engine.handleTranscript('😊 ... 🥳 ...');
+    // happy from 😊 (mood, once); celebrate from 🥳 (action); 🥳's happy is suppressed
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledWith('celebrate');
     expect(playSpy).toHaveBeenCalledTimes(2);
   });
 
