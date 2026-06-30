@@ -32,28 +32,50 @@ const DEFAULTS = {
  * Default emoji → motion-name map for `handleTranscript()`.
  * Emoji is the natural control channel for LLM-driven avatars: the model emits
  * emoji in its speech, they survive in the transcription, and are not vocalized.
- * Mood-track names drive a persistent state; everything else plays on top and ends.
+ *
+ * This is a COARSE emotional-signal translation, not a 1:1 dictionary: LLMs emit
+ * a wide, partly-symbolic palette (✨ sparkle, 🎂 cake, 💥 boom) that has no facial
+ * equivalent, so whole categories collapse onto a handful of motions (positive
+ * symbols → happy/celebrate, etc.). Tune it from what your model actually emits in
+ * audio. Mood-track names persist (first per turn wins); everything else plays once.
  * Override per consumer via `setEmojiMap()`. Names must exist in the registered catalog.
  */
 const DEFAULT_EMOJI_MAP = {
-  // moods (persistent — only the first per turn is honored)
-  '😊': 'happy', '🙂': 'happy', '😄': 'happy', '😁': 'happy',
-  '😢': 'sad', '😔': 'sad', '😞': 'sad',
-  '😠': 'angry', '😡': 'angry',
-  '😍': 'love', '🥰': 'love',
-  '😨': 'fear', '😱': 'fear',
-  '🤢': 'disgust', '🤮': 'disgust',
-  '🤔': 'curious', '👀': 'curious',
-  '😐': 'neutral', '😶': 'neutral',
-  '😳': 'shy', '😰': 'nervous',
-  '😏': 'smirk',
+  // ---- moods (persistent — only the first per turn is honored) ----
+  // happy + positive symbols (the LLM leans hard on ✨/🌸/sparkle as "positive")
+  '😊': 'happy', '🙂': 'happy', '😄': 'happy', '😁': 'happy', '😀': 'happy', '😃': 'happy',
+  '☺': 'happy', '🥲': 'happy', '😌': 'happy', '😇': 'happy', '🙌': 'happy',
+  '✨': 'happy', '🌟': 'happy', '💫': 'happy', '⭐': 'happy', '🌈': 'happy',
+  '🌸': 'happy', '🌼': 'happy', '🌺': 'happy', '💖': 'happy', '💕': 'happy', '💗': 'happy',
+  // love / adoration
+  '😍': 'love', '🥰': 'love', '😘': 'love', '🤩': 'love', '😻': 'love',
+  '❤': 'love', '🧡': 'love', '💛': 'love', '💚': 'love', '💙': 'love', '💜': 'love', '💝': 'love',
+  // sad
+  '😢': 'sad', '😭': 'sad', '😔': 'sad', '😞': 'sad', '😟': 'sad', '🥺': 'sad', '☹': 'sad', '🙁': 'sad', '😣': 'sad',
+  // angry
+  '😠': 'angry', '😡': 'angry', '🤬': 'angry', '😤': 'angry',
+  // fear
+  '😨': 'fear', '😱': 'fear', '😰': 'fear', '😖': 'fear',
+  // disgust
+  '🤢': 'disgust', '🤮': 'disgust', '😝': 'disgust',
+  // curious / thinking
+  '🤔': 'curious', '👀': 'curious', '🧐': 'curious', '💭': 'curious',
+  // shy / nervous
+  '😳': 'shy', '😅': 'nervous', '😬': 'nervous',
+  // smirk / playful
+  '😏': 'smirk', '😈': 'smirk', '😼': 'smirk',
+  // sleepy
   '😴': 'sleep', '😪': 'sleep',
-  // actions (temporal — fired on every occurrence)
+  // neutral
+  '😐': 'neutral', '😶': 'neutral', '🫤': 'neutral',
+  // ---- actions (temporal — fired on every occurrence) ----
   '👋': 'wave_right', '👍': 'thumbup_right', '👎': 'thumbdown_right',
   '👏': 'applause', '🙏': 'pray', '🤷': 'shrug_both', '👌': 'ok_sign',
-  '😉': 'wink', '😘': 'blow_kiss', '🙄': 'eyeroll', '🤦': 'facepalm',
-  '🥱': 'yawn', '❤': 'heart_eyes', '💃': 'dance', '🎉': 'celebrate',
-  '😮': 'surprised', '😲': 'surprised',
+  '🎉': 'celebrate', '🎊': 'celebrate', '🥳': 'celebrate', '🎂': 'celebrate', '🍾': 'celebrate',
+  '💥': 'excited', '🔥': 'excited', '⚡': 'excited',
+  '😂': 'laugh', '🤣': 'laugh', '😆': 'laugh',
+  '😉': 'wink', '🙄': 'eyeroll', '🤦': 'facepalm', '🥱': 'yawn', '💃': 'dance', '🕺': 'dance',
+  '😮': 'surprised', '😲': 'surprised', '😯': 'surprised', '🤯': 'surprised',
 };
 
 /** Hoisted so handleTranscript() doesn't recompile them per transcription chunk. */

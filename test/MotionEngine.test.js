@@ -739,7 +739,7 @@ describe('handleTranscript', () => {
       sad: { _track: 'mood', dt: [500], vs: { mouthFrownLeft: [0.5] } },
       wave_right: { _track: 'action', dt: [300, 1000, 300], vs: {} },
       wave_left: { _track: 'action', dt: [300, 1000, 300], vs: {} },
-      heart_eyes: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+      love: { _track: 'mood', dt: [500], vs: { mouthSmile: [0.5] } },
     });
     // Spy on play so we assert routing without running async gesture timers.
     playSpy = vi.spyOn(engine, 'play').mockResolvedValue();
@@ -785,9 +785,9 @@ describe('handleTranscript', () => {
     expect(playSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('matches an emoji with the U+FE0F variation selector (❤️ → heart_eyes)', () => {
+  it('matches an emoji with the U+FE0F variation selector (❤️ → love)', () => {
     engine.handleTranscript('I love this ❤️');
-    expect(playSpy).toHaveBeenCalledWith('heart_eyes');
+    expect(playSpy).toHaveBeenCalledWith('love');
   });
 
   it('routes ::name:: markers for what emoji cannot address', () => {
