@@ -520,7 +520,16 @@ export class MotionEngine {
     const opts = { mode: 'mirror', headPose: true, ...options };
     this._mirror = new FaceMirror(opts);
     this._mirror.loadMotions(this._motions);
-    await this._mirror.init();
+    // Face mirroring depends on the optional @mediapipe/tasks-vision peer dep.
+    // If it isn't available, degrade gracefully (no mirror) instead of throwing
+    // into the caller — the avatar still works, it just doesn't read the camera.
+    try {
+      await this._mirror.init();
+    } catch (err) {
+      console.warn('[MotionEngine] Face mirror unavailable, skipping:', err?.message || err);
+      this._mirror = null;
+      return;
+    }
 
     if (opts.mode === 'empathic') {
       this._mirror.onReaction = (reactionMood, intensity, gesture) => {
