@@ -152,12 +152,13 @@ export class FaceMirror {
 
     let FaceLandmarker, FilesetResolver;
     try {
-      // @vite-ignore: @mediapipe/tasks-vision is an optional peer dep, resolved
-      // only when face mirroring is actually used. Keeps bundlers from hard-
-      // failing (or eagerly bundling MediaPipe) when the dep isn't installed.
-      ({ FaceLandmarker, FilesetResolver } = await import(
-        /* @vite-ignore */ '@mediapipe/tasks-vision'
-      ));
+      // @mediapipe/tasks-vision is an optional peer dep, loaded only when face
+      // mirroring actually runs. The specifier is held in a variable so bundlers
+      // (Vite dev AND build) can't statically resolve/bundle it — otherwise they
+      // hard-fail when the dep isn't installed. Consumers that use FaceMirror
+      // install it (or provide it via an import map / CDN).
+      const pkg = '@mediapipe/tasks-vision';
+      ({ FaceLandmarker, FilesetResolver } = await import(/* @vite-ignore */ pkg));
     } catch (err) {
       throw new Error(
         `[FaceMirror] Failed to import @mediapipe/tasks-vision. ` +
