@@ -56,6 +56,11 @@ const DEFAULT_EMOJI_MAP = {
   '😮': 'surprised', '😲': 'surprised',
 };
 
+/** Hoisted so handleTranscript() doesn't recompile them per transcription chunk. */
+const MARKER_RE = /::([a-z0-9_]+)::/gi;
+const EMOJI_RE = /\p{Extended_Pictographic}/gu;
+const VARIATION_SELECTOR_RE = /️/g;
+
 /**
  * @class MotionEngine
  */
@@ -284,18 +289,15 @@ export class MotionEngine {
     if (!text) return;
 
     // Explicit ::name:: markers — for cases emoji can't reach (poses, left/right).
-    const markerRe = /::([a-z0-9_]+)::/gi;
-    let m;
-    while ((m = markerRe.exec(text)) !== null) {
+    // matchAll clones the regex internally, so the hoisted /g consts stay reentrancy-safe.
+    for (const m of text.matchAll(MARKER_RE)) {
       this._routeName(m[1].toLowerCase());
     }
 
     // Emoji — the natural control channel.
-    const emojiRe = /\p{Extended_Pictographic}/gu;
-    let e;
-    while ((e = emojiRe.exec(text)) !== null) {
+    for (const e of text.matchAll(EMOJI_RE)) {
       const raw = e[0];
-      const name = this._emojiMap[raw] || this._emojiMap[raw.replace(/️/g, '')];
+      const name = this._emojiMap[raw] || this._emojiMap[raw.replace(VARIATION_SELECTOR_RE, '')];
       if (name) this._routeName(name);
     }
   }
