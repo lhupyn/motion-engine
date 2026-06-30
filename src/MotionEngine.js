@@ -48,7 +48,7 @@ const DEFAULT_EMOJI_MAP = {
   '✨': 'happy', '🌟': 'happy', '💫': 'happy', '⭐': 'happy', '🌈': 'happy',
   '🌸': 'happy', '🌼': 'happy', '🌺': 'happy', '💖': 'happy', '💕': 'happy', '💗': 'happy',
   // love / adoration
-  '😍': 'love', '🥰': 'love', '😘': 'love', '🤩': 'love', '😻': 'love',
+  '😍': 'love', '🥰': 'love', '😘': 'love', '🤩': 'love', '😻': 'love', '🤗': 'love',
   '❤': 'love', '🧡': 'love', '💛': 'love', '💚': 'love', '💙': 'love', '💜': 'love', '💝': 'love',
   // sad
   '😢': 'sad', '😭': 'sad', '😔': 'sad', '😞': 'sad', '😟': 'sad', '🥺': 'sad', '☹': 'sad', '🙁': 'sad', '😣': 'sad',
