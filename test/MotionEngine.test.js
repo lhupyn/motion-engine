@@ -723,3 +723,94 @@ describe('MotionEngine', () => {
     });
   });
 });
+
+// =============================================================================
+// handleTranscript — speech-driven routing
+// =============================================================================
+
+describe('handleTranscript', () => {
+  let head, engine, playSpy;
+
+  beforeEach(() => {
+    head = createMockHead();
+    engine = new MotionEngine(head);
+    engine.registerMotions({
+      happy: { _track: 'mood', dt: [500], vs: { mouthSmile: [0.5] } },
+      sad: { _track: 'mood', dt: [500], vs: { mouthFrownLeft: [0.5] } },
+      wave_right: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+      wave_left: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+      heart_eyes: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+    });
+    // Spy on play so we assert routing without running async gesture timers.
+    playSpy = vi.spyOn(engine, 'play').mockResolvedValue();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('routes a mood emoji to play() once', () => {
+    engine.handleTranscript('😊 hello');
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies only the first mood per turn (first wins)', () => {
+    engine.handleTranscript('😊 then later 😢 ...');
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).not.toHaveBeenCalledWith('sad');
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-arms the mood after resetTurn()', () => {
+    engine.handleTranscript('😊 first turn');
+    engine.resetTurn();
+    engine.handleTranscript('😢 second turn');
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledWith('sad');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires an action emoji on every occurrence', () => {
+    engine.handleTranscript('👋 hi 👋 bye');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+    expect(playSpy).toHaveBeenNthCalledWith(1, 'wave_right');
+    expect(playSpy).toHaveBeenNthCalledWith(2, 'wave_right');
+  });
+
+  it('mixes a mood and an action in one chunk', () => {
+    engine.handleTranscript('😊 hi 👋');
+    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(playSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('matches an emoji with the U+FE0F variation selector (❤️ → heart_eyes)', () => {
+    engine.handleTranscript('I love this ❤️');
+    expect(playSpy).toHaveBeenCalledWith('heart_eyes');
+  });
+
+  it('routes ::name:: markers for what emoji cannot address', () => {
+    engine.handleTranscript('look ::wave_left:: now');
+    expect(playSpy).toHaveBeenCalledWith('wave_left');
+  });
+
+  it('ignores an unmapped emoji', () => {
+    engine.handleTranscript('pizza 🍕 time');
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on empty or text-only input', () => {
+    engine.handleTranscript('');
+    engine.handleTranscript('plain text, no markers');
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('honors a custom emoji map via setEmojiMap()', () => {
+    engine.setEmojiMap({ '🔥': 'wave_right' });
+    engine.handleTranscript('😊 🔥'); // 😊 no longer mapped
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(playSpy).not.toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+});
