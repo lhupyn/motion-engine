@@ -46,13 +46,14 @@ const DEFAULT_EMOJI_MAP = {
   '🤔': 'curious', '👀': 'curious',
   '😐': 'neutral', '😶': 'neutral',
   '😳': 'shy', '😰': 'nervous',
-  '😏': 'smirk', '😮': 'surprise', '😲': 'surprise',
+  '😏': 'smirk',
   '😴': 'sleep', '😪': 'sleep',
   // actions (temporal — fired on every occurrence)
   '👋': 'wave_right', '👍': 'thumbup_right', '👎': 'thumbdown_right',
   '👏': 'applause', '🙏': 'pray', '🤷': 'shrug_both', '👌': 'ok_sign',
   '😉': 'wink', '😘': 'blow_kiss', '🙄': 'eyeroll', '🤦': 'facepalm',
   '🥱': 'yawn', '❤': 'heart_eyes', '💃': 'dance', '🎉': 'celebrate',
+  '😮': 'surprised', '😲': 'surprised',
 };
 
 /**
