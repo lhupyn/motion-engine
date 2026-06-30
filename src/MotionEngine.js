@@ -29,6 +29,33 @@ const DEFAULTS = {
 };
 
 /**
+ * Default emoji → motion-name map for `handleTranscript()`.
+ * Emoji is the natural control channel for LLM-driven avatars: the model emits
+ * emoji in its speech, they survive in the transcription, and are not vocalized.
+ * Mood-track names drive a persistent state; everything else plays on top and ends.
+ * Override per consumer via `setEmojiMap()`. Names must exist in the registered catalog.
+ */
+const DEFAULT_EMOJI_MAP = {
+  // moods (persistent — only the first per turn is honored)
+  '😊': 'happy', '🙂': 'happy', '😄': 'happy', '😁': 'happy',
+  '😢': 'sad', '😔': 'sad', '😞': 'sad',
+  '😠': 'angry', '😡': 'angry',
+  '😍': 'love', '🥰': 'love',
+  '😨': 'fear', '😱': 'fear',
+  '🤢': 'disgust', '🤮': 'disgust',
+  '🤔': 'curious', '👀': 'curious',
+  '😐': 'neutral', '😶': 'neutral',
+  '😳': 'shy', '😰': 'nervous',
+  '😏': 'smirk', '😮': 'surprise', '😲': 'surprise',
+  '😴': 'sleep', '😪': 'sleep',
+  // actions (temporal — fired on every occurrence)
+  '👋': 'wave_right', '👍': 'thumbup_right', '👎': 'thumbdown_right',
+  '👏': 'applause', '🙏': 'pray', '🤷': 'shrug_both', '👌': 'ok_sign',
+  '😉': 'wink', '😘': 'blow_kiss', '🙄': 'eyeroll', '🤦': 'facepalm',
+  '🥱': 'yawn', '❤': 'heart_eyes', '💃': 'dance', '🎉': 'celebrate',
+};
+
+/**
  * @class MotionEngine
  */
 export class MotionEngine {
@@ -65,6 +92,11 @@ export class MotionEngine {
     this.onEnd = null;
     /** @type {function(string, Error):void|null} */
     this.onError = null;
+
+    /** Emoji → motion-name map used by handleTranscript(). @type {Object<string,string>} */
+    this._emojiMap = { ...DEFAULT_EMOJI_MAP };
+    /** Whether a mood was already set in the current turn. @type {boolean} */
+    this._turnMoodSet = false;
   }
 
   /**
@@ -226,6 +258,80 @@ export class MotionEngine {
   stop() {
     this._sequenceStopped = true;
     this._interruptAction();
+  }
+
+  /**
+   * Drive avatar motion straight from an LLM speech transcript chunk.
+   *
+   * This is the high-level entry point for speech-driven avatars: the consumer
+   * forwards each transcription chunk and the engine routes expression itself —
+   * no marker/emoji glue on the consumer side.
+   *
+   * Two channels, one pass:
+   *   - **Emoji** (natural, token-free): mapped via the emoji map to a motion.
+   *   - **`::name::` markers**: explicit names for what emoji can't address
+   *     (left/right gestures, poses). Stripped from any user-facing text by the
+   *     consumer, not here.
+   *
+   * Routing rule: a **mood** motion is applied only once per turn (first wins),
+   * so an in-content emoji can't keep resetting the persistent state; **action**
+   * motions fire on every occurrence. Call `resetTurn()` at each turn boundary.
+   *
+   * @param {string} text - A transcription chunk (may contain emoji and/or markers).
+   */
+  handleTranscript(text) {
+    if (!text) return;
+
+    // Explicit ::name:: markers — for cases emoji can't reach (poses, left/right).
+    const markerRe = /::([a-z0-9_]+)::/gi;
+    let m;
+    while ((m = markerRe.exec(text)) !== null) {
+      this._routeName(m[1].toLowerCase());
+    }
+
+    // Emoji — the natural control channel.
+    const emojiRe = /\p{Extended_Pictographic}/gu;
+    let e;
+    while ((e = emojiRe.exec(text)) !== null) {
+      const raw = e[0];
+      const name = this._emojiMap[raw] || this._emojiMap[raw.replace(/️/g, '')];
+      if (name) this._routeName(name);
+    }
+  }
+
+  /**
+   * Reset per-turn state. Call on each turn boundary (e.g. turn_complete) so the
+   * "one mood per turn" rule re-arms for the next turn.
+   */
+  resetTurn() {
+    this._turnMoodSet = false;
+  }
+
+  /**
+   * Replace the emoji → motion-name map used by handleTranscript().
+   *
+   * @param {Object<string,string>} map - Emoji to motion-name mapping
+   */
+  setEmojiMap(map) {
+    this._emojiMap = { ...map };
+  }
+
+  /**
+   * Resolve a motion name to its track and play it, honoring the per-turn mood rule.
+   * @private
+   * @param {string} name - Motion name (catalog, pose, or native mood)
+   */
+  _routeName(name) {
+    const motion = this._motions[name];
+    const track = motion?._track
+      || (this.head.poseTemplates?.[name] ? 'pose'
+        : (this.head.animMoods?.[name] ? 'mood' : 'action'));
+
+    if (track === 'mood') {
+      if (this._turnMoodSet) return; // first mood of the turn wins
+      this._turnMoodSet = true;
+    }
+    this.play(name);
   }
 
   /**
