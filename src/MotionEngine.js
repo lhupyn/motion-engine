@@ -90,9 +90,10 @@ const MARKER_RE = /::([a-z0-9_]+)::/gi;
 const EMOJI_RE = /\p{Extended_Pictographic}/gu;
 const VARIATION_SELECTOR_RE = /️/g;
 /**
- * FACS emotion markers: `[emotion]` or `[emotion:intensity]` (e.g. `[amused]`,
- * `[skeptical:strong]`). Also catches natural stage-directions the LLM already
- * emits in brackets (`[laughs]`, `[sighs]`). Unresolvable brackets are ignored.
+ * FACS emotion markers: `[emotion]` (e.g. `[amused]`). Also catches natural
+ * stage-directions the LLM emits in brackets (`[laughs]`, `[winks]`) and tolerates
+ * a wrapper prefix / trailing word (`[emotion:amused]`). Unresolvable brackets are
+ * ignored. The whole inside is captured; handleTranscript splits and resolves it.
  */
 const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z _:-]*?)\s*\]/g;
 /**
@@ -371,13 +372,14 @@ export class MotionEngine {
       }
     }
 
-    // FACS markers. The LLM's format varies — [name], [name:intensity],
-    // [wrapper:name], [wrapper:name:intensity] — so split on ':' and drop a
-    // leading wrapper keyword (emotion/motion/feeling/…) if present.
+    // FACS markers. The LLM's format varies — [name], [wrapper:name], and
+    // sometimes a trailing word ([emotion:interest:slight]) — so split on ':',
+    // drop a leading wrapper keyword (emotion/motion/feeling/…), take the name,
+    // and ignore anything after it (each expression has one fixed level).
     for (const b of text.matchAll(BRACKET_RE)) {
       let parts = b[1].split(':').map((s) => s.trim().toLowerCase()).filter(Boolean);
       if (parts.length > 1 && WRAPPER_WORDS.has(parts[0])) parts = parts.slice(1);
-      if (parts.length) this._route(parts[0], parts[1]);
+      if (parts.length) this._route(parts[0]);
     }
   }
 
@@ -387,10 +389,9 @@ export class MotionEngine {
    * plays as a motion; anything else is ignored (garbage brackets, unknown words).
    *
    * @param {string} name - Emotion, facial action, or gesture name
-   * @param {string|number} [intensity] - Honored only for FACS expressions
    */
-  _route(name, intensity) {
-    if (this._hasExpr(name)) this.expr(name, intensity);
+  _route(name) {
+    if (this._hasExpr(name)) this.expr(name);
     else if (this._hasMotion(name)) this._routeName(name);
   }
 
@@ -447,18 +448,17 @@ export class MotionEngine {
   }
 
   /**
-   * Play a FACS expression by name at a given intensity, routed to the additive
-   * compositor. The name may be any emotion word (resolved via the alias table);
-   * intensity is a word (`slight`/`moderate`/`strong`/…) or a 0..1 number.
-   * A `mood`-kind recipe replaces the sustained expression layer; a `beat`-kind
-   * recipe (laugh, surprise, …) fires a transient overlay. Unknown names are a no-op.
+   * Play a FACS expression by name, routed to the additive compositor. The name
+   * may be any emotion word (resolved via the alias table). Each expression has a
+   * single fixed intensity baked into its recipe. A `mood`-kind recipe replaces
+   * the sustained expression layer; a `beat`-kind recipe (laugh, surprise, …)
+   * fires a transient overlay. Unknown names are a no-op.
    *
    * @param {string} name - Emotion word (e.g. "amused", "wistful", "laughs")
-   * @param {string|number} [intensity] - Intensity word or 0..1 scalar
    * @returns {object|null} The resolved expression, or null if unknown
    */
-  expr(name, intensity) {
-    const resolved = this.resolveExpression(name, intensity);
+  expr(name) {
+    const resolved = this.resolveExpression(name);
     if (!resolved) {
       this._emit('onError', name, new Error(`Unknown expression: ${name}`));
       return null;
@@ -473,16 +473,15 @@ export class MotionEngine {
    * Set (or clear) the sustained mood-expression layer directly. Passing a falsy
    * name or "neutral" fades the current mood expression out.
    * @param {?string} name - Emotion word, or null/"neutral" to clear
-   * @param {string|number} [intensity]
    * @returns {object|null} The resolved expression, or null
    */
-  setMoodExpression(name, intensity) {
+  setMoodExpression(name) {
     const key = String(name || '').trim().toLowerCase();
     if (!key || key === 'neutral') {
       if (this._moodExpr) this._moodExpr.target = 0;
       return null;
     }
-    const resolved = this.resolveExpression(key, intensity);
+    const resolved = this.resolveExpression(key);
     if (!resolved) {
       this._emit('onError', name, new Error(`Unknown expression: ${name}`));
       return null;
@@ -604,14 +603,14 @@ export class MotionEngine {
   }
 
   /**
-   * Resolve an emotion word + intensity to a set of morph-target weights, without
-   * playing it. Useful for previews/tests.
+   * Resolve an emotion word to a set of morph-target weights, without playing it.
+   * Recipe AU weights are the final levels (one fixed intensity per expression).
+   * Useful for previews/tests.
    *
    * @param {string} name - Emotion word (canonical, alias, or unknown)
-   * @param {string|number} [intensity] - Intensity word or 0..1 scalar
-   * @returns {{name:string, vs:Object<string,number>, envelope?:object}|null}
+   * @returns {{name:string, vs:Object<string,number>, envelope?:object, kind:string}|null}
    */
-  resolveExpression(name, intensity) {
+  resolveExpression(name) {
     const key = String(name || '').trim().toLowerCase();
     if (!key) return null;
 
@@ -620,13 +619,9 @@ export class MotionEngine {
     const recipe = canonical ? f.expressions?.[canonical] : null;
     if (!recipe) return null;
 
-    const scale = this._intensityScalar(intensity);
-    const scaledAus = {};
-    for (const [au, w] of Object.entries(recipe.aus || {})) scaledAus[au] = w * scale;
-
     return {
       name: canonical,
-      vs: this._ausToVs(scaledAus),
+      vs: this._ausToVs(recipe.aus || {}),
       envelope: recipe.envelope,
       kind: recipe.kind || 'mood',
     };
@@ -658,21 +653,6 @@ export class MotionEngine {
     }
     return vs;
   }
-
-  /**
-   * Map an intensity word or scalar to a 0..1 value (default ~C on the FACS A–E scale).
-   * @private
-   * @param {string|number} [intensity]
-   * @returns {number}
-   */
-  _intensityScalar(intensity) {
-    const table = this._facs.intensity_words || {};
-    const dflt = table._default ?? 0.55;
-    if (intensity == null || intensity === '') return dflt;
-    if (typeof intensity === 'number') return Math.max(0, Math.min(1, intensity));
-    return table[String(intensity).trim().toLowerCase()] ?? dflt;
-  }
-
 
   /**
    * Resolve a motion name to its track and play it, honoring the per-turn mood rule.

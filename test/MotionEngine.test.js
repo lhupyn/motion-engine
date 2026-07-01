@@ -756,7 +756,7 @@ describe('handleTranscript', () => {
 
   it('routes an emotion emoji to the FACS compositor (😊 → expr happy)', () => {
     engine.handleTranscript('😊 hello');
-    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('happy');
     expect(playSpy).not.toHaveBeenCalled();
   });
 
@@ -769,19 +769,19 @@ describe('handleTranscript', () => {
 
   it('mixes a FACS emotion and a body gesture in one chunk (😊 👋)', () => {
     engine.handleTranscript('😊 hi 👋');
-    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('happy');
     expect(playSpy).toHaveBeenCalledWith('wave_right');
   });
 
   it('splits an array-valued emoji across subsystems (🥳 → celebrate motion + happy FACS)', () => {
     engine.handleTranscript('🥳 we did it');
     expect(playSpy).toHaveBeenCalledWith('celebrate');
-    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('happy');
   });
 
   it('matches an emoji with the U+FE0F variation selector (❤️ → love, FACS)', () => {
     engine.handleTranscript('I love this ❤️');
-    expect(exprSpy).toHaveBeenCalledWith('love', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('love');
   });
 
   it('routes a ::name:: gesture marker to a motion', () => {
@@ -791,22 +791,22 @@ describe('handleTranscript', () => {
 
   it('routes a ::name:: facial marker to FACS (::look_left:: → gaze)', () => {
     engine.handleTranscript('over there ::look_left::');
-    expect(exprSpy).toHaveBeenCalledWith('look_left', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('look_left');
   });
 
   it('parses a [emotion:intensity] bracket into FACS', () => {
     engine.handleTranscript("that's [amused:strong] clever");
-    expect(exprSpy).toHaveBeenCalledWith('amused', 'strong');
+    expect(exprSpy).toHaveBeenCalledWith('amused');
   });
 
   it('strips a wrapper keyword the LLM adds ([emotion:interest:slight] -> interest, slight)', () => {
     engine.handleTranscript('a river of data [emotion:interest:slight] flows');
-    expect(exprSpy).toHaveBeenCalledWith('interest', 'slight');
+    expect(exprSpy).toHaveBeenCalledWith('interest');
   });
 
   it('strips a wrapper keyword without intensity ([motion:calm] -> calm)', () => {
     engine.handleTranscript('[motion:calm] breathe');
-    expect(exprSpy).toHaveBeenCalledWith('calm', undefined);
+    expect(exprSpy).toHaveBeenCalledWith('calm');
   });
 
   it('routes a [gesture] bracket to a motion when not a FACS name', () => {
@@ -856,7 +856,6 @@ describe('FACS expressions', () => {
       AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
       AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
     },
-    intensity_words: { _default: 0.5, slight: 0.25, strong: 1.0 },
     expressions: {
       grin: { aus: { AU12: 0.8, AU6: 0.5 } },
       wink: { aus: { AU12_L: 0.8 } },
@@ -875,25 +874,13 @@ describe('FACS expressions', () => {
     vi.restoreAllMocks();
   });
 
-  it('scales AU weights by an intensity word (synthetic map)', () => {
+  it('resolves recipe AU weights straight to morph targets (synthetic map)', () => {
     engine.setFacs(TEST_FACS);
-    const r = engine.resolveExpression('grin', 'strong'); // AU12:0.8, AU6:0.5 @ 1.0
+    const r = engine.resolveExpression('grin'); // AU12:0.8, AU6:0.5 — no intensity scaling
     expect(r.name).toBe('grin');
     expect(r.vs.mouthSmileLeft).toBeCloseTo(0.8);
     expect(r.vs.mouthSmileRight).toBeCloseTo(0.8);
     expect(r.vs.cheekSquintLeft).toBeCloseTo(0.5);
-  });
-
-  it('uses the default intensity when none is given', () => {
-    engine.setFacs(TEST_FACS);
-    const r = engine.resolveExpression('grin'); // AU12 0.8 @ default 0.5
-    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.4);
-  });
-
-  it('accepts a numeric intensity and clamps it to 1', () => {
-    engine.setFacs(TEST_FACS);
-    const r = engine.resolveExpression('grin', 5); // clamp 5→1 → 0.8
-    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.8);
   });
 
   it('applies a unilateral AU to one side only (contempt = AU12_L + AU14_L)', () => {
@@ -938,7 +925,6 @@ describe('FACS expressions', () => {
   it('clamps additive AU overlap on the same morph to 1', () => {
     engine.setFacs({
       au_map: { AU12: { mouthSmileLeft: 1 }, AUX: { mouthSmileLeft: 1 } },
-      intensity_words: { _default: 1 },
       expressions: { test: { aus: { AU12: 0.8, AUX: 0.8 } } },
       aliases: {},
     });
