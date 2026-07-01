@@ -1,4 +1,20 @@
 {
+  "_aliases": {
+    "wave": "wave_right",
+    "hi": "wave_right",
+    "bye": "wave_right",
+    "thumbup": "thumbup_right",
+    "thumbsup": "thumbup_right",
+    "thumbdown": "thumbdown_right",
+    "thumbsdown": "thumbdown_right",
+    "ok": "ok_wink",
+    "shrug": "shrug_confused",
+    "namaste": "namaste_bow",
+    "thanks": "namaste_bow",
+    "clap": "applause",
+    "raise_hand": "hand_raise",
+    "shake": "shake_no"
+  },
   "sleep": {
     "_description": "Eyes closed, slow breathing, drowsy head sway — deep sleep or very tired",
     "_tags": [

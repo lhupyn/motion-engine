@@ -135,6 +135,7 @@ export class MotionEngine {
     };
 
     this._motions = {};
+    this._motionAliases = {};
     this._overlays = new OverlayManager(talkingHead);
     /** @type {FaceMirror|null} */
     this._mirror = null;
@@ -191,7 +192,11 @@ export class MotionEngine {
       ? Object.keys(this.head.gestureTemplates)
       : [];
 
+    // Motion aliases (short co-speech names → canonical motion). Merged across calls.
+    if (motions._aliases) Object.assign(this._motionAliases, motions._aliases);
+
     for (const [name, motion] of Object.entries(motions)) {
+      if (name.startsWith('_')) continue; // skip meta keys (_aliases, etc.)
       if (gestureNames.includes(name)) {
         console.warn(`[MotionEngine] Skipping "${name}" — collides with gestureTemplates.`);
         continue;
@@ -278,6 +283,7 @@ export class MotionEngine {
    * @param {number} [dur] - Optional duration override for native gestures (seconds)
    */
   async play(name, dur) {
+    name = this._motionAliases[name] || name; // resolve short co-speech aliases
     const motion = this._motions[name];
 
     // Track resolution logic
@@ -391,8 +397,9 @@ export class MotionEngine {
    * @param {string} name - Emotion, facial action, or gesture name
    */
   _route(name) {
-    if (this._hasExpr(name)) this.expr(name);
-    else if (this._hasMotion(name)) this._routeName(name);
+    if (this._hasExpr(name)) { this.expr(name); return; }
+    const motionName = this._motionAliases[name] || name;
+    if (this._hasMotion(motionName)) this._routeName(motionName);
   }
 
   /**
