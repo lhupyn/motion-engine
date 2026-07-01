@@ -144,6 +144,39 @@
       border-color: #6a6a3a;
     }
 
+    .btn.facs {
+      background: #2a1f10;
+      border-color: #7a5a2a;
+    }
+
+    .btn.facs:hover {
+      background: #3a2f20;
+      border-color: #8a6a3a;
+    }
+
+    .btn.facs.active {
+      background: #7a5a2a;
+      border-color: #ba8a4a;
+    }
+
+    .btn.facs-reset {
+      grid-column: 1 / -1;
+      background: #161616;
+      border-color: #444;
+      color: #aaa;
+    }
+
+    .btn.facs-reset:hover {
+      background: #222;
+      border-color: #666;
+    }
+
+    .subtle {
+      color: #666;
+      font-weight: normal;
+      font-size: 12px;
+    }
+
     .btn.sequence {
       background: #3a2a1a;
       border-color: #6a4a2a;
@@ -252,16 +285,38 @@
     <button class="btn audit-btn" id="btn-audit">🔍 Audit Avatar</button>
 
     <div class="legend">
+      <span><span class="dot" style="background:#7a5a2a"></span> FACS expr (facs.json)</span>
       <span><span class="dot" style="background:#444"></span> motions.json</span>
       <span><span class="dot" style="background:#2a4a6a"></span> motions_th.json</span>
-      <span><span class="dot" style="background:#5a2a5a"></span> mood (persistent)</span>
       <span><span class="dot" style="background:#5a5a2a"></span> TH emoji</span>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- FACS EMOTIONS (7 core — the [marker] emotion menu)           -->
+    <!-- ============================================================ -->
+    <h2>FACS Emotions — 7 core <span class="subtle">([marker] menu)</span></h2>
+    <div class="btn-grid">
+      <button class="btn facs" data-expr="happy">😊 happy</button>
+      <button class="btn facs" data-expr="sad">😢 sad</button>
+      <button class="btn facs" data-expr="angry">😠 angry</button>
+      <button class="btn facs" data-expr="scared">😨 scared</button>
+      <button class="btn facs" data-expr="surprised">😮 surprised</button>
+      <button class="btn facs" data-expr="disgusted">🤢 disgusted</button>
+      <button class="btn facs" data-expr="confused">😕 confused</button>
+      <button class="btn facs-reset" data-expr="__reset__">↺ Neutral (reset)</button>
+    </div>
+
+    <!-- Full pipeline: [emotion] + ::gesture:: markers stripped like the chat bubble -->
+    <h2>Transcript <span class="subtle">(LLM pipeline)</span></h2>
+    <div id="custom-input">
+      <input type="text" id="transcript-text" placeholder="[happy] Hey there! ::wave_right::" />
+      <button class="btn" id="btn-transcript">Run</button>
     </div>
 
     <!-- ============================================================ -->
     <!-- MOODS (persistent — stay active until replaced)              -->
     <!-- ============================================================ -->
-    <h2>Moods (persistent)</h2>
+    <h2>Legacy moods <span class="subtle">(motions.json · pre-FACS)</span></h2>
     <div class="btn-grid">
       <button class="btn mood" data-motion="neutral">Neutral</button>
       <button class="btn mood" data-motion="happy">Happy</button>
@@ -287,7 +342,7 @@
     <!-- ============================================================ -->
     <!-- EXPRESSIONS (temporal — play once then return to neutral)     -->
     <!-- ============================================================ -->
-    <h2>Expressions</h2>
+    <h2>Legacy expressions <span class="subtle">(motions.json · extended catalog)</span></h2>
 
     <div class="section-label">Joy</div>
     <div class="btn-grid">
@@ -357,10 +412,24 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- GESTURES (hand / arm motions)                                -->
+    <!-- CO-SPEECH EMBLEMS (MotionEngine — ours: pose + oscillation)   -->
     <!-- ============================================================ -->
-    <h2>Gestures</h2>
-    <div class="section-label">TH native emoji dispatch</div>
+    <h2>Co-speech emblems <span class="subtle">(MotionEngine · ours)</span></h2>
+    <div class="section-label">upper-body · visible in mid/upper framing</div>
+    <div class="btn-grid">
+      <button class="btn" data-motion="wave_right">✋ Wave</button>
+      <button class="btn" data-motion="wave_left">✋ Wave (L)</button>
+      <button class="btn" data-motion="thumbup_right">👍 Thumbs Up</button>
+      <button class="btn" data-motion="thumbdown_right">👎 Thumbs Down</button>
+      <button class="btn" data-motion="ok_wink">👌 OK + Wink</button>
+      <button class="btn" data-motion="point">☝️ Point</button>
+      <button class="btn" data-motion="shrug_confused">🤷 Shrug</button>
+      <button class="btn" data-motion="namaste_bow">🙏 Namaste</button>
+      <button class="btn th" data-motion="hand_raise">🙋 Hand Raise</button>
+      <button class="btn" data-motion="applause">👏 Applause</button>
+    </div>
+
+    <div class="section-label">TH native (raw) — A/B vs ours</div>
     <div class="btn-grid">
       <button class="btn emoji" data-motion="&#x270B;">&#x270B; Wave</button>
       <button class="btn emoji" data-motion="&#x1F44D;">&#x1F44D; Thumbs Up</button>
@@ -369,51 +438,45 @@
       <button class="btn emoji" data-motion="&#x1F937;">&#x1F937; Shrug</button>
       <button class="btn emoji" data-motion="&#x1F64F;">&#x1F64F; Pray</button>
     </div>
-    <div class="section-label">MotionEngine gestures</div>
-    <div class="btn-grid">
-      <button class="btn" data-motion="wave_right">Wave Right</button>
-      <button class="btn" data-motion="wave_left">Wave Left</button>
-      <button class="btn" data-motion="thumbup_right">Thumbs Up</button>
-      <button class="btn" data-motion="thumbdown_right">Thumbs Down</button>
-      <button class="btn" data-motion="ok_wink">OK + Wink</button>
-      <button class="btn" data-motion="shrug_confused">Shrug</button>
-      <button class="btn" data-motion="namaste_bow">Namaste</button>
-      <button class="btn" data-motion="point">Point</button>
-      <button class="btn" data-motion="applause">Applause</button>
-      <button class="btn th" data-motion="hand_raise">Hand Raise</button>
-      <button class="btn th" data-motion="hand_raise_left">Raise Left</button>
-      <button class="btn th" data-motion="thumbs_up">Thumbs Up (th)</button>
-      <button class="btn th" data-motion="thumbs_down">Thumbs Down (th)</button>
-      <button class="btn th" data-motion="ok_sign">OK Sign (th)</button>
-      <button class="btn th" data-motion="shrug_both">Shrug Both</button>
-      <button class="btn th" data-motion="pray">Pray (th)</button>
-    </div>
 
     <!-- ============================================================ -->
-    <!-- HEAD & BODY                                                  -->
+    <!-- HEAD (visible in head/upper framing)                         -->
     <!-- ============================================================ -->
-    <h2>Head & Body</h2>
+    <h2>Head <span class="subtle">(visible in head/upper)</span></h2>
     <div class="btn-grid">
-      <button class="btn emoji" data-motion="yes">Yes (native)</button>
-      <button class="btn emoji" data-motion="no">No (native)</button>
       <button class="btn" data-motion="nod_yes">Nod Yes</button>
       <button class="btn" data-motion="shake_no">Shake No</button>
-      <button class="btn th" data-motion="nod">Nod (th)</button>
-      <button class="btn th" data-motion="head_shake">Head Shake (th)</button>
+      <button class="btn emoji" data-motion="yes">Yes (native)</button>
+      <button class="btn emoji" data-motion="no">No (native)</button>
       <button class="btn" data-motion="look_up">Look Up</button>
       <button class="btn" data-motion="look_down">Look Down</button>
       <button class="btn" data-motion="look_left">Look Left</button>
       <button class="btn" data-motion="look_right">Look Right</button>
       <button class="btn" data-motion="head_circles">Head Circles</button>
-      <button class="btn" data-motion="bow">Bow</button>
-      <button class="btn" data-motion="turn_around">Turn Around</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- FULL-BODY (needs zoom-out to read)                           -->
+    <!-- ============================================================ -->
+    <h2>Full-body <span class="subtle">(needs zoom-out)</span></h2>
+    <div class="btn-grid">
       <button class="btn" data-motion="jump">Jump</button>
       <button class="btn" data-motion="dance">Dance</button>
+      <button class="btn" data-motion="celebrate">Celebrate</button>
+      <button class="btn" data-motion="bow">Bow</button>
+      <button class="btn" data-motion="turn_around">Turn Around</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- IDLE / BODY FX                                               -->
+    <!-- ============================================================ -->
+    <h2>Idle / FX</h2>
+    <div class="btn-grid">
       <button class="btn" data-motion="deep_breath">Deep Breath</button>
       <button class="btn" data-motion="shiver">Shiver</button>
+      <button class="btn" data-motion="vibrate">Vibrate</button>
       <button class="btn" data-motion="chew">Chew</button>
       <button class="btn" data-motion="yawn">Yawn</button>
-      <button class="btn" data-motion="vibrate">Vibrate</button>
     </div>
 
     <!-- ============================================================ -->
