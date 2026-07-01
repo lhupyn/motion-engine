@@ -94,13 +94,18 @@ const VARIATION_SELECTOR_RE = /️/g;
  * `[skeptical:strong]`). Also catches natural stage-directions the LLM already
  * emits in brackets (`[laughs]`, `[sighs]`). Unresolvable brackets are ignored.
  */
-const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z _-]*?)\s*(?::\s*([a-zA-Z]+)\s*)?\]/g;
+const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z _:-]*?)\s*\]/g;
 /**
  * Eye-animation morphs (gaze + blink) are owned by TalkingHead's idle animation,
  * which writes them via the newvalue slot — higher priority than the compositor's
  * baseline. These must be driven through setValue() (the system slot) to win.
  */
 const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
+/**
+ * Wrapper keywords the LLM sometimes prefixes onto a marker, e.g.
+ * `[emotion:amused]` or `[motion:calm]`. When present, the real name is the value.
+ */
+const WRAPPER_WORDS = new Set(['motion', 'emotion', 'emotions', 'feeling', 'feelings', 'expression', 'mood', 'face', 'gesture']);
 
 /**
  * @class MotionEngine
@@ -366,9 +371,13 @@ export class MotionEngine {
       }
     }
 
-    // FACS emotion / facial-action markers: [name] or [name:intensity].
+    // FACS markers. The LLM's format varies — [name], [name:intensity],
+    // [wrapper:name], [wrapper:name:intensity] — so split on ':' and drop a
+    // leading wrapper keyword (emotion/motion/feeling/…) if present.
     for (const b of text.matchAll(BRACKET_RE)) {
-      this._route(b[1], b[2]);
+      let parts = b[1].split(':').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      if (parts.length > 1 && WRAPPER_WORDS.has(parts[0])) parts = parts.slice(1);
+      if (parts.length) this._route(parts[0], parts[1]);
     }
   }
 

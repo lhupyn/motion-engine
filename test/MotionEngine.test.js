@@ -799,6 +799,16 @@ describe('handleTranscript', () => {
     expect(exprSpy).toHaveBeenCalledWith('amused', 'strong');
   });
 
+  it('strips a wrapper keyword the LLM adds ([emotion:interest:slight] -> interest, slight)', () => {
+    engine.handleTranscript('a river of data [emotion:interest:slight] flows');
+    expect(exprSpy).toHaveBeenCalledWith('interest', 'slight');
+  });
+
+  it('strips a wrapper keyword without intensity ([motion:calm] -> calm)', () => {
+    engine.handleTranscript('[motion:calm] breathe');
+    expect(exprSpy).toHaveBeenCalledWith('calm', undefined);
+  });
+
   it('routes a [gesture] bracket to a motion when not a FACS name', () => {
     engine.handleTranscript('say hi [wave_right]');
     expect(playSpy).toHaveBeenCalledWith('wave_right');

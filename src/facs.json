@@ -144,6 +144,11 @@
     "laugh_closed": "laugh", "crying_laugh": "laugh",
     "flushed": "shy", "rage": "angry", "unamused": "contempt", "scream": "fear",
     "grimace_teeth": "pain", "thinking_face": "pensive", "neutral_face": "neutral",
-    "heart_eyes": "love", "kiss_eyes_closed": "kiss", "sigh": "disappointed"
+    "heart_eyes": "love", "kiss_eyes_closed": "kiss", "sigh": "disappointed",
+
+    "amusement": "amused", "happiness": "happy", "sadness": "sad", "anger": "angry",
+    "calmness": "relieved", "excitement": "excited", "interest": "curious", "curiosity": "curious",
+    "tenderness": "tender", "affection": "love", "nervousness": "nervous",
+    "disappointment": "disappointed", "tiredness": "sleepy", "pride": "proud", "confusion": "confused"
   }
 }
