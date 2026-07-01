@@ -177,6 +177,28 @@
       font-size: 12px;
     }
 
+    .view-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .btn.view {
+      background: #10202a;
+      border-color: #2a5a6a;
+      padding: 8px 6px;
+    }
+
+    .btn.view:hover {
+      background: #182a34;
+      border-color: #3a6a7a;
+    }
+
+    .btn.view.active {
+      background: #2a6a7a;
+      border-color: #4a9aba;
+    }
+
     .btn.sequence {
       background: #3a2a1a;
       border-color: #6a4a2a;
@@ -283,6 +305,17 @@
     <div id="status">Loading avatar...</div>
     <button class="btn stop-btn" id="btn-stop">⏹ Stop</button>
     <button class="btn audit-btn" id="btn-audit">🔍 Audit Avatar</button>
+
+    <!-- ============================================================ -->
+    <!-- CAMERA (TalkingHead framing — pick a plane, then test motions) -->
+    <!-- ============================================================ -->
+    <h2>Camera <span class="subtle">(framing — what's visible)</span></h2>
+    <div class="view-grid">
+      <button class="btn view" data-view="head">Head</button>
+      <button class="btn view" data-view="upper">Upper</button>
+      <button class="btn view" data-view="mid">Mid</button>
+      <button class="btn view active" data-view="full">Full</button>
+    </div>
 
     <div class="legend">
       <span><span class="dot" style="background:#7a5a2a"></span> FACS expr (facs.json)</span>

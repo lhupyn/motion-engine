@@ -62,6 +62,11 @@ async function initAvatar() {
   studio = new MotionStudio(engine);
   const count = engine.registerMotions(motions) + engine.registerMotions(motionsTH);
 
+  // Expose for console / devtools poking (demo only)
+  window.head = head;
+  window.engine = engine;
+  window.studio = studio;
+
   // Wire up event callbacks to UI
   engine.onStart = (name) => {
     statusEl.textContent = `Playing: ${name}`;
@@ -136,6 +141,17 @@ document.querySelectorAll('[data-motion]').forEach((btn) => {
 // Sequence buttons
 document.querySelectorAll('[data-sequence]').forEach((btn) => {
   btn.addEventListener('click', () => handleSequence(btn.dataset.sequence));
+});
+
+// Camera view buttons (TalkingHead framing: head / upper / mid / full)
+document.querySelectorAll('[data-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.view;
+    head.setView(view);
+    document.querySelectorAll('[data-view].active').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    log(`Camera view: ${view}`, 'warn');
+  });
 });
 
 // FACS expression buttons (7-core emotion menu → engine.expr / resetExpression)
