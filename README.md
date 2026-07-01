@@ -26,6 +26,19 @@ Instead of using tool calls (which break conversational flow and add latency), t
 
 The LLM never leaves its conversational context. Animations stay coupled to the exact moment in speech where they belong.
 
+### FACS expressions — emotion in, blended face out
+
+Beyond discrete markers and emoji, MotionEngine drives nuanced facial expression from a **FACS** (Facial Action Coding System) layer. The LLM emits an emotion marker with optional intensity — `[amused]`, `[skeptical:strong]`, `[laughs]` — and the engine resolves it to a weighted blend of **Action Units** (AUs), which map to the model's ARKit blendshapes. An additive compositor layers a sustained *mood* plus transient *beats* on top of the current baseline, yielding to visemes and blinks on shared morphs.
+
+All of this lives in one small data file (`facs.json`) plus a ~90-line resolver/compositor — no inference model at runtime (the LLM *is* the inference). The tables are grounded in published work:
+
+- The **7 core emotions** use the canonical [**EMFACS-7**](https://www.paulekman.com/facial-action-coding-system/) (Ekman & Friesen) AU combinations — e.g. happiness = AU6+AU12, sadness = AU1+AU4+AU15.
+- **Extended emotions** (amused, wistful, skeptical, …) are documented *blends* of those same AU primitives.
+- The **AU → ARKit blendshape** mapping follows the [ARKit↔FACS convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), with per-model calibration.
+- The stylized-3D-via-AU approach (and the need to calibrate AUs per model) follows [**AU-Blendshape** (arXiv:2507.12001)](https://arxiv.org/abs/2507.12001).
+
+Provenance for each recipe is inlined in `facs.json` (`facs` field per expression) and summarized in its `_sources` block.
+
 ### When the avatar listens — Empathic vision
 
 When the avatar isn't speaking, a local algorithm powered by [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) reads the user's facial expressions through the webcam. Instead of sending this data to the LLM (more tokens, more latency), the algorithm generates empathic avatar responses entirely on the client — a soft smile when the user smiles, a nod, a tilt of the head.
@@ -243,6 +256,7 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror is availab
 
 - **[TalkingHead](https://github.com/met4citizen/TalkingHead)** by Mika Suominen — MIT License.
 - **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** by Google — real-time blendshape detection in FaceMirror.
+- **FACS expression tables** grounded in **EMFACS-7** (Ekman & Friesen, *Emotional Facial Action Coding System*), the [ARKit↔FACS mapping convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), and **AU-Blendshape** ([arXiv:2507.12001](https://arxiv.org/abs/2507.12001)) for stylized-3D AU control.
 - **Demo avatar**: Created with [Ready Player Me](https://readyplayer.me/).
 
 ## License
