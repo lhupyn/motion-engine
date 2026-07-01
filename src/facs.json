@@ -136,6 +136,14 @@
     "eyes closed": "close_eyes", "closes eyes": "close_eyes",
     "squints": "squint", "squinting": "squint",
     "rolls eyes": "eyeroll", "eye roll": "eyeroll",
-    "yawns": "yawn", "yawning": "yawn"
+    "yawns": "yawn", "yawning": "yawn",
+
+    "surprised": "surprise", "frown": "sad", "sad_frown": "sad", "sobbing": "sad",
+    "grin": "happy", "beam": "happy", "slight_smile": "happy", "open_grin": "laugh",
+    "warm_smile": "tender", "squint_smile": "amused", "wink_smile": "amused",
+    "laugh_closed": "laugh", "crying_laugh": "laugh",
+    "flushed": "shy", "rage": "angry", "unamused": "contempt", "scream": "fear",
+    "grimace_teeth": "pain", "thinking_face": "pensive", "neutral_face": "neutral",
+    "heart_eyes": "love", "kiss_eyes_closed": "kiss", "sigh": "disappointed"
   }
 }
