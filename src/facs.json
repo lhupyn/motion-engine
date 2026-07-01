@@ -10,7 +10,7 @@
     "AU7":  { "eyeSquintLeft": 1, "eyeSquintRight": 1 },
     "AU9":  { "noseSneerLeft": 1, "noseSneerRight": 1 },
     "AU10": { "mouthUpperUpLeft": 1, "mouthUpperUpRight": 1 },
-    "AU12": { "mouthSmileLeft": 1, "mouthSmileRight": 1 },
+    "AU12": { "mouthSmileLeft": 0.65, "mouthSmileRight": 0.65 },
     "AU14": { "mouthDimpleLeft": 1, "mouthDimpleRight": 1 },
     "AU15": { "mouthFrownLeft": 1, "mouthFrownRight": 1 },
     "AU16": { "mouthLowerDownLeft": 1, "mouthLowerDownRight": 1 },

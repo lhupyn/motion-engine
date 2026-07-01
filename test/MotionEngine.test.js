@@ -859,6 +859,22 @@ describe('handleTranscript', () => {
 describe('FACS expressions', () => {
   let head, engine;
 
+  // Synthetic FACS so the resolver-math assertions don't couple to real recipe
+  // calibration (which is tuned per-model and changes over time).
+  const TEST_FACS = {
+    au_map: {
+      AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
+      AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
+    },
+    intensity_words: { _default: 0.5, slight: 0.25, strong: 1.0 },
+    expressions: {
+      grin: { aus: { AU12: 0.8, AU6: 0.5 } },
+      wink: { aus: { AU12_L: 0.8 } },
+      none: { aus: {} },
+    },
+    aliases: { chuckles: 'grin' },
+  };
+
   beforeEach(() => {
     head = createMockHead();
     engine = new MotionEngine(head);
@@ -869,22 +885,25 @@ describe('FACS expressions', () => {
     vi.restoreAllMocks();
   });
 
-  it('scales AU weights by an intensity word (happy:strong)', () => {
-    const r = engine.resolveExpression('happy', 'strong'); // AU12:1.0, AU6:0.6 @ 0.75
-    expect(r.name).toBe('happy');
-    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.75);
-    expect(r.vs.mouthSmileRight).toBeCloseTo(0.75);
-    expect(r.vs.cheekSquintLeft).toBeCloseTo(0.45);
+  it('scales AU weights by an intensity word (synthetic map)', () => {
+    engine.setFacs(TEST_FACS);
+    const r = engine.resolveExpression('grin', 'strong'); // AU12:0.8, AU6:0.5 @ 1.0
+    expect(r.name).toBe('grin');
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.8);
+    expect(r.vs.mouthSmileRight).toBeCloseTo(0.8);
+    expect(r.vs.cheekSquintLeft).toBeCloseTo(0.5);
   });
 
-  it('uses the default intensity (~C) when none is given', () => {
-    const r = engine.resolveExpression('happy');
-    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.55);
+  it('uses the default intensity when none is given', () => {
+    engine.setFacs(TEST_FACS);
+    const r = engine.resolveExpression('grin'); // AU12 0.8 @ default 0.5
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.4);
   });
 
   it('accepts a numeric intensity and clamps it to 1', () => {
-    const r = engine.resolveExpression('happy', 5);
-    expect(r.vs.mouthSmileLeft).toBeCloseTo(1.0);
+    engine.setFacs(TEST_FACS);
+    const r = engine.resolveExpression('grin', 5); // clamp 5→1 → 0.8
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.8);
   });
 
   it('applies a unilateral AU to one side only (contempt = AU12_L + AU14_L)', () => {
@@ -935,12 +954,13 @@ describe('FACS expressions', () => {
   });
 
   it('composites the mood layer additively over the mood baseline', () => {
+    engine.setFacs(TEST_FACS);
     head.mood.baseline = { mouthSmileLeft: 0.1 };
-    engine.expr('happy', 'strong'); // AU12 → mouthSmileLeft weight 0.75
-    for (let i = 0; i < 40; i++) engine.update(16); // fade in to current=1
+    engine.expr('grin', 'strong'); // AU12 0.8 @ 1.0 → mouthSmileLeft 0.8
+    for (let i = 0; i < 40; i++) engine.update(16); // fade in to current = 1
     const last = head.setBaselineValue.mock.calls.filter(([mt]) => mt === 'mouthSmileLeft').pop();
     expect(last).toBeDefined();
-    expect(last[1]).toBeCloseTo(0.85, 1); // 0.1 rest + 0.75 expression
+    expect(last[1]).toBeCloseTo(0.9, 1); // 0.1 rest + 0.8 expression
   });
 
   it('a beat blooms then releases its morphs back to rest', () => {
