@@ -2,7 +2,7 @@
   "_doc": "FACS layer for MotionEngine. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU12 capped for this over-sculpted mouthSmile). expressions: emotion -> AU recipe + optional envelope. Recipe AU weights are the FINAL levels (one fixed intensity per expression, no runtime scaling): final morph = recipeWeight * au_map weight, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). The 7 'core' recipes use the canonical EMFACS-7 AU combinations; 'extended' recipes are documented blends of the same primitives. aliases resolve free-text emotion words (nouns/verbs/[stage-directions]) to a canonical expression.",
   "_sources": {
     "emfacs": "Emotional FACS (Ekman & Friesen 1983) — canonical AU combinations for the basic emotions. https://www.paulekman.com/facial-action-coding-system/",
-    "au_to_arkit": "ARKit<->FACS mapping convention (each ARKit blendshape ~ one FACS AU). https://melindaozel.com/arkit-to-facs-cheat-sheet/ ; clinical blendshape<->AU mapping https://www.sciencedirect.com/science/article/pii/S2451958826001995",
+    "au_to_arkit": "ARKit<->FACS mapping convention (each ARKit blendshape ~ one FACS AU). https://melindaozel.com/arkit-to-facs-cheat-sheet/ ; clinical blendshape<->AU mapping https://www.sciencedirect.com/science/article/pii/S2451958826001995 ; interactive ARKit-52<->AU guide https://arkit.miniface.org/faces",
     "stylized_3d": "AU-Blendshape: Fine-grained Stylized 3D Facial Expression Manipulation (arXiv:2507.12001) — approach for driving stylized (cartoon) 3D faces via Action Units, and the need for per-model AU calibration."
   },
   "au_map": {
@@ -54,7 +54,8 @@
       "mouthLowerDownRight": 1
     },
     "AU17": {
-      "mouthShrugLower": 1
+      "mouthShrugLower": 1,
+      "mouthShrugUpper": 1
     },
     "AU18": {
       "mouthPucker": 1
@@ -92,9 +93,6 @@
     "AU19": {
       "tongueOut": 1
     },
-    "AU33": {
-      "cheekPuff": 1
-    },
     "AU61": {
       "eyeLookOutLeft": 1,
       "eyeLookInRight": 1
@@ -110,6 +108,9 @@
     "AU64": {
       "eyeLookDownLeft": 1,
       "eyeLookDownRight": 1
+    },
+    "AD34": {
+      "cheekPuff": 1
     }
   },
   "expressions": {
@@ -120,8 +121,8 @@
     "happy": {
       "facs": "EMFACS-7 happiness: AU6+AU12",
       "aus": {
-        "AU6": 0.42,
-        "AU12": 0.7
+        "AU6": 0.28,
+        "AU12": 0.6
       }
     },
     "sad": {
@@ -179,8 +180,8 @@
       "facs": "extension: intensified happiness (AU6+AU12) + open jaw (AU26)",
       "kind": "beat",
       "aus": {
-        "AU6": 0.56,
-        "AU12": 0.7,
+        "AU6": 0.28,
+        "AU12": 0.6,
         "AU26": 0.24
       },
       "envelope": {
@@ -193,8 +194,8 @@
       "facs": "extension: happiness + wide eyes (AU5) + jaw",
       "aus": {
         "AU5": 0.28,
-        "AU6": 0.42,
-        "AU12": 0.63
+        "AU6": 0.28,
+        "AU12": 0.6
       }
     },
     "amused": {
@@ -226,7 +227,7 @@
       "facs": "extension: happiness + AU1",
       "aus": {
         "AU1": 0.14,
-        "AU6": 0.35,
+        "AU6": 0.28,
         "AU12": 0.49
       }
     },
@@ -365,10 +366,10 @@
       }
     },
     "cheek_puff": {
-      "facs": "AU33 cheek blow",
+      "facs": "AD34 cheek puff",
       "kind": "beat",
       "aus": {
-        "AU33": 0.7
+        "AD34": 0.7
       },
       "envelope": {
         "in": 200,

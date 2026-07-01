@@ -2,9 +2,19 @@
 
 > **Semantic motion layer for LLM-driven 3D avatars.**
 
-A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that gives 3D avatars rich body language — without burdening the LLM. Instead of making models reason about morph targets and bone rotations, MotionEngine lets them pick from a curated catalog of **98 named motions**, saving tokens and improving real-time responsiveness.
+A plugin for [TalkingHead](https://github.com/met4citizen/TalkingHead) that gives 3D avatars rich body language and facial expression — without burdening the LLM. Instead of making models reason about morph targets and bone rotations, MotionEngine lets them name what they want: **body gestures** from a curated motion catalog, and **emotions** from a small [FACS](https://en.wikipedia.org/wiki/Facial_Action_Coding_System)-grounded menu. Saves tokens, improves real-time responsiveness.
 
 **[Live Demo](https://lhupyn.github.io/motion-engine/)** · **[Face Mirror](https://lhupyn.github.io/motion-engine/mirror.html)** · **[LLM Playground](https://lhupyn.github.io/motion-engine/playground.html)** · **[Reference Implementation](https://doacam.com)**
+
+---
+
+## Features
+
+- 🎭 **FACS facial expressions** — the LLM names an emotion (`[happy]`), the engine renders an Action-Unit blend. 26 emotions + 15 facial actions, grounded in **EMFACS-7**.
+- 🙆 **Body gestures** — a curated motion catalog (wave, nod, bow, dance, shrug…) with bone-oscillation overlays for lifelike hands and posture.
+- 👁️ **Empathic vision** — reacts to the *user's* face via MediaPipe, fully on-device, zero LLM tokens.
+- 🧩 **Zero LLM burden** — expression rides as lightweight markers in the speech stream: no tool calls, no morph-target reasoning, no added latency.
+- 🪶 **Tiny & data-driven** — one small `facs.json` + a compact resolver/compositor. No inference model at runtime — the LLM *is* the inference.
 
 ---
 
@@ -28,13 +38,15 @@ The LLM never leaves its conversational context. Animations stay coupled to the 
 
 ### FACS expressions — emotion in, blended face out
 
-Beyond discrete markers and emoji, MotionEngine drives nuanced facial expression from a **FACS** (Facial Action Coding System) layer. The LLM emits an emotion marker with optional intensity — `[amused]`, `[skeptical:strong]`, `[laughs]` — and the engine resolves it to a weighted blend of **Action Units** (AUs), which map to the model's ARKit blendshapes. An additive compositor layers a sustained *mood* plus transient *beats* on top of the current baseline, yielding to visemes and blinks on shared morphs.
+MotionEngine drives facial expression from a **FACS** (Facial Action Coding System) layer. The LLM emits a plain emotion marker — `[happy]`, `[sad]`, `[amused]` — or a facial action like `[wink]`, and the engine resolves it to a weighted blend of **Action Units** (AUs) that map to the model's ARKit blendshapes. Each expression has one fixed, calibrated level (no per-call intensity — in practice a short menu of well-tuned expressions beats free-form scaling). An additive compositor layers a sustained *mood* plus transient *beats*, yielding the mouth to visemes and the eyes to gaze/blink during speech.
 
-All of this lives in one small data file (`facs.json`) plus a ~90-line resolver/compositor — no inference model at runtime (the LLM *is* the inference). The tables are grounded in published work:
+The prompt advertises a **small fixed menu** of core emotions — the model picks far more reliably from a short explicit set than from open-ended words — while a resolver maps any off-menu word (synonyms, nouns, `[stage-directions]`) back to a recipe as a safety net.
+
+All of this lives in one small data file (`facs.json`) plus a compact resolver/compositor — no inference model at runtime (the LLM *is* the inference). The tables are grounded in published work:
 
 - The **7 core emotions** use the canonical [**EMFACS-7**](https://www.paulekman.com/facial-action-coding-system/) (Ekman & Friesen) AU combinations — e.g. happiness = AU6+AU12, sadness = AU1+AU4+AU15.
 - **Extended emotions** (amused, wistful, skeptical, …) are documented *blends* of those same AU primitives.
-- The **AU → ARKit blendshape** mapping follows the [ARKit↔FACS convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), with per-model calibration.
+- The **AU → ARKit blendshape** mapping follows the [ARKit↔FACS convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), cross-checked against a [clinical blendshape↔AU mapping](https://www.sciencedirect.com/science/article/pii/S2451958826001995) — with per-model calibration.
 - The stylized-3D-via-AU approach (and the need to calibrate AUs per model) follows [**AU-Blendshape** (arXiv:2507.12001)](https://arxiv.org/abs/2507.12001).
 
 Provenance for each recipe is inlined in `facs.json` (`facs` field per expression) and summarized in its `_sources` block.
@@ -47,7 +59,7 @@ It doesn't clone the user's face. It *reacts* naturally with attenuated intensit
 
 | Avatar state | Animation source | LLM involved? |
 |---|---|---|
-| **Speaking** | `::markers::` in transcriptions | Yes (gesture names only) |
+| **Speaking** | `[emotion]` + `::markers::` + emoji in the transcript | Yes (names only) |
 | **Listening** | Empathic vision via MediaPipe | No |
 
 ## Architecture
@@ -68,7 +80,7 @@ graph TB
             subgraph ME["MotionEngine"]
                 direction LR
                 TRACKS["Multi-track Player<br/>pose | mood | action"]
-                MOTIONS["Motion Dictionary<br/>98 named motions"]
+                MOTIONS["Motion + FACS catalog<br/>body gestures + emotions"]
                 OVERLAYS["Bone Overlays<br/>shivers, waves, shakes"]
             end
 
@@ -129,30 +141,44 @@ import motions from 'motion-engine/motions';
 const engine = new MotionEngine(talkingHead);
 engine.registerMotions(motions);
 
-// Hook into TalkingHead render loop (required for bone overlays)
+// Hook into TalkingHead's render loop (drives the FACS compositor + bone overlays)
 talkingHead.opt.update = (dt) => engine.update(dt);
 
-// Set a mood (persists)
-await engine.play('thinking');
+// Speech-driven (primary path): forward each transcription chunk. Emoji,
+// [emotion] markers and ::markers:: are parsed and routed — face → FACS
+// compositor, body → motion — with no glue on the caller side.
+engine.handleTranscript("great news [happy] — let me show you ::wave_right::");
 
-// Play an action on top (mood stays active)
-await engine.play('nod_yes');
-
-// Play a sequence
-await engine.playSequence(['wave_right', 'thumbup_right']);
+// Or drive it directly:
+engine.expr('sad');            // a FACS emotion (sustained until replaced)
+await engine.play('nod_yes');  // a body gesture on top
+engine.resetExpression();      // fade the face back to neutral (e.g. at turn end)
 ```
 
 ### LLM integration
+
+**1. Emotions — add one line to your system prompt:**
+
+> Drop a silent marker for your feeling where it shifts — `[happy]` `[sad]` `[angry]` `[scared]` `[surprised]` `[disgusted]` `[confused]` — never said aloud.
+
+A short **explicit menu** makes the model's choice reliable (open-ended emotion words scatter in practice); the resolver still maps any off-menu word it reaches for (`[amused]`, `[frustrated]`, `[laughs]`, …). Tune the menu to your persona.
+
+**2. Forward the transcript** — markers are parsed, routed (face → FACS, body → motion) and played:
+
+```js
+engine.handleTranscript(chunk);   // one call per transcription chunk
+engine.resetExpression();         // fade back to neutral at each turn boundary
+```
+
+Strip the markers from any user-facing text on your side (they're control tokens, not speech).
+
+**Advanced — dynamic motions.** MotionStudio can generate/play motions from LLM-authored JSON and produce a compact catalog for system prompts:
 
 ```js
 import { MotionStudio } from 'motion-engine/studio';
 
 const studio = new MotionStudio(engine);
-
-// Get compact motion catalog for system prompts
-const context = studio.getLLMContext();
-
-// Play a dynamic motion from LLM-generated JSON
+const context = studio.getLLMContext();  // token-efficient motion catalog
 await studio.playDynamic('{"dt": [500, 2000, 500], "vs": {"mouthSmile": [0.8]}}');
 ```
 
@@ -256,7 +282,7 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror is availab
 
 - **[TalkingHead](https://github.com/met4citizen/TalkingHead)** by Mika Suominen — MIT License.
 - **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** by Google — real-time blendshape detection in FaceMirror.
-- **FACS expression tables** grounded in **EMFACS-7** (Ekman & Friesen, *Emotional Facial Action Coding System*), the [ARKit↔FACS mapping convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), and **AU-Blendshape** ([arXiv:2507.12001](https://arxiv.org/abs/2507.12001)) for stylized-3D AU control.
+- **FACS expression tables** grounded in **EMFACS-7** (Ekman & Friesen, *Emotional Facial Action Coding System*), the [ARKit↔FACS mapping convention](https://melindaozel.com/arkit-to-facs-cheat-sheet/), a [clinical blendshape↔AU mapping](https://www.sciencedirect.com/science/article/pii/S2451958826001995), and **AU-Blendshape** ([arXiv:2507.12001](https://arxiv.org/abs/2507.12001)) for stylized-3D AU control.
 - **Demo avatar**: Created with [Ready Player Me](https://readyplayer.me/).
 
 ## License
