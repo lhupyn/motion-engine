@@ -43,6 +43,7 @@ function createMockHead() {
     setPoseFromTemplate: vi.fn(),
     setMood: vi.fn(),
     setBaselineValue: vi.fn(),
+    setValue: vi.fn(),
   };
 }
 
@@ -733,122 +734,101 @@ describe('MotionEngine', () => {
 // =============================================================================
 
 describe('handleTranscript', () => {
-  let head, engine, playSpy;
+  let head, engine, playSpy, exprSpy;
 
   beforeEach(() => {
     head = createMockHead();
     engine = new MotionEngine(head);
+    // Only BODY gestures live in motions now; emotions/facial-actions are FACS.
     engine.registerMotions({
-      happy: { _track: 'mood', dt: [500], vs: { mouthSmile: [0.5] } },
-      sad: { _track: 'mood', dt: [500], vs: { mouthFrownLeft: [0.5] } },
       wave_right: { _track: 'action', dt: [300, 1000, 300], vs: {} },
       wave_left: { _track: 'action', dt: [300, 1000, 300], vs: {} },
-      love: { _track: 'mood', dt: [500], vs: { mouthSmile: [0.5] } },
       celebrate: { _track: 'action', dt: [300, 1000, 300], vs: {} },
     });
-    // Spy on play so we assert routing without running async gesture timers.
+    // Spy on both destinations so we can assert which subsystem a channel hits.
     playSpy = vi.spyOn(engine, 'play').mockResolvedValue();
+    exprSpy = vi.spyOn(engine, 'expr');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('routes a mood emoji to play() once', () => {
+  it('routes an emotion emoji to the FACS compositor (😊 → expr happy)', () => {
     engine.handleTranscript('😊 hello');
-    expect(playSpy).toHaveBeenCalledWith('happy');
-    expect(playSpy).toHaveBeenCalledTimes(1);
+    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
+    expect(playSpy).not.toHaveBeenCalled();
   });
 
-  it('applies only the first mood per turn (first wins)', () => {
-    engine.handleTranscript('😊 then later 😢 ...');
-    expect(playSpy).toHaveBeenCalledWith('happy');
-    expect(playSpy).not.toHaveBeenCalledWith('sad');
-    expect(playSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('re-arms the mood after resetTurn()', () => {
-    engine.handleTranscript('😊 first turn');
-    engine.resetTurn();
-    engine.handleTranscript('😢 second turn');
-    expect(playSpy).toHaveBeenCalledWith('happy');
-    expect(playSpy).toHaveBeenCalledWith('sad');
-    expect(playSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it('fires an action emoji on every occurrence', () => {
+  it('routes a body-gesture emoji to a motion, every occurrence (👋 → play wave_right)', () => {
     engine.handleTranscript('👋 hi 👋 bye');
-    expect(playSpy).toHaveBeenCalledTimes(2);
     expect(playSpy).toHaveBeenNthCalledWith(1, 'wave_right');
     expect(playSpy).toHaveBeenNthCalledWith(2, 'wave_right');
+    expect(exprSpy).not.toHaveBeenCalled();
   });
 
-  it('mixes a mood and an action in one chunk', () => {
+  it('mixes a FACS emotion and a body gesture in one chunk (😊 👋)', () => {
     engine.handleTranscript('😊 hi 👋');
-    expect(playSpy).toHaveBeenCalledWith('happy');
+    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
     expect(playSpy).toHaveBeenCalledWith('wave_right');
-    expect(playSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('fires both the action and the mood for an array-valued emoji (🥳 → celebrate + happy)', () => {
+  it('splits an array-valued emoji across subsystems (🥳 → celebrate motion + happy FACS)', () => {
     engine.handleTranscript('🥳 we did it');
     expect(playSpy).toHaveBeenCalledWith('celebrate');
-    expect(playSpy).toHaveBeenCalledWith('happy');
-    expect(playSpy).toHaveBeenCalledTimes(2);
+    expect(exprSpy).toHaveBeenCalledWith('happy', undefined);
   });
 
-  it('array-valued emoji still honors one-mood-per-turn (😊 then 🥳 keeps happy once)', () => {
-    engine.handleTranscript('😊 ... 🥳 ...');
-    // happy from 😊 (mood, once); celebrate from 🥳 (action); 🥳's happy is suppressed
-    expect(playSpy).toHaveBeenCalledWith('happy');
-    expect(playSpy).toHaveBeenCalledWith('celebrate');
-    expect(playSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it('matches an emoji with the U+FE0F variation selector (❤️ → love)', () => {
+  it('matches an emoji with the U+FE0F variation selector (❤️ → love, FACS)', () => {
     engine.handleTranscript('I love this ❤️');
-    expect(playSpy).toHaveBeenCalledWith('love');
+    expect(exprSpy).toHaveBeenCalledWith('love', undefined);
   });
 
-  it('routes ::name:: markers for what emoji cannot address', () => {
+  it('routes a ::name:: gesture marker to a motion', () => {
     engine.handleTranscript('look ::wave_left:: now');
     expect(playSpy).toHaveBeenCalledWith('wave_left');
+  });
+
+  it('routes a ::name:: facial marker to FACS (::look_left:: → gaze)', () => {
+    engine.handleTranscript('over there ::look_left::');
+    expect(exprSpy).toHaveBeenCalledWith('look_left', undefined);
+  });
+
+  it('parses a [emotion:intensity] bracket into FACS', () => {
+    engine.handleTranscript("that's [amused:strong] clever");
+    expect(exprSpy).toHaveBeenCalledWith('amused', 'strong');
+  });
+
+  it('routes a [gesture] bracket to a motion when not a FACS name', () => {
+    engine.handleTranscript('say hi [wave_right]');
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(exprSpy).not.toHaveBeenCalled();
   });
 
   it('ignores an unmapped emoji', () => {
     engine.handleTranscript('pizza 🍕 time');
     expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unresolvable bracket (neither FACS nor motion)', () => {
+    engine.handleTranscript('see array[foobar] there');
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
   });
 
   it('does nothing on empty or text-only input', () => {
     engine.handleTranscript('');
     engine.handleTranscript('plain text, no markers');
     expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
   });
 
   it('honors a custom emoji map via setEmojiMap()', () => {
     engine.setEmojiMap({ '🔥': 'wave_right' });
     engine.handleTranscript('😊 🔥'); // 😊 no longer mapped
     expect(playSpy).toHaveBeenCalledWith('wave_right');
-    expect(playSpy).not.toHaveBeenCalledWith('happy');
     expect(playSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('parses a [emotion:intensity] marker into expr()', () => {
-    const exprSpy = vi.spyOn(engine, 'expr');
-    engine.handleTranscript("that's [amused:strong] clever");
-    expect(exprSpy).toHaveBeenCalledWith('amused', 'strong');
-  });
-
-  it('parses a bare [emotion] marker with default intensity', () => {
-    const exprSpy = vi.spyOn(engine, 'expr');
-    engine.handleTranscript('[wistful] a long pause');
-    expect(exprSpy).toHaveBeenCalledWith('wistful', undefined);
-  });
-
-  it('leaves an unresolvable bracket as a no-op', () => {
-    engine.handleTranscript('see array[foobar] there');
-    expect(playSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -933,6 +913,16 @@ describe('FACS expressions', () => {
     const g = engine.resolveExpression('look_left'); // gaze AU61
     expect(g.vs.eyeLookOutLeft).toBeGreaterThan(0);
     expect(g.vs.eyeLookInRight).toBeGreaterThan(0);
+  });
+
+  it('drives eye morphs via setValue (system slot), not the baseline', () => {
+    engine.expr('look_left');
+    for (let i = 0; i < 5; i++) engine.update(16); // into the hold
+    const eyeCalls = head.setValue.mock.calls.filter(([mt]) => /^eyeLook/.test(mt));
+    expect(eyeCalls.length).toBeGreaterThan(0);
+    // eye morphs must NOT be written to the baseline (idle would override)
+    const eyeBaseline = head.setBaselineValue.mock.calls.filter(([mt]) => /^eyeLook/.test(mt));
+    expect(eyeBaseline.length).toBe(0);
   });
 
   it('clamps additive AU overlap on the same morph to 1', () => {

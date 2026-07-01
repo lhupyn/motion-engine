@@ -94,7 +94,13 @@ const VARIATION_SELECTOR_RE = /️/g;
  * `[skeptical:strong]`). Also catches natural stage-directions the LLM already
  * emits in brackets (`[laughs]`, `[sighs]`). Unresolvable brackets are ignored.
  */
-const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z ]*?)\s*(?::\s*([a-zA-Z]+)\s*)?\]/g;
+const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z _-]*?)\s*(?::\s*([a-zA-Z]+)\s*)?\]/g;
+/**
+ * Eye-animation morphs (gaze + blink) are owned by TalkingHead's idle animation,
+ * which writes them via the newvalue slot — higher priority than the compositor's
+ * baseline. These must be driven through setValue() (the system slot) to win.
+ */
+const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
 
 /**
  * @class MotionEngine
@@ -338,31 +344,68 @@ export class MotionEngine {
   handleTranscript(text) {
     if (!text) return;
 
-    // Explicit ::name:: markers — for cases emoji can't reach (poses, left/right).
-    // matchAll clones the regex internally, so the hoisted /g consts stay reentrancy-safe.
+    // All three channels resolve through _route(): a FACS name (emotion or facial
+    // action) → the AU compositor; a body/gesture name → a motion; unknown → ignored.
+
+    // Explicit ::name:: markers. matchAll clones the regex internally, so the
+    // hoisted /g consts stay reentrancy-safe.
     for (const m of text.matchAll(MARKER_RE)) {
-      this._routeName(m[1].toLowerCase());
+      this._route(m[1].toLowerCase());
     }
 
-    // Emoji — the natural control channel. A mapped value is a motion name or
-    // an array of names (e.g. a celebration emoji fires the `celebrate` action
-    // AND arms the `happy` mood, so the face matches the gesture).
+    // Emoji — the natural, token-free channel. A mapped value is a name or an
+    // array of names (e.g. 🎉 → celebrate gesture + happy expression).
     for (const e of text.matchAll(EMOJI_RE)) {
       const raw = e[0];
       const mapped = this._emojiMap[raw] || this._emojiMap[raw.replace(VARIATION_SELECTOR_RE, '')];
       if (!mapped) continue;
       if (Array.isArray(mapped)) {
-        for (const name of mapped) this._routeName(name);
+        for (const name of mapped) this._route(name);
       } else {
-        this._routeName(mapped);
+        this._route(mapped);
       }
     }
 
-    // FACS emotion markers: [emotion] or [emotion:intensity]. Free-text emotion
-    // words resolve via the alias table; unresolvable brackets are left alone.
+    // FACS emotion / facial-action markers: [name] or [name:intensity].
     for (const b of text.matchAll(BRACKET_RE)) {
-      this.expr(b[1], b[2]);
+      this._route(b[1], b[2]);
     }
+  }
+
+  /**
+   * Single entry point for every expression request. A FACS name (emotion or
+   * facial action) plays through the AU compositor; a known body/gesture name
+   * plays as a motion; anything else is ignored (garbage brackets, unknown words).
+   *
+   * @param {string} name - Emotion, facial action, or gesture name
+   * @param {string|number} [intensity] - Honored only for FACS expressions
+   */
+  _route(name, intensity) {
+    if (this._hasExpr(name)) this.expr(name, intensity);
+    else if (this._hasMotion(name)) this._routeName(name);
+  }
+
+  /**
+   * Whether a name resolves to a FACS expression (emotion or facial action).
+   * @private
+   */
+  _hasExpr(name) {
+    const key = String(name || '').trim().toLowerCase();
+    return !!(this._facs.expressions?.[key] || this._facs.aliases?.[key]);
+  }
+
+  /**
+   * Whether a name is a known motion / gesture / pose (body track).
+   * @private
+   */
+  _hasMotion(name) {
+    return !!(
+      this._motions[name] ||
+      this.head.poseTemplates?.[name] ||
+      this.head.animMoods?.[name] ||
+      this.head.gestureTemplates?.[name] ||
+      this.head.animEmojis?.[name]
+    );
   }
 
   /**
@@ -532,14 +575,21 @@ export class MotionEngine {
     }
 
     // Apply: expression sums on top of the mood-baseline rest, clamped to 1.
+    // Eye-animation morphs (gaze/blink) go through setValue() — the system slot,
+    // which outranks TalkingHead's idle-eye animation; the baseline would be
+    // ignored. Everything else writes to the baseline.
     const next = new Set();
     for (const [mt, w] of Object.entries(sum)) {
-      this.head.setBaselineValue(mt, Math.min(1, this._restBaseline(mt) + w));
+      const val = Math.min(1, this._restBaseline(mt) + w);
+      if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, val, 200);
+      else this.head.setBaselineValue(mt, val);
       next.add(mt);
     }
-    // Release morphs that were driven last frame but aren't now.
+    // Release morphs no longer driven. Eye morphs release by letting their brief
+    // setValue window lapse (idle resumes); the rest reset to their mood rest.
     for (const mt of this._exprMorphs) {
-      if (!next.has(mt)) this.head.setBaselineValue(mt, this._restBaseline(mt));
+      if (next.has(mt)) continue;
+      if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this._restBaseline(mt));
     }
     this._exprMorphs = next;
   }
