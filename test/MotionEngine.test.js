@@ -34,11 +34,15 @@ function createMockHead() {
       headRotateZ: { newvalue: 0, baseline: 0, needsUpdate: false },
     },
     avatar: { baseline: {} },
+    mood: { baseline: {} },
+    mtBaselineDefault: 0,
+    mtBaselineExceptions: {},
     poseDelta: { props: {} },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
     setPoseFromTemplate: vi.fn(),
     setMood: vi.fn(),
+    setBaselineValue: vi.fn(),
   };
 }
 
@@ -828,5 +832,151 @@ describe('handleTranscript', () => {
     expect(playSpy).toHaveBeenCalledWith('wave_right');
     expect(playSpy).not.toHaveBeenCalledWith('happy');
     expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('parses a [emotion:intensity] marker into expr()', () => {
+    const exprSpy = vi.spyOn(engine, 'expr');
+    engine.handleTranscript("that's [amused:strong] clever");
+    expect(exprSpy).toHaveBeenCalledWith('amused', 'strong');
+  });
+
+  it('parses a bare [emotion] marker with default intensity', () => {
+    const exprSpy = vi.spyOn(engine, 'expr');
+    engine.handleTranscript('[wistful] a long pause');
+    expect(exprSpy).toHaveBeenCalledWith('wistful', undefined);
+  });
+
+  it('leaves an unresolvable bracket as a no-op', () => {
+    engine.handleTranscript('see array[foobar] there');
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// FACS expressions — emotion name + intensity → Action Unit blend
+// =============================================================================
+
+describe('FACS expressions', () => {
+  let head, engine;
+
+  beforeEach(() => {
+    head = createMockHead();
+    engine = new MotionEngine(head);
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('scales AU weights by an intensity word (happy:strong)', () => {
+    const r = engine.resolveExpression('happy', 'strong'); // AU12:1.0, AU6:0.6 @ 0.75
+    expect(r.name).toBe('happy');
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.75);
+    expect(r.vs.mouthSmileRight).toBeCloseTo(0.75);
+    expect(r.vs.cheekSquintLeft).toBeCloseTo(0.45);
+  });
+
+  it('uses the default intensity (~C) when none is given', () => {
+    const r = engine.resolveExpression('happy');
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.55);
+  });
+
+  it('accepts a numeric intensity and clamps it to 1', () => {
+    const r = engine.resolveExpression('happy', 5);
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(1.0);
+  });
+
+  it('applies a unilateral AU to one side only (contempt = AU12_L + AU14_L)', () => {
+    const r = engine.resolveExpression('contempt', 'moderate');
+    expect(r.vs.mouthSmileLeft).toBeGreaterThan(0);
+    expect(r.vs.mouthSmileRight).toBeUndefined();
+    expect(r.vs.mouthDimpleLeft).toBeGreaterThan(0);
+    expect(r.vs.mouthDimpleRight).toBeUndefined();
+  });
+
+  it('resolves free-text emotion words via aliases (smirk→contempt, laughs→laugh)', () => {
+    expect(engine.resolveExpression('smirk').name).toBe('contempt');
+    expect(engine.resolveExpression('laughs').name).toBe('laugh');
+  });
+
+  it('returns null for an unknown or empty emotion', () => {
+    expect(engine.resolveExpression('flurb')).toBeNull();
+    expect(engine.resolveExpression('')).toBeNull();
+  });
+
+  it('clamps additive AU overlap on the same morph to 1', () => {
+    engine.setFacs({
+      au_map: { AU12: { mouthSmileLeft: 1 }, AUX: { mouthSmileLeft: 1 } },
+      intensity_words: { _default: 1 },
+      expressions: { test: { aus: { AU12: 0.8, AUX: 0.8 } } },
+      aliases: {},
+    });
+    expect(engine.resolveExpression('test').vs.mouthSmileLeft).toBe(1);
+  });
+
+  it('tags recipes with kind (happy=mood, laughs→laugh=beat)', () => {
+    expect(engine.resolveExpression('happy').kind).toBe('mood');
+    expect(engine.resolveExpression('laughs').kind).toBe('beat');
+  });
+
+  it('expr() with a mood-kind sets the sustained mood layer', () => {
+    const r = engine.expr('happy', 'moderate');
+    expect(r.name).toBe('happy');
+    expect(engine._moodExpr).not.toBeNull();
+    expect(engine._beats).toHaveLength(0);
+  });
+
+  it('expr() with a beat-kind queues a transient beat (laughs)', () => {
+    const r = engine.expr('laughs');
+    expect(r.name).toBe('laugh');
+    expect(engine._beats).toHaveLength(1);
+    expect(engine._moodExpr).toBeNull();
+  });
+
+  it('composites the mood layer additively over the mood baseline', () => {
+    head.mood.baseline = { mouthSmileLeft: 0.1 };
+    engine.expr('happy', 'strong'); // AU12 → mouthSmileLeft weight 0.75
+    for (let i = 0; i < 40; i++) engine.update(16); // fade in to current=1
+    const last = head.setBaselineValue.mock.calls.filter(([mt]) => mt === 'mouthSmileLeft').pop();
+    expect(last).toBeDefined();
+    expect(last[1]).toBeCloseTo(0.85, 1); // 0.1 rest + 0.75 expression
+  });
+
+  it('a beat blooms then releases its morphs back to rest', () => {
+    engine.expr('laughs'); // in250 hold1400 out500 ≈ 2150ms
+    for (let i = 0; i < 5; i++) engine.update(16); // blooming
+    expect(head.setBaselineValue).toHaveBeenCalled();
+    head.setBaselineValue.mockClear();
+    for (let i = 0; i < 200; i++) engine.update(16); // run past the beat
+    expect(engine._beats).toHaveLength(0);
+    expect(engine._exprMorphs.size).toBe(0);
+    const released = head.setBaselineValue.mock.calls.filter(([, v]) => v === 0);
+    expect(released.length).toBeGreaterThan(0);
+  });
+
+  it('expr("neutral") fades any mood layer out', () => {
+    engine.expr('happy');
+    for (let i = 0; i < 40; i++) engine.update(16);
+    engine.expr('neutral');
+    expect(engine._moodExpr.target).toBe(0);
+    for (let i = 0; i < 40; i++) engine.update(16);
+    expect(engine._moodExpr).toBeNull();
+  });
+
+  it('resetExpression() clears layers and releases morphs', () => {
+    engine.expr('happy', 'strong');
+    for (let i = 0; i < 10; i++) engine.update(16);
+    engine.resetExpression();
+    expect(engine._moodExpr).toBeNull();
+    expect(engine._beats).toHaveLength(0);
+    expect(engine._exprMorphs.size).toBe(0);
+  });
+
+  it('expr() returns null and fires onError for an unknown emotion', () => {
+    const onError = vi.fn();
+    engine.onError = onError;
+    expect(engine.expr('flurb')).toBeNull();
+    expect(onError).toHaveBeenCalled();
   });
 });
