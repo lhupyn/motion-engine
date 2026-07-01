@@ -2216,7 +2216,7 @@
         0.7
       ],
       "eyeSquintLeft": [
-        1
+        0.6
       ],
       "eyeSquintRight": [
         0.8
@@ -2225,10 +2225,10 @@
         0.7
       ],
       "mouthLeft": [
-        0.4
+        0.25
       ],
       "mouthPucker": [
-        0.4
+        0.2
       ],
       "mouthShrugLower": [
         0.3
@@ -2240,22 +2240,22 @@
         0.2
       ],
       "mouthSmileLeft": [
-        0.4
+        0.28
       ],
       "mouthSmileRight": [
         0.2
       ],
       "mouthStretchLeft": [
-        0.5
+        0.15
       ],
       "mouthUpperUpLeft": [
-        0.6
+        0.2
       ],
       "noseSneerLeft": [
-        0.7
+        0.35
       ]
     },
-    "_track": "mood",
+    "_track": "action",
     "_detect": {
       "mouthSmileLeft": 0.4,
       "noseSneerLeft": 0.2,
