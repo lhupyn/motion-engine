@@ -1,5 +1,11 @@
 {
-  "_doc": "FACS layer for MotionEngine. au_map: FACS Action Unit -> ARKit blendshapes (base L/R morphs, verified against the loaded model; never the TH composites mouthSmile/mouthOpen/eyesClosed to avoid double-driving). expressions: emotion -> weighted AU recipe (apex proportions) + optional envelope; final morph = auWeight * recipe * intensity, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). intensity_words map to the FACS A-E baremo (default ~C). aliases resolve free-text emotion words (and common [stage-direction] brackets) to a canonical expression.",
+  "_doc": "FACS layer for MotionEngine. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU12 capped for this over-sculpted mouthSmile). expressions: emotion -> weighted AU recipe + optional envelope; final morph = auWeight * recipe * intensity, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). The 7 'core' recipes use the canonical EMFACS-7 AU combinations; 'extended' recipes are documented blends of the same primitives. intensity_words map to the FACS A-E baremo (default ~C). aliases resolve free-text emotion words (and common [stage-direction] brackets) to a canonical expression.",
+
+  "_sources": {
+    "emfacs": "Emotional FACS (Ekman & Friesen 1983) — canonical AU combinations for the basic emotions. https://www.paulekman.com/facial-action-coding-system/",
+    "au_to_arkit": "ARKit<->FACS mapping convention (each ARKit blendshape ~ one FACS AU). https://melindaozel.com/arkit-to-facs-cheat-sheet/ ; clinical blendshape<->AU mapping https://www.sciencedirect.com/science/article/pii/S2451958826001995",
+    "stylized_3d": "AU-Blendshape: Fine-grained Stylized 3D Facial Expression Manipulation (arXiv:2507.12001) — approach for driving stylized (cartoon) 3D faces via Action Units, and the need for per-model AU calibration."
+  },
 
   "au_map": {
     "AU1":  { "browInnerUp": 1 },
@@ -23,7 +29,13 @@
     "AU25": { "jawOpen": 0.2 },
     "AU26": { "jawOpen": 0.7 },
     "AU28": { "mouthRollLower": 1, "mouthRollUpper": 1 },
-    "AU43": { "eyeBlinkLeft": 1, "eyeBlinkRight": 1 }
+    "AU43": { "eyeBlinkLeft": 1, "eyeBlinkRight": 1 },
+    "AU19": { "tongueOut": 1 },
+    "AU33": { "cheekPuff": 1 },
+    "AU61": { "eyeLookOutLeft": 1, "eyeLookInRight": 1 },
+    "AU62": { "eyeLookInLeft": 1, "eyeLookOutRight": 1 },
+    "AU63": { "eyeLookUpLeft": 1, "eyeLookUpRight": 1 },
+    "AU64": { "eyeLookDownLeft": 1, "eyeLookDownRight": 1 }
   },
 
   "intensity_words": {
@@ -36,30 +48,50 @@
   },
 
   "expressions": {
-    "neutral":      { "aus": {} },
-    "happy":        { "aus": { "AU6": 0.6, "AU12": 1.0 } },
-    "laugh":        { "kind": "beat", "aus": { "AU6": 0.8, "AU12": 1.0, "AU26": 0.35 }, "envelope": { "in": 250, "hold": 1400, "out": 500 } },
-    "excited":      { "aus": { "AU5": 0.4, "AU6": 0.6, "AU12": 0.9, "AU26": 0.3 } },
-    "sad":          { "aus": { "AU1": 0.6, "AU4": 0.4, "AU15": 0.7 } },
-    "wistful":      { "aus": { "AU1": 0.5, "AU6": 0.15, "AU12": 0.3 } },
-    "angry":        { "aus": { "AU4": 0.9, "AU5": 0.4, "AU7": 0.6, "AU23": 0.6 } },
-    "fear":         { "aus": { "AU1": 0.6, "AU2": 0.5, "AU4": 0.3, "AU5": 0.7, "AU7": 0.5, "AU20": 0.6, "AU26": 0.4 } },
-    "surprise":     { "kind": "beat", "aus": { "AU1": 0.7, "AU2": 0.8, "AU5": 0.8, "AU26": 0.6 }, "envelope": { "in": 180, "hold": 900, "out": 500 } },
-    "disgust":      { "aus": { "AU9": 0.8, "AU10": 0.5, "AU15": 0.4, "AU16": 0.3 } },
-    "contempt":     { "aus": { "AU12_L": 0.6, "AU14_L": 0.5 } },
-    "amused":       { "aus": { "AU6": 0.4, "AU7": 0.2, "AU12": 0.6, "AU14": 0.3 } },
-    "skeptical":    { "aus": { "AU2_L": 0.6, "AU4_R": 0.35, "AU7": 0.3 } },
-    "curious":      { "aus": { "AU1": 0.4, "AU2": 0.5, "AU5": 0.25 } },
-    "pensive":      { "aus": { "AU1": 0.2, "AU4": 0.3, "AU7": 0.25 } },
-    "tender":       { "aus": { "AU1": 0.25, "AU6": 0.4, "AU12": 0.5 } },
-    "love":         { "aus": { "AU1": 0.2, "AU6": 0.5, "AU12": 0.7 } },
-    "shy":          { "aus": { "AU1": 0.2, "AU7": 0.3, "AU12_L": 0.4 } },
-    "proud":        { "aus": { "AU1": 0.15, "AU7": 0.2, "AU12": 0.5 } },
-    "confused":     { "aus": { "AU1": 0.2, "AU2_R": 0.3, "AU4_L": 0.4 } },
-    "nervous":      { "aus": { "AU7": 0.3, "AU12": 0.3, "AU20": 0.3, "AU24": 0.2 } },
-    "relieved":     { "aus": { "AU6": 0.3, "AU12": 0.5, "AU26": 0.2 } },
-    "disappointed": { "aus": { "AU1": 0.4, "AU4": 0.3, "AU15": 0.5, "AU17": 0.3 } },
-    "sleepy":       { "aus": { "AU43": 0.5, "AU26": 0.2 } }
+    "neutral":      { "facs": "rest", "aus": {} },
+
+    "happy":        { "facs": "EMFACS-7 happiness: AU6+AU12", "aus": { "AU6": 0.6, "AU12": 1.0 } },
+    "sad":          { "facs": "EMFACS-7 sadness: AU1+AU4+AU15", "aus": { "AU1": 0.6, "AU4": 0.4, "AU15": 0.7 } },
+    "surprise":     { "facs": "EMFACS-7 surprise: AU1+AU2+AU5+AU26", "kind": "beat", "aus": { "AU1": 0.7, "AU2": 0.8, "AU5": 0.8, "AU26": 0.6 }, "envelope": { "in": 180, "hold": 900, "out": 500 } },
+    "fear":         { "facs": "EMFACS-7 fear: AU1+AU2+AU4+AU5+AU7+AU20+AU26", "aus": { "AU1": 0.6, "AU2": 0.5, "AU4": 0.3, "AU5": 0.7, "AU7": 0.5, "AU20": 0.6, "AU26": 0.4 } },
+    "angry":        { "facs": "EMFACS-7 anger: AU4+AU5+AU7+AU23", "aus": { "AU4": 0.9, "AU5": 0.4, "AU7": 0.6, "AU23": 0.6 } },
+    "disgust":      { "facs": "EMFACS-7 disgust: AU9+AU10+AU15+AU16", "aus": { "AU9": 0.8, "AU10": 0.5, "AU15": 0.4, "AU16": 0.3 } },
+    "contempt":     { "facs": "EMFACS-7 contempt: R12+R14 (unilateral)", "aus": { "AU12_L": 0.6, "AU14_L": 0.5 } },
+
+    "laugh":        { "facs": "extension: intensified happiness (AU6+AU12) + open jaw (AU26)", "kind": "beat", "aus": { "AU6": 0.8, "AU12": 1.0, "AU26": 0.35 }, "envelope": { "in": 250, "hold": 1400, "out": 500 } },
+    "excited":      { "facs": "extension: happiness + wide eyes (AU5) + jaw", "aus": { "AU5": 0.4, "AU6": 0.6, "AU12": 0.9, "AU26": 0.3 } },
+    "amused":       { "facs": "extension: happiness + dimpler (AU14), softer smile", "aus": { "AU6": 0.4, "AU7": 0.2, "AU12": 0.6, "AU14": 0.3 } },
+    "wistful":      { "facs": "extension: sadness x happiness (AU1 + faint AU6/AU12)", "aus": { "AU1": 0.5, "AU6": 0.15, "AU12": 0.3 } },
+    "tender":       { "facs": "extension: happiness + inner-brow warmth (AU1)", "aus": { "AU1": 0.25, "AU6": 0.4, "AU12": 0.5 } },
+    "love":         { "facs": "extension: happiness + AU1", "aus": { "AU1": 0.2, "AU6": 0.5, "AU12": 0.7 } },
+    "proud":        { "facs": "extension: contained smile + slight AU7/AU1", "aus": { "AU1": 0.15, "AU7": 0.2, "AU12": 0.5 } },
+    "relieved":     { "facs": "extension: gentle happiness + soft jaw", "aus": { "AU6": 0.3, "AU12": 0.5, "AU26": 0.2 } },
+    "shy":          { "facs": "extension: unilateral smile + AU7 + AU1", "aus": { "AU1": 0.2, "AU7": 0.3, "AU12_L": 0.4 } },
+    "curious":      { "facs": "extension: alert brow raise (AU1+AU2+AU5)", "aus": { "AU1": 0.4, "AU2": 0.5, "AU5": 0.25 } },
+    "skeptical":    { "facs": "extension: asymmetric brow (AU2_L raise + AU4_R lower) + AU7", "aus": { "AU2_L": 0.6, "AU4_R": 0.35, "AU7": 0.3 } },
+    "confused":     { "facs": "extension: asymmetric brow (AU4_L + AU2_R) + AU1", "aus": { "AU1": 0.2, "AU2_R": 0.3, "AU4_L": 0.4 } },
+    "pensive":      { "facs": "extension: mild brow lower + lid tighten (AU1+AU4+AU7)", "aus": { "AU1": 0.2, "AU4": 0.3, "AU7": 0.25 } },
+    "nervous":      { "facs": "extension: lip stretch/press (AU20+AU24) + AU7 + faint smile", "aus": { "AU7": 0.3, "AU12": 0.3, "AU20": 0.3, "AU24": 0.2 } },
+    "disappointed": { "facs": "extension: sadness-lite + chin raise (AU17)", "aus": { "AU1": 0.4, "AU4": 0.3, "AU15": 0.5, "AU17": 0.3 } },
+    "sleepy":       { "facs": "extension: drooping lids (AU43) + slight jaw", "aus": { "AU43": 0.5, "AU26": 0.2 } },
+    "pain":         { "facs": "extension: FACS pain (AU4+AU6+AU7+AU9+AU10)", "aus": { "AU4": 0.7, "AU6": 0.4, "AU7": 0.6, "AU9": 0.5, "AU10": 0.4 } },
+    "pleading":     { "facs": "extension: raised inner brow + slight frown (AU1+AU2+AU15)", "aus": { "AU1": 0.7, "AU2": 0.4, "AU15": 0.3, "AU12_L": 0.15 } },
+
+    "wink":         { "facs": "AU46 wink (unilateral blink)", "kind": "beat", "aus": { "AU43_L": 1.0 }, "envelope": { "in": 120, "hold": 140, "out": 220 } },
+    "kiss":         { "facs": "AU18 lip pucker", "kind": "beat", "aus": { "AU18": 0.85 }, "envelope": { "in": 200, "hold": 500, "out": 350 } },
+    "tongue_out":   { "facs": "AU19 tongue show", "kind": "beat", "aus": { "AU19": 1.0 }, "envelope": { "in": 150, "hold": 700, "out": 300 } },
+    "cheek_puff":   { "facs": "AU33 cheek blow", "kind": "beat", "aus": { "AU33": 1.0 }, "envelope": { "in": 200, "hold": 800, "out": 400 } },
+    "raise_eyebrows": { "facs": "AU1+AU2 brow flash", "kind": "beat", "aus": { "AU1": 0.6, "AU2": 0.8 }, "envelope": { "in": 150, "hold": 400, "out": 300 } },
+    "open_mouth":   { "facs": "AU26 jaw drop", "kind": "beat", "aus": { "AU26": 0.7 } },
+    "close_eyes":   { "facs": "AU43 eyes closed", "kind": "beat", "aus": { "AU43": 1.0 }, "envelope": { "in": 200, "hold": 700, "out": 300 } },
+    "squint":       { "facs": "AU7 lid tighten", "kind": "beat", "aus": { "AU7": 0.7 } },
+    "eyeroll":      { "facs": "gaze up (AU63)", "kind": "beat", "aus": { "AU63": 0.9 }, "envelope": { "in": 150, "hold": 300, "out": 300 } },
+    "yawn":         { "facs": "AU26+AU43 (jaw open + eyes shut)", "kind": "beat", "aus": { "AU26": 0.9, "AU43": 0.6 }, "envelope": { "in": 400, "hold": 900, "out": 600 } },
+    "side_glance":  { "facs": "gaze aside (AU62)", "kind": "beat", "aus": { "AU62": 0.85 }, "envelope": { "in": 200, "hold": 900, "out": 400 } },
+    "look_left":    { "facs": "AU61 eyes left", "kind": "beat", "aus": { "AU61": 1.0 }, "envelope": { "in": 200, "hold": 1000, "out": 400 } },
+    "look_right":   { "facs": "AU62 eyes right", "kind": "beat", "aus": { "AU62": 1.0 }, "envelope": { "in": 200, "hold": 1000, "out": 400 } },
+    "look_up":      { "facs": "AU63 eyes up", "kind": "beat", "aus": { "AU63": 1.0 }, "envelope": { "in": 200, "hold": 900, "out": 400 } },
+    "look_down":    { "facs": "AU64 eyes down", "kind": "beat", "aus": { "AU64": 1.0 }, "envelope": { "in": 200, "hold": 900, "out": 400 } }
   },
 
   "aliases": {
@@ -89,7 +121,21 @@
     "puzzled": "confused", "perplexed": "confused", "baffled": "confused",
     "sighs": "disappointed", "letdown": "disappointed", "dejected": "disappointed", "discouraged": "disappointed",
     "relaxed": "relieved", "calm": "relieved", "reassured": "relieved",
-    "tired": "sleepy", "drowsy": "sleepy", "yawns": "sleepy", "exhausted": "sleepy",
-    "thrilled": "excited", "ecstatic": "excited", "eager": "excited", "elated": "excited"
+    "tired": "sleepy", "drowsy": "sleepy", "exhausted": "sleepy",
+    "thrilled": "excited", "ecstatic": "excited", "eager": "excited", "elated": "excited",
+
+    "hurts": "pain", "wince": "pain", "winces": "pain", "grimace": "pain", "ouch": "pain", "agony": "pain",
+    "pleads": "pleading", "begging": "pleading", "imploring": "pleading", "puppy eyes": "pleading", "puppy_eyes": "pleading",
+
+    "winks": "wink", "winking": "wink",
+    "kisses": "kiss", "kissing": "kiss", "muah": "kiss", "blow_kiss": "kiss", "blows a kiss": "kiss",
+    "tongueout": "tongue_out", "sticks out tongue": "tongue_out", "blep": "tongue_out",
+    "puffs cheeks": "cheek_puff",
+    "eyebrows": "raise_eyebrows", "raises eyebrow": "raise_eyebrows", "brow raise": "raise_eyebrows",
+    "agape": "open_mouth", "mouth open": "open_mouth",
+    "eyes closed": "close_eyes", "closes eyes": "close_eyes",
+    "squints": "squint", "squinting": "squint",
+    "rolls eyes": "eyeroll", "eye roll": "eyeroll",
+    "yawns": "yawn", "yawning": "yawn"
   }
 }

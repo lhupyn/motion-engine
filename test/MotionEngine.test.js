@@ -924,6 +924,17 @@ describe('FACS expressions', () => {
     expect(engine.resolveExpression('')).toBeNull();
   });
 
+  it('resolves facial actions: wink (unilateral blink beat) and look_left (gaze)', () => {
+    const w = engine.resolveExpression('winks'); // alias → wink
+    expect(w.name).toBe('wink');
+    expect(w.kind).toBe('beat');
+    expect(w.vs.eyeBlinkLeft).toBeGreaterThan(0);
+    expect(w.vs.eyeBlinkRight).toBeUndefined(); // unilateral (AU43_L)
+    const g = engine.resolveExpression('look_left'); // gaze AU61
+    expect(g.vs.eyeLookOutLeft).toBeGreaterThan(0);
+    expect(g.vs.eyeLookInRight).toBeGreaterThan(0);
+  });
+
   it('clamps additive AU overlap on the same morph to 1', () => {
     engine.setFacs({
       au_map: { AU12: { mouthSmileLeft: 1 }, AUX: { mouthSmileLeft: 1 } },
