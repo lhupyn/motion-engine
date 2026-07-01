@@ -154,6 +154,26 @@ document.querySelectorAll('[data-view]').forEach((btn) => {
   });
 });
 
+// ③ TalkingHead native primitives (raw, driven by TH's own API)
+document.querySelectorAll('[data-mood]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.setMood(btn.dataset.mood);
+    log(`TH mood: ${btn.dataset.mood}`, 'info');
+  });
+});
+document.querySelectorAll('[data-gesture]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.playGesture(btn.dataset.gesture, 4, false, 500);
+    log(`TH gesture: ${btn.dataset.gesture}`, 'info');
+  });
+});
+document.querySelectorAll('[data-pose]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.playPose(btn.dataset.pose);
+    log(`TH pose: ${btn.dataset.pose}`, 'info');
+  });
+});
+
 // FACS expression buttons (7-core emotion menu → engine.expr / resetExpression)
 document.querySelectorAll('[data-expr]').forEach((btn) => {
   btn.addEventListener('click', () => {
