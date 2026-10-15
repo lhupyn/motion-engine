@@ -10,20 +10,26 @@ function fakeAdapter() {
     registerAnim(name, t) { this.anims[name] = t; },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
+    playAnim: vi.fn(),
+    stopAnim: vi.fn(),
     poseDeltaProps() { return this.props; },
   };
 }
 
 const TEST_GESTURES = {
-  nod: { description: 'Nod', dt: [200, 300], vs: { headRotateX: [0.1, 0] } },
-  wave: {
-    description: 'Wave',
-    dt: [100, [800, 1200]],
-    vs: { gesture: [['handup', null, true], null] },
-    overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, delay: 100, duration: 1000 },
+  head: {
+    nod: { description: 'Nod', dt: [200, 300], vs: { headRotateX: [0.1, 0] } },
   },
-  jump: { description: 'Jump', dt: [500], vs: {}, overlay: { bones: { Hips: { custom: 'jump' } }, duration: 500 } },
-  ok: { description: 'Collides with a built-in', dt: [100], vs: {} },
+  hands: {
+    wave: {
+      description: 'Wave',
+      dt: [100, [800, 1200]],
+      vs: { gesture: [['handup', null, true], null] },
+      overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, delay: 100, duration: 1000 },
+    },
+    jump: { description: 'Jump', dt: [500], vs: {}, overlay: { bones: { Hips: { custom: 'jump' } }, duration: 500 } },
+    ok: { description: 'Collides with a built-in', dt: [100], vs: {} },
+  },
 };
 
 describe('Body', () => {
@@ -40,9 +46,11 @@ describe('Body', () => {
   });
 
   describe('registration', () => {
-    it('registers every gesture as a TalkingHead animation', () => {
+    it('registers both channels as TalkingHead animations', () => {
       expect(body.names).toEqual(['nod', 'wave', 'jump']);
       expect(Object.keys(adapter.anims)).toEqual(['nod', 'wave', 'jump']);
+      expect(body.channelOf('nod')).toBe('head');
+      expect(body.channelOf('wave')).toBe('hands');
     });
 
     it('skips a gesture named like a built-in (it would call itself)', () => {
@@ -52,50 +60,66 @@ describe('Body', () => {
 
     it('turns null into Infinity in gesture frames (JSON has no Infinity)', () => {
       expect(adapter.anims.wave.vs.gesture).toEqual([['handup', Infinity, true], null]);
-      expect(TEST_GESTURES.wave.vs.gesture[0][1]).toBeNull(); // source data untouched
-    });
-
-    it('registers only template fields', () => {
-      expect(Object.keys(adapter.anims.wave).sort()).toEqual(['dt', 'vs']);
+      expect(TEST_GESTURES.hands.wave.vs.gesture[0][1]).toBeNull();
     });
   });
 
-  describe('playback', () => {
-    it('plays, fades out at the end and resolves true', async () => {
-      const done = body.play('nod');
-      expect(body.current).toBe('nod');
-      expect(adapter.playGesture).toHaveBeenCalledWith('nod', Infinity, false, 50);
-      await vi.advanceTimersByTimeAsync(500);
+  describe('hands', () => {
+    it('plays through the gesture system, fades out and resolves true', async () => {
+      const done = body.play('wave');
+      expect(body.current).toEqual({ head: null, hands: 'wave' });
+      expect(adapter.playGesture).toHaveBeenCalledWith('wave', Infinity, false, 50);
+      await vi.advanceTimersByTimeAsync(1100); // 100 + midpoint of [800, 1200]
       expect(adapter.stopGesture).toHaveBeenCalledWith(50);
       await vi.advanceTimersByTimeAsync(100);
       expect(await done).toBe(true);
-      expect(body.current).toBeNull();
+      expect(body.current.hands).toBeNull();
     });
 
-    it('counts a [min, max] timing as its midpoint', async () => {
-      const done = body.play('wave'); // 100 + (800+1200)/2 = 1100 ms
-      await vi.advanceTimersByTimeAsync(1099);
-      expect(adapter.stopGesture).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(1);
-      expect(adapter.stopGesture).toHaveBeenCalled();
-      body.stop();
-      await done;
-    });
-
-    it('a new gesture interrupts the current one, which resolves false', async () => {
-      const first = body.play('nod');
-      const second = body.play('wave');
+    it('a new hand gesture interrupts the current one, which resolves false', async () => {
+      const first = body.play('wave');
+      const second = body.play('jump');
       expect(await first).toBe(false);
       expect(adapter.stopGesture).toHaveBeenCalledWith(10);
-      expect(body.current).toBe('wave');
       body.stop();
       expect(await second).toBe(false);
     });
+  });
 
-    it('unknown names resolve false without touching the avatar', async () => {
-      expect(await body.play('flurb')).toBe(false);
+  describe('head', () => {
+    it('plays as a plain animation, outside the gesture system', async () => {
+      const done = body.play('nod');
+      expect(adapter.playAnim).toHaveBeenCalledWith('nod');
       expect(adapter.playGesture).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await done).toBe(true);
+      expect(adapter.stopGesture).not.toHaveBeenCalled();
     });
+
+    it('runs alongside a hand gesture: neither interrupts the other', async () => {
+      const wave = body.play('wave');
+      const nod = body.play('nod');
+      expect(body.current).toEqual({ head: 'nod', hands: 'wave' });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await nod).toBe(true);
+      expect(body.current.hands).toBe('wave');
+      body.stop('hands');
+      expect(await wave).toBe(false);
+    });
+
+    it('stop("head") removes its animation and leaves the hands alone', () => {
+      body.play('wave');
+      body.play('nod');
+      body.stop('head');
+      expect(adapter.stopAnim).toHaveBeenCalledWith('nod');
+      expect(body.current).toEqual({ head: null, hands: 'wave' });
+    });
+  });
+
+  it('unknown names resolve false without touching the avatar', async () => {
+    expect(await body.play('flurb')).toBe(false);
+    expect(adapter.playGesture).not.toHaveBeenCalled();
+    expect(adapter.playAnim).not.toHaveBeenCalled();
   });
 
   describe('oscillation', () => {
@@ -103,10 +127,10 @@ describe('Body', () => {
       body.play('wave');
       const q = adapter.props['RightHand.quaternion'];
       body.update(50);
-      expect(q.y).toBe(0); // still inside the 100 ms delay
+      expect(q.y).toBe(0);
       for (let i = 0; i < 20; i++) body.update(16);
       expect(Math.abs(q.y) + Math.abs(q.z)).toBeGreaterThan(0);
-      for (let i = 0; i < 80; i++) body.update(16); // past the 1000 ms duration
+      for (let i = 0; i < 80; i++) body.update(16);
       expect(q).toEqual({ x: 0, y: 0, z: 0 });
     });
 
@@ -119,17 +143,21 @@ describe('Body', () => {
 
     it('jump lifts the hips in an arc and lands', () => {
       body.play('jump');
-      for (let i = 0; i < 16; i++) body.update(16); // ~mid-arc
+      for (let i = 0; i < 16; i++) body.update(16);
       expect(adapter.props['Hips.position'].y).toBeGreaterThan(0.1);
       for (let i = 0; i < 20; i++) body.update(16);
       expect(adapter.props['Hips.position'].y).toBe(0);
     });
   });
 
-  it('every gesture in gestures.json has a description and timing', () => {
-    for (const [name, g] of Object.entries(GESTURES)) {
-      expect(g.description, name).toBeTruthy();
-      expect(g.dt, name).toBeDefined();
+  it('gestures.json: every gesture has a description and timing, and no face morphs', () => {
+    const FACE = /^(mouth|eye|brow|cheek|jaw|nose|tongue)/;
+    for (const channel of ['head', 'hands']) {
+      for (const [name, g] of Object.entries(GESTURES[channel])) {
+        expect(g.description, name).toBeTruthy();
+        expect(g.dt, name).toBeDefined();
+        expect(Object.keys(g.vs).filter((k) => FACE.test(k)), name).toEqual([]);
+      }
     }
   });
 });

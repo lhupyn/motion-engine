@@ -45,6 +45,8 @@ describe('adapter verbs', () => {
     stopGesture: vi.fn(),
     setBaselineValue: vi.fn(),
     setValue: vi.fn(),
+    animQueue: [],
+    animFactory: (t) => ({ template: t }),
   });
 
   it('onFrame chains an existing update callback instead of replacing it', () => {
@@ -64,6 +66,17 @@ describe('adapter verbs', () => {
     a.registerAnim('nod', { dt: [100] });
     expect(a.gestureNames()).toEqual(['handup', 'ok']);
     expect(head.animEmojis.nod).toEqual({ dt: [100] });
+  });
+
+  it('runs a head animation untagged, so stopGesture() cannot remove it', () => {
+    const head = makeHead();
+    const a = new TalkingHeadAdapter(head);
+    a.registerAnim('nod', { dt: [100] });
+    a.playAnim('nod');
+    expect(head.animQueue).toHaveLength(1);
+    expect(head.animQueue[0].gesture).toBeUndefined();
+    a.stopAnim('nod');
+    expect(head.animQueue).toEqual([]);
   });
 
   it('resolves rest baseline with setMood() precedence', () => {

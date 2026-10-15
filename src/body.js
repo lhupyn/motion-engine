@@ -1,6 +1,9 @@
-// Gestures are TalkingHead animation templates (gestures.json), played one at a
-// time. An optional overlay adds per-bone sine oscillations or a jump arc
-// through TalkingHead's pose deltas.
+// Two channels play at once, so the avatar can nod while it gestures:
+//   head  — head and torso (nod, shake, bow), run as plain animations
+//   hands — arm gestures, through TalkingHead's gesture system
+// Each channel plays one gesture at a time; a new one interrupts the current
+// one on its channel. An optional overlay adds per-bone sine oscillations or a
+// jump arc through TalkingHead's pose deltas.
 
 import GESTURES from './gestures.json';
 
@@ -10,64 +13,97 @@ export class Body {
   /**
    * @param {TalkingHeadAdapter} adapter
    * @param {object} [options]
-   * @param {object} [options.gestures]
+   * @param {{head: object, hands: object}} [options.gestures]
    * @param {number} [options.fadeIn=800]
    * @param {number} [options.fadeOut=800]
    * @param {number} [options.cutFade=100] - Fade when interrupted
-   * @param {number} [options.settle=1000] - Wait after fading out before the gesture counts as done
+   * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
    */
   constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
+    const opt = { fadeIn, fadeOut, cutFade, settle };
     this.adapter = adapter;
-    this.opt = { fadeIn, fadeOut, cutFade, settle };
-    this.gestures = {};
-    this._osc = new Oscillation(adapter);
-    this._current = null;
-    this._cancel = null;
+    this.gestures = { head: {}, hands: {} };
+    this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
 
     const builtIn = new Set(adapter.gestureNames());
-    for (const [name, g] of Object.entries(gestures)) {
-      if (builtIn.has(name)) {
-        // A template named like a built-in gesture would play itself recursively.
-        console.warn(`[motion-engine] Gesture "${name}" collides with a TalkingHead built-in; skipped.`);
-        continue;
+    for (const channel of Object.keys(this.gestures)) {
+      for (const [name, g] of Object.entries(gestures[channel] || {})) {
+        if (builtIn.has(name)) {
+          // A template named like a built-in gesture would play itself recursively.
+          console.warn(`[motion-engine] Gesture "${name}" collides with a TalkingHead built-in; skipped.`);
+          continue;
+        }
+        this.gestures[channel][name] = g;
+        adapter.registerAnim(name, toTemplate(g));
       }
-      this.gestures[name] = g;
-      adapter.registerAnim(name, toTemplate(g));
     }
   }
 
   get names() {
-    return Object.keys(this.gestures);
+    return [...Object.keys(this.gestures.head), ...Object.keys(this.gestures.hands)];
   }
 
+  /** What each channel is playing: { head, hands }, null when idle. */
   get current() {
-    return this._current;
+    return { head: this._channels.head.current, hands: this._channels.hands.current };
   }
 
-  /** Interrupts the current gesture. Resolves true when done, false if interrupted or unknown. */
-  async play(name) {
-    const g = this.gestures[name];
-    if (!g) return false;
-    this.stop();
-    this._current = name;
+  channelOf(name) {
+    return Object.keys(this.gestures).find((c) => this.gestures[c][name]) ?? null;
+  }
 
+  /** Interrupts the current gesture on its channel. Resolves true when done, false if interrupted or unknown. */
+  play(name) {
+    const channel = this.channelOf(name);
+    if (!channel) return Promise.resolve(false);
+    return this._channels[channel].play(name, this.gestures[channel][name]);
+  }
+
+  /** @param {'head'|'hands'} [channel] - Both when omitted */
+  stop(channel) {
+    for (const c of channel ? [channel] : Object.keys(this._channels)) this._channels[c].stop();
+  }
+
+  update(dt) {
+    this._channels.head.update(dt);
+    this._channels.hands.update(dt);
+  }
+}
+
+class Channel {
+  constructor(adapter, kind, opt) {
+    this.adapter = adapter;
+    this.kind = kind;
+    this.opt = opt;
+    this.current = null;
+    this._cancel = null;
+    this._osc = new Oscillation(adapter);
+  }
+
+  async play(name, g) {
+    this.stop();
+    this.current = name;
     const total = duration(g.dt);
-    this.adapter.playGesture(name, Infinity, false, this.opt.fadeIn);
+    if (this.kind === 'hands') this.adapter.playGesture(name, Infinity, false, this.opt.fadeIn);
+    else this.adapter.playAnim(name);
     if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
 
     if (!(await this._wait(total))) return false;
-    this.adapter.stopGesture(this.opt.fadeOut);
-    if (!(await this._wait(this.opt.settle))) return false;
-    this._current = null;
+    if (this.kind === 'hands') {
+      this.adapter.stopGesture(this.opt.fadeOut);
+      if (!(await this._wait(this.opt.settle))) return false;
+    }
+    this.current = null;
     return true;
   }
 
   stop() {
-    if (!this._current) return;
+    if (!this.current) return;
     this._cancel?.();
     this._osc.clear();
-    this.adapter.stopGesture(this.opt.cutFade);
-    this._current = null;
+    if (this.kind === 'hands') this.adapter.stopGesture(this.opt.cutFade);
+    else this.adapter.stopAnim(this.current);
+    this.current = null;
   }
 
   update(dt) {

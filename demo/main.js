@@ -53,10 +53,12 @@ chips('beats', engine.face.names.filter((n) => kindOf(n) === 'beat'), (name) => 
   return `Face beat: ${label(name)}`;
 });
 
-chips('gestures', engine.body.names, (name) => {
-  engine.body.play(name).then((done) => done && status('Ready'));
-  return `Body: ${label(name)}`;
-});
+for (const channel of ['head', 'hands']) {
+  chips(channel === 'head' ? 'head-gestures' : 'hand-gestures', Object.keys(engine.body.gestures[channel]), (name) => {
+    engine.body.play(name).then((done) => done && status('Ready'));
+    return `${channel === 'head' ? 'Head' : 'Hands'}: ${label(name)}`;
+  });
+}
 
 const PHRASES = {
   user: [

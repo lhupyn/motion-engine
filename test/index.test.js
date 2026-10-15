@@ -18,7 +18,8 @@ function fakeHead() {
 const answer = (expression, gesture = 'none') => ({
   answers: {
     expression: { choice: expression, confidence: 0.9 },
-    gesture: { choice: gesture, confidence: 0.9 },
+    head: { choice: 'none', confidence: 0.9 },
+    hands: { choice: gesture, confidence: 0.9 },
     clear: { noul: 0.95 },
   },
   model: 'jev-test',

@@ -17,8 +17,8 @@ function fakes() {
     play: vi.fn(function (name) { if (this.resolve(name).kind === 'mood') this.current = name; }),
   };
   const body = {
-    gestures: { nod_yes: { description: 'Agree' }, wave_right: { description: 'Greet' } },
-    current: null,
+    gestures: { head: { nod: { description: 'Agree' } }, hands: { wave: { description: 'Greet' }, clap: { description: 'Applaud' } } },
+    current: { head: null, hands: null },
     play: vi.fn(),
   };
   return { face, body };
@@ -31,7 +31,7 @@ describe('Director', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     ({ face, body } = fakes());
-    d = new Director(face, body, { gestureCooldown: 1000, relaxAfter: 2000 });
+    d = new Director(face, body, { cooldown: { hands: 1000 }, relaxAfter: 2000 });
   });
   afterEach(() => vi.useRealTimers());
 
@@ -39,7 +39,8 @@ describe('Director', () => {
     it('offers only described items, plus none', () => {
       const q = d.questions('avatar');
       expect(Object.keys(q.expression.criteria)).toEqual(['happy', 'tender', 'wink', 'none']);
-      expect(Object.keys(q.gesture.criteria)).toEqual(['nod_yes', 'wave_right', 'none']);
+      expect(Object.keys(q.head.criteria)).toEqual(['nod', 'none']);
+      expect(Object.keys(q.hands.criteria)).toEqual(['wave', 'clap', 'none']);
       expect(q.expression.criteria.happy).toBe('Glad');
     });
 
@@ -55,19 +56,21 @@ describe('Director', () => {
   });
 
   describe('apply', () => {
-    it('plays a confident expression and gesture', () => {
-      const actions = d.apply({ expression: choice('happy'), gesture: choice('nod_yes') }, 'avatar');
+    it('plays a confident expression, head movement and hand gesture together', () => {
+      const actions = d.apply({ expression: choice('happy'), head: choice('nod'), hands: choice('wave') }, 'avatar');
       expect(face.play).toHaveBeenCalledWith('happy');
-      expect(body.play).toHaveBeenCalledWith('nod_yes');
+      expect(body.play).toHaveBeenCalledWith('nod');
+      expect(body.play).toHaveBeenCalledWith('wave');
+      expect(actions.map((a) => a.channel)).toEqual(['face', 'head', 'hands']);
       expect(actions.every((a) => a.applied)).toBe(true);
     });
 
     it('none means no action at all', () => {
-      expect(d.apply({ expression: choice('none'), gesture: choice('none') }, 'avatar')).toEqual([]);
+      expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual([]);
     });
 
     it('ignores low confidence', () => {
-      const [a, g] = d.apply({ expression: choice('happy', 0.2), gesture: choice('nod_yes', 0.3) }, 'avatar');
+      const [a, g] = d.apply({ expression: choice('happy', 0.2), hands: choice('wave', 0.3) }, 'avatar');
       expect(a).toMatchObject({ applied: false, reason: 'low confidence' });
       expect(g).toMatchObject({ applied: false, reason: 'low confidence' });
       expect(face.play).not.toHaveBeenCalled();
@@ -86,19 +89,24 @@ describe('Director', () => {
       expect(face.play).toHaveBeenCalledTimes(2);
     });
 
-    it('one gesture at a time, then a cooldown', () => {
-      body.current = 'wave_right';
-      expect(d.apply({ gesture: choice('nod_yes') }, 'avatar')[0].reason).toBe('another gesture is playing');
-      body.current = null;
-      d.apply({ gesture: choice('nod_yes') }, 'avatar');
+    it('one gesture per channel at a time, then a cooldown per channel', () => {
+      body.current = { head: null, hands: 'clap' };
+      expect(d.apply({ hands: choice('wave') }, 'avatar')[0].reason).toBe('already moving');
+      expect(d.apply({ head: choice('nod') }, 'avatar')[0].applied).toBe(true);
+      body.current = { head: null, hands: null };
+      d.apply({ hands: choice('wave') }, 'avatar');
       vi.advanceTimersByTime(500);
-      expect(d.apply({ gesture: choice('wave_right') }, 'avatar')[0].reason).toBe('cooldown');
+      expect(d.apply({ hands: choice('clap') }, 'avatar')[0].reason).toBe('cooldown');
       vi.advanceTimersByTime(600);
-      expect(d.apply({ gesture: choice('wave_right') }, 'avatar')[0].applied).toBe(true);
+      expect(d.apply({ hands: choice('clap') }, 'avatar')[0].applied).toBe(true);
+    });
+
+    it('rejects a gesture offered on the wrong channel', () => {
+      expect(d.apply({ head: choice('wave') }, 'avatar')[0].reason).toBe('not in catalog');
     });
 
     it('no reaction at all to a garbled transcript of the person', () => {
-      const actions = d.apply({ expression: choice('tender'), gesture: choice('nod_yes'), clear: { noul: 0.1 } }, 'user');
+      const actions = d.apply({ expression: choice('tender'), hands: choice('wave'), clear: { noul: 0.1 } }, 'user');
       expect(actions.map((a) => a.reason)).toEqual(['unclear transcript', 'unclear transcript']);
       expect(face.play).not.toHaveBeenCalled();
     });

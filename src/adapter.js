@@ -37,6 +37,20 @@ export class TalkingHeadAdapter {
     this.head.stopGesture(ms);
   }
 
+  /** [internal] Play a registered animation alongside any gesture; untagged, so stopGesture() leaves it running. */
+  playAnim(name) {
+    const anim = this.head.animFactory(this.head.animEmojis[name]);
+    anim.motionEngine = name;
+    this.head.animQueue.push(anim);
+  }
+
+  /** [internal] */
+  stopAnim(name) {
+    const queue = this.head.animQueue;
+    const i = queue.findIndex((a) => a.motionEngine === name);
+    if (i !== -1) queue.splice(i, 1);
+  }
+
   /** [internal] */
   setMorphBaseline(mt, value) {
     this.head.setBaselineValue(mt, value);

@@ -8,18 +8,22 @@ const NONE = 'none';
 const INSTRUCTIONS = {
   avatar: {
     expression: "The facial expression the avatar shows while saying this line. 'none' if the line is emotionally neutral or the current expression should stay.",
-    gesture: "A body gesture that naturally goes with the avatar saying this line. Most lines need none.",
+    head: "A head movement that naturally goes with the avatar saying this line. 'none' if no movement fits.",
+    hands: "A hand gesture that naturally goes with the avatar saying this line. Most lines need none.",
   },
   user: {
     expression: "The avatar is listening. The facial expression it shows in reaction to what the person just said. React like an empathetic friend: concern or tenderness for bad news, not a copy of the person's emotion. 'none' if no visible reaction fits.",
-    gesture: "A body gesture the listening avatar makes in reaction to what the person said. Most messages need none.",
+    head: "A head movement the listening avatar makes in reaction to what the person said. 'none' if no movement fits.",
+    hands: "A hand gesture the listening avatar makes in reaction to what the person said. Most messages need none.",
   },
 };
 
+const GESTURE_CHANNELS = ['head', 'hands'];
+
 const DEFAULTS = {
-  minConfidence: { expression: 0.45, gesture: 0.55 },
+  minConfidence: { expression: 0.45, head: 0.5, hands: 0.55 },
   minClarity: 0.5,
-  gestureCooldown: 4000,
+  cooldown: { head: 2500, hands: 4000 },
   relaxAfter: 6000,
 };
 
@@ -27,9 +31,14 @@ export class Director {
   constructor(face, body, options = {}) {
     this.face = face;
     this.body = body;
-    this.opt = { ...DEFAULTS, ...options, minConfidence: { ...DEFAULTS.minConfidence, ...options.minConfidence } };
+    this.opt = {
+      ...DEFAULTS,
+      ...options,
+      minConfidence: { ...DEFAULTS.minConfidence, ...options.minConfidence },
+      cooldown: { ...DEFAULTS.cooldown, ...options.cooldown },
+    };
     this.busy = () => false;
-    this._lastGesture = -Infinity;
+    this._lastGesture = { head: -Infinity, hands: -Infinity };
     this._relaxTimer = null;
     this._questions = {};
   }
@@ -39,7 +48,8 @@ export class Director {
       const text = INSTRUCTIONS[speaker];
       const q = {
         expression: ask.choice(text.expression, menu(this.face.facs.expressions, 'No change of expression.')),
-        gesture: ask.choice(text.gesture, menu(this.body.gestures, 'No gesture.')),
+        head: ask.choice(text.head, menu(this.body.gestures.head, 'No head movement.')),
+        hands: ask.choice(text.hands, menu(this.body.gestures.hands, 'No hand gesture.')),
       };
       if (speaker === 'user') {
         q.clear = ask.noul(
@@ -55,12 +65,11 @@ export class Director {
 
   /**
    * Play what passes the rules and report every choice with the reason it was skipped.
-   * @returns {{channel:'face'|'body', name:string, confidence:number, applied:boolean, reason?:string}[]}
+   * @returns {{channel:'face'|'head'|'hands', name:string, confidence:number, applied:boolean, reason?:string}[]}
    */
   apply(answers, speaker) {
     const actions = [];
     const expr = answers.expression;
-    const gest = answers.gesture;
     const unclear = speaker === 'user' && (answers.clear?.noul ?? 1) < this.opt.minClarity;
 
     if (expr?.choice && expr.choice !== NONE) {
@@ -77,17 +86,19 @@ export class Director {
       actions.push(a);
     }
 
-    if (gest?.choice && gest.choice !== NONE) {
-      const a = { channel: 'body', name: gest.choice, confidence: gest.confidence, applied: false };
+    for (const channel of GESTURE_CHANNELS) {
+      const g = answers[channel];
+      if (!g?.choice || g.choice === NONE) continue;
+      const a = { channel, name: g.choice, confidence: g.confidence, applied: false };
       const now = performance.now();
       if (unclear) a.reason = 'unclear transcript';
-      else if (!this.body.gestures[a.name]) a.reason = 'not in catalog';
-      else if (a.confidence < this.opt.minConfidence.gesture) a.reason = 'low confidence';
-      else if (this.body.current) a.reason = 'another gesture is playing';
-      else if (now - this._lastGesture < this.opt.gestureCooldown) a.reason = 'cooldown';
+      else if (!this.body.gestures[channel][a.name]) a.reason = 'not in catalog';
+      else if (a.confidence < this.opt.minConfidence[channel]) a.reason = 'low confidence';
+      else if (this.body.current[channel]) a.reason = 'already moving';
+      else if (now - this._lastGesture[channel] < this.opt.cooldown[channel]) a.reason = 'cooldown';
       else {
         this.body.play(a.name);
-        this._lastGesture = now;
+        this._lastGesture[channel] = now;
         a.applied = true;
       }
       actions.push(a);
