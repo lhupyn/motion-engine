@@ -7,7 +7,6 @@ function createMockHead() {
   return {
     gestureTemplates: {},
     poseTemplates: {},
-    moodTemplates: {},
     animEmojis: {},
     poseName: null,
     mtAvatar: {

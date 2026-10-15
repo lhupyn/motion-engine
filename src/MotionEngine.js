@@ -276,7 +276,7 @@ export class MotionEngine {
    * Track resolution:
    * 1. If motion has `_track` metadata → use that track
    * 2. If name matches poseTemplates → pose track
-   * 3. If name matches moodTemplates or known moods → mood track
+   * 3. If name matches a TalkingHead mood (`head.animMoods`) → mood track
    * 4. Otherwise → action track (default)
    *
    * @param {string} name - Motion identifier
@@ -292,10 +292,7 @@ export class MotionEngine {
       trackName = motion._track || 'action';
     } else if (this.head.poseTemplates?.[name]) {
       trackName = 'pose';
-    } else if (
-      (this.head.moodTemplates && this.head.moodTemplates[name]) ||
-      ['neutral', 'happy', 'relax'].includes(name)
-    ) {
+    } else if (this.head.animMoods?.[name]) {
       trackName = 'mood';
     }
 

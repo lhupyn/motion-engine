@@ -7,7 +7,6 @@ function createMockHead() {
   return {
     gestureTemplates: { wave: {} },
     poseTemplates: { standing: {}, sitting: {} },
-    moodTemplates: { neutral: {}, happy: {} },
     animEmojis: {},
     animMoods: {
       neutral: {
@@ -21,6 +20,11 @@ function createMockHead() {
       happy: {
         baseline: { mouthSmile: 0.2, eyesLookDown: 0.1 },
         speech: { deltaRate: 0, deltaPitch: 0.1, deltaVolume: 0 },
+        anims: [],
+      },
+      sad: {
+        baseline: { mouthFrownLeft: 0.3, mouthFrownRight: 0.3 },
+        speech: { deltaRate: -0.1, deltaPitch: -0.1, deltaVolume: 0 },
         anims: [],
       },
     },
@@ -224,7 +228,15 @@ describe('MotionEngine', () => {
       expect(head.setPoseFromTemplate).toHaveBeenCalled();
     });
 
-    it('routes moodTemplates match to mood track', async () => {
+    it('routes native TH moods (animMoods) to mood track', async () => {
+      await engine.play('sad');
+      expect(engine.tracks.mood.active).toBe(true);
+      expect(engine.tracks.mood.name).toBe('sad');
+      expect(head.setMood).toHaveBeenCalledWith('sad');
+      expect(head.playGesture).not.toHaveBeenCalled();
+    });
+
+    it('routes happy (native animMoods) to mood track', async () => {
       await engine.play('happy');
       expect(engine.tracks.mood.active).toBe(true);
       expect(engine.tracks.mood.name).toBe('happy');
