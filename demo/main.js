@@ -1,5 +1,7 @@
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine, systemOne } from '../src/index.js';
+import FACS from '../src/facs.json' with { type: 'json' };
+import GESTURES from '../src/gestures.json' with { type: 'json' };
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
@@ -20,17 +22,49 @@ try {
   throw err;
 }
 
-const engine = new MotionEngine(head);
+// The load greeting's expressions and wave, softer than the catalog's; demo only.
+const beat = (aus, envelope) => ({ kind: 'beat', aus, envelope });
+const GREETING_FACES = {
+  shy_soft: { aus: { AU12_L: 0.3, AU12_R: 0.2, AU6: 0.2, AU1: 0.2 } },
+  glance_down: beat({ AU64: 0.6 }, { in: 150, hold: 350, out: 250 }),
+  glance_side: beat({ AU62: 0.5 }, { in: 200, hold: 500, out: 300 }),
+};
+const wave = GESTURES.hands.wave;
+const halve = (bones) =>
+  Object.fromEntries(Object.entries(bones).map(([b, o]) => [b, { ...o, amp: o.amp.map((a) => a / 2) }]));
+const GREETING_GESTURES = {
+  small_wave: {
+    ...wave,
+    description: undefined,
+    dt: [100, 1500],
+    overlay: { ...wave.overlay, bones: halve(wave.overlay.bones), delay: 300, duration: 1200 },
+  },
+};
+const greetingOnly = new Set([...Object.keys(GREETING_FACES), ...Object.keys(GREETING_GESTURES)]);
+
+const engine = new MotionEngine(head, {
+  face: { facs: { ...FACS, expressions: { ...FACS.expressions, ...GREETING_FACES } } },
+  body: { gestures: { ...GESTURES, hands: { ...GESTURES.hands, ...GREETING_GESTURES } } },
+});
 window.engine = engine;
 
 status('Ready');
 
-// A first sign of life. The director only relaxes faces it chose, so this one
-// fades back here, unless the visitor or a decision changes the face first.
-engine.face.play('happy');
-engine.body.play('wave');
-const greeting = setTimeout(() => engine.face.play('neutral'), 3000);
-const endGreeting = () => clearTimeout(greeting);
+// A shy hello: [ms, name] steps, then back to neutral. The director only relaxes
+// faces it chose, so this one fades back here unless the visitor or a decision
+// changes the face first.
+const GREETING = [
+  [0, 'glance_down'],
+  [500, 'shy_soft'],
+  [600, 'glance_side'],
+  [800, 'small_wave'],
+];
+const play = (name) => (engine.body.channelOf(name) ? engine.body.play(name) : engine.face.play(name));
+const greetingTimers = [
+  ...GREETING.map(([ms, name]) => setTimeout(() => play(name), ms)),
+  setTimeout(() => engine.face.play('neutral'), 2500),
+];
+const endGreeting = () => greetingTimers.forEach(clearTimeout);
 
 function button(text, onclick) {
   return Object.assign(document.createElement('button'), { textContent: text, onclick });
@@ -48,6 +82,7 @@ const offered = engine.director.questions('avatar');
 function chips(id, names, onPick, { exclusive = false, manual = null } = {}) {
   const row = $(id);
   for (const name of names) {
+    if (greetingOnly.has(name)) continue;
     const b = button(label(name), () => {
       if (exclusive) select(row, b);
       status(onPick(name));
