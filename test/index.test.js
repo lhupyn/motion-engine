@@ -155,6 +155,121 @@ describe('MotionEngine', () => {
       expect(decisions).toEqual([]);
     });
 
+    it('an empty final releases the buffered sentence and ends the avatar turn', async () => {
+      engine.feed('well I guess');
+      engine.feed('', { final: true });
+      await flush();
+      expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
+      engine.feed('Okay go on.', { speaker: 'user', final: true });
+      await flush();
+      expect(decisions.at(-1)).toMatchObject({ speaker: 'user' });
+      expect(decisions.at(-1).skipped).toBeUndefined();
+    });
+
+    it('empty text without final changes nothing', async () => {
+      engine.feed('well I guess');
+      await vi.advanceTimersByTimeAsync(500);
+      engine.feed('');
+      await vi.advanceTimersByTimeAsync(300);
+      expect(classify).toHaveBeenCalledTimes(1);
+    });
+
+    describe('interrupt', () => {
+      const pending = () => {
+        const calls = [];
+        classify.mockImplementation((state, _, { signal }) => new Promise((resolve, reject) => {
+          calls.push({ state, resolve });
+          signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+        }));
+        return calls;
+      };
+
+      it('aborts calls for avatar lines only', async () => {
+        const calls = pending();
+        engine.feed("I'm sad today.", { speaker: 'user', final: true });
+        engine.feed('Oh no. ');
+        await flush();
+        expect(calls.map((c) => c.state.speaker)).toEqual(['user', 'avatar']);
+        engine.interrupt();
+        calls[0].resolve(answer('tender'));
+        await flush();
+        expect(engine.face.current).toBe('tender');
+        expect(decisions).toHaveLength(1);
+        expect(decisions[0]).toMatchObject({ speaker: 'user' });
+      });
+
+      it("keeps the person's buffered text", async () => {
+        engine.feed('well I guess', { speaker: 'user' });
+        engine.interrupt();
+        await vi.advanceTimersByTimeAsync(800);
+        expect(classify).toHaveBeenCalledWith({ speaker: 'user', text: 'well I guess' }, expect.anything(), expect.anything());
+      });
+
+      it('ends the avatar turn', async () => {
+        engine.feed('Let me tell you');
+        engine.interrupt();
+        engine.feed('Wait, stop.', { speaker: 'user', final: true });
+        await flush();
+        expect(decisions.at(-1).skipped).toBeUndefined();
+      });
+
+      it('stops the body only if the avatar was speaking', () => {
+        const stop = vi.spyOn(engine.body, 'stop');
+        engine.interrupt();
+        expect(stop).not.toHaveBeenCalled();
+        engine.feed('Let me tell you');
+        engine.interrupt();
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it('drops an answer from a classifier that ignores the abort signal', async () => {
+        let release;
+        classify.mockImplementationOnce(() => new Promise((r) => { release = () => r(answer('sad')); }));
+        engine.feed('Bad news. ');
+        await flush();
+        engine.interrupt();
+        release();
+        await flush();
+        expect(engine.face.current).toBeNull();
+        expect(decisions).toEqual([]);
+      });
+    });
+
+    describe('dispose', () => {
+      it('unhooks from the render loop and restores the app callback', () => {
+        const head = fakeHead();
+        const app = vi.fn();
+        head.opt.update = app;
+        const e = new MotionEngine(head, { classify });
+        e.dispose();
+        expect(head.opt.update).toBe(app);
+      });
+
+      it('stops everything and ignores later input', async () => {
+        const head = fakeHead();
+        const e = new MotionEngine(head, { classify });
+        const stop = vi.spyOn(e.body, 'stop');
+        e.onDecision = (d) => decisions.push(d);
+        e.feed('Great news! And then');
+        await flush();
+        expect(e.face.current).toBe('happy');
+        let signal;
+        classify.mockImplementationOnce((_, __, opts) => { signal = opts.signal; return new Promise(() => {}); });
+        e.feed('One more. ');
+        e.feed('well I guess', { speaker: 'user' });
+        e.dispose();
+        expect(head.opt.update).toBeNull();
+        expect(e.face.current).toBeNull();
+        expect(stop).toHaveBeenCalled();
+        expect(signal.aborted).toBe(true);
+        expect(vi.getTimerCount()).toBe(0);
+        e.feed('More text.', { final: true });
+        await vi.advanceTimersByTimeAsync(10000);
+        expect(classify).toHaveBeenCalledTimes(2);
+        expect(decisions).toHaveLength(1);
+      });
+    });
+
     it('reports Jev errors without throwing', async () => {
       classify.mockRejectedValueOnce(new Error('Jev 401: No auth'));
       engine.feed('Hello there.', { final: true });

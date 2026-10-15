@@ -11,10 +11,17 @@ export class TalkingHeadAdapter {
     this.head = head;
   }
 
-  /** [public] Run fn(dt) every frame, after any update callback the app already set. */
+  /**
+   * [public] Run fn(dt) every frame, after any update callback the app already set.
+   * @returns {function} Unhooks fn; leaves the callback alone if the app replaced it since
+   */
   onFrame(fn) {
     const prev = this.head.opt.update;
-    this.head.opt.update = prev ? (dt) => { prev(dt); fn(dt); } : fn;
+    const update = prev ? (dt) => { prev(dt); fn(dt); } : fn;
+    this.head.opt.update = update;
+    return () => {
+      if (this.head.opt.update === update) this.head.opt.update = prev;
+    };
   }
 
   /** [appendix] */

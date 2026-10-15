@@ -5,7 +5,7 @@
 // one on its channel. An optional overlay adds per-bone sine oscillations or a
 // jump arc through TalkingHead's pose deltas.
 
-import GESTURES from './gestures.json';
+import GESTURES from './gestures.json' with { type: 'json' };
 
 const RAMP = 300;
 

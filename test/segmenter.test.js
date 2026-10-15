@@ -45,6 +45,13 @@ describe('Segmenter', () => {
     expect(s.push(' tomorrow', true)).toEqual(['See you tomorrow']);
   });
 
+  it('an empty final releases what is buffered', () => {
+    const s = new Segmenter();
+    expect(s.push('Hello there. See you')).toEqual(['Hello there.']);
+    expect(s.push('', true)).toEqual(['See you']);
+    expect(s.pending).toBe(false);
+  });
+
   it('a final without earlier fragments (plain chat) is one turn', () => {
     const s = new Segmenter();
     expect(s.push("I'm sad today. Cheer me up?", true)).toEqual(["I'm sad today.", 'Cheer me up?']);

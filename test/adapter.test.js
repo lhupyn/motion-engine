@@ -60,6 +60,24 @@ describe('adapter verbs', () => {
     expect(engine).toHaveBeenCalledWith(16);
   });
 
+  it('onFrame returns an unhook that restores the previous callback', () => {
+    const head = makeHead();
+    const app = vi.fn();
+    head.opt.update = app;
+    const off = new TalkingHeadAdapter(head).onFrame(vi.fn());
+    off();
+    expect(head.opt.update).toBe(app);
+  });
+
+  it('the unhook leaves a callback the app installed later', () => {
+    const head = makeHead();
+    const off = new TalkingHeadAdapter(head).onFrame(vi.fn());
+    const later = vi.fn();
+    head.opt.update = later;
+    off();
+    expect(head.opt.update).toBe(later);
+  });
+
   it('lists built-in gestures and registers animations', () => {
     const head = makeHead();
     const a = new TalkingHeadAdapter(head);

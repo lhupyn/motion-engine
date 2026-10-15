@@ -2,7 +2,7 @@
 // ARKit blendshapes and added on top of the avatar's mood baseline each frame.
 // Moods hold and cross-fade; beats play once with an in/hold/out envelope.
 
-import FACS from './facs.json';
+import FACS from './facs.json' with { type: 'json' };
 
 // Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
 // baseline; they must go through the system slot. Everything else is written as

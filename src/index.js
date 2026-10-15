@@ -31,13 +31,14 @@ export class MotionEngine {
 
     this._segments = { avatar: new Segmenter(), user: new Segmenter() };
     this._timers = {};
-    this._inflight = new Set();
+    this._inflight = new Map();
     this._seq = 0;
     this._applied = 0;
     this._previous = '';
     this._avatarSpeaking = false;
+    this._disposed = false;
 
-    this.adapter.onFrame((dt) => {
+    this._offFrame = this.adapter.onFrame((dt) => {
       this.body.update(dt);
       this.face.update(dt);
     });
@@ -55,10 +56,10 @@ export class MotionEngine {
    * @param {string} text
    * @param {object} [options]
    * @param {'avatar'|'user'} [options.speaker='avatar']
-   * @param {boolean} [options.final=false] - Last fragment of the turn; may repeat the whole turn
+   * @param {boolean} [options.final=false] - Last fragment of the turn; may repeat the whole turn or be empty
    */
   feed(text, { speaker = 'avatar', final = false } = {}) {
-    if (!this.classify || !text) return;
+    if (this._disposed || !this.classify || (!text && !final)) return;
     const seg = this._segments[speaker];
     if (!seg) throw new Error(`Unknown speaker "${speaker}" (use avatar or user)`);
 
@@ -79,14 +80,26 @@ export class MotionEngine {
     if (final) this.director.scheduleRelax();
   }
 
-  /** The person cut the avatar off: drop pending text and calls, stop the gesture. */
+  /** The person cut the avatar off: drop the avatar's pending text and calls. Reactions to the person keep going. */
   interrupt() {
-    for (const c of this._inflight) c.abort();
-    this._inflight.clear();
-    for (const s of Object.values(this._segments)) s.reset();
-    for (const t of Object.values(this._timers)) clearTimeout(t);
+    for (const [ctrl, speaker] of this._inflight) if (speaker === 'avatar') ctrl.abort();
+    this._segments.avatar.reset();
+    clearTimeout(this._timers.avatar);
+    clearTimeout(this._timers.silence);
+    if (this._avatarSpeaking) this.body.stop();
     this._avatarSpeaking = false;
+  }
+
+  /** Unhook from the avatar and stop everything; the engine can't be used afterwards. */
+  dispose() {
+    this._disposed = true;
+    this._offFrame();
+    for (const ctrl of this._inflight.keys()) ctrl.abort();
+    this._inflight.clear();
+    for (const t of Object.values(this._timers)) clearTimeout(t);
+    this.director.dispose();
     this.body.stop();
+    this.face.reset();
   }
 
   async _handle(text, speaker) {
@@ -99,11 +112,13 @@ export class MotionEngine {
     const previous = this._previous;
     this._previous = text;
     const ctrl = new AbortController();
-    this._inflight.add(ctrl);
+    this._inflight.set(ctrl, speaker);
 
     try {
       const state = previous ? { speaker, text, previous_line: previous } : { speaker, text };
       const r = await this.classify(state, this.director.questions(speaker), { signal: ctrl.signal });
+      // A custom classifier may ignore the signal.
+      if (ctrl.signal.aborted) return;
       if (seq < this._applied) {
         this._emit({ speaker, text, ...r, actions: [], skipped: 'superseded by a newer line' });
         return;
