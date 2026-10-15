@@ -486,8 +486,9 @@ npm install
 npm run demo     # Vite dev server for demo/
 npm test         # Vitest, including the adapter contract test against TalkingHead's source
 npm run build    # Build the demo into dist/
-npm run deploy   # Build and publish to GitHub Pages
 ```
+
+Pushing to `main` tests, builds and publishes the demo to GitHub Pages (`.github/workflows/pages.yml`).
 
 The built demo loads three.js and TalkingHead from a CDN via its import map. During development Vite resolves them from `node_modules` instead, and the `talkinghead` dev dependency also feeds the contract test.
 

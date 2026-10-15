@@ -1,6 +1,6 @@
 {
   "name": "motion-engine",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "description": "Expressive face and body for TalkingHead avatars, driven by a decision model instead of tags in the LLM output",
   "type": "module",
   "main": "src/index.js",
@@ -15,7 +15,6 @@
   "scripts": {
     "demo": "vite --open",
     "build": "vite build",
-    "deploy": "npm run build && npx gh-pages -d dist",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -31,7 +30,6 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "gh-pages": "^6.3.0",
     "talkinghead": "github:met4citizen/TalkingHead",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
