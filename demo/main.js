@@ -23,12 +23,12 @@ window.engine = engine;
 
 status('Ready');
 
-// A first sign of life. The director only relaxes faces it chose, so this one fades back here.
+// A first sign of life. The director only relaxes faces it chose, so this one
+// fades back here, unless the visitor or a decision changes the face first.
 engine.face.play('happy');
 engine.body.play('wave');
-setTimeout(() => {
-  if (engine.face.current === 'happy' && !$('moods').querySelector('.on')) engine.face.play('neutral');
-}, 3000);
+const greeting = setTimeout(() => engine.face.play('neutral'), 3000);
+const endGreeting = () => clearTimeout(greeting);
 
 function button(text, onclick) {
   return Object.assign(document.createElement('button'), { textContent: text, onclick });
@@ -68,11 +68,13 @@ const kindOf = (name) => engine.face.resolve(name).kind;
 const isGaze = (name) => Object.keys(engine.face.resolve(name).vs).every((mt) => /^eyeLook/.test(mt));
 const beats = engine.face.names.filter((n) => kindOf(n) === 'beat');
 const playFace = (prefix) => (name) => {
+  endGreeting();
   engine.face.play(name);
   return `${prefix}: ${label(name)}`;
 };
 
-chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { exclusive: true, manual: faceManual });
+// Not exclusive: the face also changes through decisions and the relax.
+chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { manual: faceManual });
 chips('beats', beats.filter((n) => !isGaze(n)), playFace('Face beat'), { manual: faceManual });
 chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: faceManual });
 
@@ -123,10 +125,37 @@ const store = {
 let speaker = 'user';
 let connected = false;
 
+const KEYS_URL = 'openrouter.ai/keys';
+const REJECTED = 'This key was rejected — check it at openrouter.ai/keys';
+
+// A message's "openrouter.ai/keys" becomes a link.
+function rich(text) {
+  const [before, ...after] = text.split(KEYS_URL);
+  if (!after.length) return [text];
+  const a = Object.assign(document.createElement('a'), { href: `https://${KEYS_URL}`, target: '_blank', rel: 'noopener', textContent: KEYS_URL });
+  return [before, a, after.join(KEYS_URL)];
+}
+
+function show(el, text, error) {
+  el.replaceChildren(...rich(text));
+  el.classList.toggle('error', error);
+}
+
 // The latest outcome, next to where the visitor typed.
-function feedback(text, { error = false } = {}) {
-  $('feedback').textContent = text;
-  $('feedback').classList.toggle('error', error);
+const feedback = (text, { error = false } = {}) => show($('feedback'), text, error);
+
+// Key status replaces the key note for a moment, or until the key changes if it was rejected.
+const KEY_NOTE = $('key-note').innerHTML;
+let keyNoteTimer;
+function keyNote(text, { error = false, ms = 0 } = {}) {
+  clearTimeout(keyNoteTimer);
+  if (!text) {
+    $('key-note').innerHTML = KEY_NOTE;
+    $('key-note').classList.remove('error');
+    return;
+  }
+  show($('key-note'), text, error);
+  if (ms) keyNoteTimer = setTimeout(() => keyNote(), ms);
 }
 
 function explain(error) {
@@ -139,16 +168,19 @@ function explain(error) {
 
 function connect(key) {
   connected = !!key;
-  if (key) engine.useClassifier(systemOne({ apiKey: key }));
+  engine.useClassifier(key ? systemOne({ apiKey: key }) : null);
 }
 
 $('key').value = store.get('openrouter-key') || '';
 connect($('key').value.trim());
+if (connected && store.get('openrouter-key-rejected')) keyNote(REJECTED, { error: true });
 $('key-save').onclick = () => {
   const key = $('key').value.trim();
   store.set('openrouter-key', key);
+  store.set('openrouter-key-rejected', null);
   connect(key);
-  feedback(key ? 'Key saved.' : 'Key removed.');
+  feedback('');
+  keyNote(key ? 'Key saved.' : 'Key removed.', { ms: 3000 });
 };
 
 function renderPhrases() {
@@ -174,23 +206,32 @@ $('say').onsubmit = (e) => {
   $('text').value = '';
 };
 
+let stream = 0;
+let streaming = false;
+
 // The person's line arrives whole, like a chat message; the avatar's is
 // streamed word by word, like a voice model's transcript.
 async function say(text) {
   if (!connected) {
-    feedback('Add an OpenRouter key above to let Jev decide.', { error: true });
+    feedback('Add an OpenRouter key above to let Jev decide.');
     $('key').focus();
     return;
   }
+  endGreeting();
   if (speaker === 'user') {
     engine.feed(text, { speaker: 'user', final: true });
     return;
   }
-  const words = text.split(/(?<=\s)/);
-  for (const w of words) {
+  // A new line ends the one still streaming, so the two don't merge into one sentence.
+  if (streaming) engine.feed('', { speaker: 'avatar', final: true });
+  const id = ++stream;
+  streaming = true;
+  for (const w of text.split(/(?<=\s)/)) {
     engine.feed(w, { speaker: 'avatar' });
     await new Promise((r) => setTimeout(r, 260));
+    if (id !== stream) return;
   }
+  streaming = false;
   engine.feed(text, { speaker: 'avatar', final: true });
 }
 
@@ -206,7 +247,11 @@ engine.onDecision = (d) => {
   const acts = document.createElement('div');
   acts.className = 'acts';
   const note = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; acts.append(s); return s; };
-  if (d.error) note('error', explain(d.error)).title = d.error;
+  if (d.error) {
+    const s = note('error', '');
+    s.replaceChildren(...rich(explain(d.error)));
+    s.title = d.error;
+  }
   else if (d.skipped) note('skipped', `Not asked: ${d.skipped}`);
   else if (!d.actions.length) note('skipped', 'No reaction (Jev chose none)');
   for (const a of d.actions) {
@@ -215,6 +260,13 @@ engine.onDecision = (d) => {
   }
   li.append(acts);
   feedback(d.error ? explain(d.error) : '', { error: !!d.error });
+  if (d.error?.startsWith('System One 401')) {
+    store.set('openrouter-key-rejected', '1');
+    keyNote(REJECTED, { error: true });
+  } else if (d.answers && store.get('openrouter-key-rejected')) {
+    store.set('openrouter-key-rejected', null);
+    keyNote();
+  }
 
   if (d.ms != null) {
     const meta = document.createElement('div');
@@ -229,5 +281,6 @@ engine.onDecision = (d) => {
   $('log').prepend(li);
   while ($('log').children.length > 50) $('log').lastChild.remove();
   const applied = d.actions.filter((a) => a.applied);
+  if (applied.some((a) => a.channel === 'face')) endGreeting();
   if (applied.length) status(applied.map((a) => label(a.name)).join(' + '));
 };

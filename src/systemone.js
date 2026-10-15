@@ -28,9 +28,11 @@ export function systemOne({ apiKey, provider = 'openrouter', model, url }) {
 
   return async function classify(state, questions, { signal } = {}) {
     const started = performance.now();
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ model: modelId, state, questions }),
       signal,
     });

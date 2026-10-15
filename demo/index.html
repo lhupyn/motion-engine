@@ -90,8 +90,10 @@
       letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px;
     }
     h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 10px 0 6px; }
+    .section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+    .section-head h2 { margin-bottom: 0; }
     .tag {
-      margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+      padding: 1px 7px; border-radius: 999px; color: var(--muted);
       font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0;
       background: var(--chip); border: 1px solid var(--line);
     }
@@ -118,8 +120,8 @@
     .row + .row, .row + .chips, .chips + .row { margin-top: 8px; }
     .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
     #speaker { margin-top: 14px; }
-    #feedback:empty { margin: 0; }
-    #feedback.error { color: var(--error); }
+    #feedback { min-height: 1.45em; }
+    .note.error { color: var(--error); }
     .phrase-label { flex-basis: 100%; margin-top: 4px; }
     #decisions h3 { margin-top: 18px; }
 
@@ -168,7 +170,7 @@
       </div>
       <p>Expressive face and body for TalkingHead avatars.</p>
       <p class="note">
-        Tap any expression or gesture below — no key needed. To let the avatar react to text on its own, add an OpenRouter key.
+        Try any expression or gesture below — no key needed. To let the avatar react to text on its own, add an OpenRouter key.
       </p>
     </header>
 
@@ -178,7 +180,7 @@
         <input id="key" type="password" placeholder="OpenRouter API key" aria-label="OpenRouter API key" autocomplete="off" />
         <button id="key-save">Use</button>
       </div>
-      <p class="note">
+      <p class="note" id="key-note" aria-live="polite">
         Jev, a small decision model, picks the reactions. Get a key at
         <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> — about $0.0001 per line.
         Your key stays in this browser and is sent only to openrouter.ai.
@@ -204,12 +206,13 @@
     </section>
 
     <section>
-      <h2>Camera</h2>
+      <div class="section-head"><h2>Camera</h2><span class="tag">No key needed</span></div>
       <div class="chips" id="camera" role="group" aria-label="Camera"></div>
     </section>
 
     <section>
-      <h2>Face <span class="tag">No key needed</span></h2>
+      <div class="section-head"><h2>Face</h2><span class="tag">No key needed</span></div>
+      <p class="note">Dashed: manual only — the decision model never picks it.</p>
       <h3>Expressions — held until replaced</h3>
       <div class="chips" id="moods" role="group" aria-label="Expressions"></div>
       <h3>Beats — play once</h3>
@@ -219,12 +222,11 @@
     </section>
 
     <section>
-      <h2>Body <span class="tag">No key needed</span></h2>
+      <div class="section-head"><h2>Body</h2><span class="tag">No key needed</span></div>
       <h3>Head — can play with a hand gesture</h3>
       <div class="chips" id="head-gestures"></div>
       <h3>Hands</h3>
       <div class="chips" id="hand-gestures"></div>
-      <p class="note">Dashed: manual only — the decision model never picks it.</p>
     </section>
 
     <footer class="note">

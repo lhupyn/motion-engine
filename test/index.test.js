@@ -38,6 +38,10 @@ describe('MotionEngine', () => {
     expect(head.gestureTemplates).toHaveProperty('palms_up');
   });
 
+  it('the removed jev option fails loudly instead of doing nothing', () => {
+    expect(() => new MotionEngine(fakeHead(), { jev: { apiKey: 'k' } })).toThrow(/jev option was removed.*systemOne/);
+  });
+
   it('hooks into the render loop: a frame drives the face', () => {
     const head = fakeHead();
     const engine = new MotionEngine(head);
@@ -79,6 +83,14 @@ describe('MotionEngine', () => {
       expect(other).toHaveBeenCalledTimes(1);
       expect(classify).toHaveBeenCalledTimes(1);
       later.dispose();
+    });
+
+    it('removing the classifier drops buffered text quietly', async () => {
+      engine.feed('well I guess');
+      engine.useClassifier(null);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(classify).not.toHaveBeenCalled();
+      expect(decisions).toEqual([]);
     });
 
     it('asks the classifier once per sentence, not per fragment', async () => {

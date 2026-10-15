@@ -18,7 +18,8 @@ export class MotionEngine {
    * @param {object} [options.director] - Thresholds and timings
    * @param {number} [options.pause=800] - Classify unfinished text after this many ms without fragments
    */
-  constructor(head, { classify = null, face, body, director, pause = 800 } = {}) {
+  constructor(head, { classify = null, face, body, director, pause = 800, ...rest } = {}) {
+    if ('jev' in rest) throw new Error('motion-engine 2: the jev option was removed — pass classify: systemOne({ apiKey })');
     this.adapter = new TalkingHeadAdapter(head);
     this.face = new Face(this.adapter, face);
     this.body = new Body(this.adapter, body);
@@ -132,6 +133,8 @@ export class MotionEngine {
   }
 
   async _handle(text, speaker) {
+    // The classifier can be removed while text is still buffered.
+    if (!this.classify) return;
     if (speaker === 'user' && this._avatarSpeaking) {
       this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;

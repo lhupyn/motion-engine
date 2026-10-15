@@ -40,6 +40,13 @@ describe('System One client', () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body).model).toBe('typesafe/jev-1.13');
   });
 
+  it('sends no Authorization header without a key (self-hosted server)', async () => {
+    const fetch = ok({ answers: {} });
+    vi.stubGlobal('fetch', fetch);
+    await systemOne({ url: 'http://localhost:8009/v1/systemone' })('hi', {});
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+
   it('reports API errors from either provider', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'No auth' } }) })));
     await expect(systemOne({ apiKey: 'bad' })('hi', {})).rejects.toThrow('System One 401: No auth');
