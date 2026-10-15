@@ -57,7 +57,7 @@ Plain ES modules, no build step. From a CDN with an import map:
 </script>
 ```
 
-Or with a bundler: `npm i github:lhupyn/motion-engine` (not on npm yet). The catalogs load as JSON modules, which need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. TalkingHead is not a dependency; bring your own (1.7).
+Or with a bundler: `npm i github:lhupyn/motion-engine` (not on npm yet). The catalogs load as JSON modules, which need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. TalkingHead is not a dependency; bring your own (1.7). TypeScript types are included (generated from the JSDoc, in `types/`).
 
 **Avatar:** TalkingHead's [requirements](https://github.com/met4citizen/TalkingHead#appendix-a-create-your-own-3d-avatar): a Mixamo-compatible rig with the 52 ARKit and 15 Oculus viseme blend shapes. The bundled poses and expression levels are fitted to the demo avatar; another avatar may need them retuned ([catalogs](#appendix-b-catalogs)).
 
@@ -351,6 +351,9 @@ npm install
 npm run demo     # Vite dev server for demo/
 npm test         # Vitest, incl. the adapter contract test against TalkingHead's source
 npm run build    # Build the demo into dist/
+npm run lint     # ESLint
+npm run format   # Prettier (format:check to verify only)
+npm run types    # Regenerate types/ from the JSDoc
 ```
 
-Pushing to `main` tests, builds and deploys the demo to GitHub Pages.
+Commit the regenerated `types/` with any change to the public JSDoc, or CI fails. CI runs lint, format, types, tests and build on every push and PR; pushing to `main` also deploys the demo to GitHub Pages.
