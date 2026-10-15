@@ -23,19 +23,35 @@ window.engine = engine;
 
 status('Ready');
 
+// A first sign of life. The director only relaxes faces it chose, so this one fades back here.
+engine.face.play('happy');
+engine.body.play('wave');
+setTimeout(() => {
+  if (engine.face.current === 'happy' && !$('moods').querySelector('.on')) engine.face.play('neutral');
+}, 3000);
+
 function button(text, onclick) {
   return Object.assign(document.createElement('button'), { textContent: text, onclick });
 }
 
-const select = (row, b) => row.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+const select = (row, b) => row.querySelectorAll('button').forEach((x) => {
+  x.classList.toggle('on', x === b);
+  x.setAttribute('aria-pressed', x === b);
+});
 
-function chips(id, names, onPick, { exclusive = false } = {}) {
+// Entries without a description are never offered to the decision model.
+function chips(id, names, onPick, { exclusive = false, manual = () => false } = {}) {
   const row = $(id);
   for (const name of names) {
     const b = button(label(name), () => {
       if (exclusive) select(row, b);
       status(onPick(name));
     });
+    if (exclusive) b.setAttribute('aria-pressed', false);
+    if (manual(name)) {
+      b.classList.add('manual');
+      b.title = 'Manual only: the decision model never picks it';
+    }
     row.append(b);
   }
 }
@@ -44,47 +60,59 @@ chips('camera', ['head', 'upper', 'mid', 'full'], (view) => {
   head.setView(view);
   return `Camera: ${view}`;
 }, { exclusive: true });
-$('camera').children[1].classList.add('on');
+select($('camera'), $('camera').children[1]);
 
+const expressions = engine.face.facs.expressions;
+const faceManual = (name) => !expressions[name].description;
 const kindOf = (name) => engine.face.resolve(name).kind;
-chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), (name) => {
+const isGaze = (name) => Object.keys(engine.face.resolve(name).vs).every((mt) => /^eyeLook/.test(mt));
+const beats = engine.face.names.filter((n) => kindOf(n) === 'beat');
+const playFace = (prefix) => (name) => {
   engine.face.play(name);
-  return `Face: ${label(name)}`;
-}, { exclusive: true });
+  return `${prefix}: ${label(name)}`;
+};
 
-chips('beats', engine.face.names.filter((n) => kindOf(n) === 'beat'), (name) => {
-  engine.face.play(name);
-  return `Face beat: ${label(name)}`;
-});
+chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { exclusive: true, manual: faceManual });
+chips('beats', beats.filter((n) => !isGaze(n)), playFace('Face beat'), { manual: faceManual });
+chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: faceManual });
 
 for (const [channel, row, title] of [['head', 'head-gestures', 'Head'], ['hands', 'hand-gestures', 'Hands']]) {
-  chips(row, Object.keys(engine.body.gestures[channel]), (name) => {
+  const catalog = engine.body.gestures[channel];
+  chips(row, Object.keys(catalog), (name) => {
     engine.body.play(name).then((done) => done && status('Ready'));
     return `${title}: ${label(name)}`;
-  });
+  }, { manual: (name) => !catalog[name].description });
 }
 
 const PHRASES = {
-  user: [
-    'I just adopted a puppy!',
-    'My grandma passed away last week.',
-    'Can you help me with something?',
-    'eh mm the uh asdf',
-    'Estoy triste, alégrame el día',
-    '¡Me han dado el trabajo!',
-    'Hoy he tenido un día horrible.',
-    '¿Me cuentas un chiste?',
-  ],
-  avatar: [
-    "Hello! It's so nice to see you again.",
-    "No, I don't think that's a good idea.",
-    'Wait, really? I had no idea!',
-    'Please, promise me you will rest tonight.',
-    '¡Qué buena noticia, me alegro muchísimo por ti!',
-    'Vaya, lo siento mucho. Aquí estoy para lo que necesites.',
-    'Mmm, déjame pensarlo un momento.',
-    '¡Ja, ja, esa sí que es buena!',
-  ],
+  user: {
+    en: [
+      'I just adopted a puppy!',
+      'My grandma passed away last week.',
+      'Can you help me with something?',
+      'eh mm the uh asdf',
+    ],
+    es: [
+      'Estoy triste, alégrame el día',
+      '¡Me han dado el trabajo!',
+      'Hoy he tenido un día horrible.',
+      '¿Me cuentas un chiste?',
+    ],
+  },
+  avatar: {
+    en: [
+      "Hello! It's so nice to see you again.",
+      "No, I don't think that's a good idea.",
+      'Wait, really? I had no idea!',
+      'Please, promise me you will rest tonight.',
+    ],
+    es: [
+      '¡Qué buena noticia, me alegro muchísimo por ti!',
+      'Vaya, lo siento mucho. Aquí estoy para lo que necesites.',
+      'Mmm, déjame pensarlo un momento.',
+      '¡Ja, ja, esa sí que es buena!',
+    ],
+  },
 };
 
 const store = {
@@ -95,12 +123,23 @@ const store = {
 let speaker = 'user';
 let connected = false;
 
+// The latest outcome, next to where the visitor typed.
+function feedback(text, { error = false } = {}) {
+  $('feedback').textContent = text;
+  $('feedback').classList.toggle('error', error);
+}
+
+function explain(error) {
+  const code = /System One (\d+)/.exec(error)?.[1];
+  if (code === '401') return 'OpenRouter rejected this key — check it at openrouter.ai/keys';
+  if (code === '402') return 'Your OpenRouter account is out of credit';
+  if (code === '429') return 'Too many requests — wait a moment';
+  return `Couldn't reach the decision model${code ? ` (${code})` : ''}`;
+}
+
 function connect(key) {
   connected = !!key;
   if (key) engine.useClassifier(systemOne({ apiKey: key }));
-  $('key-note').textContent = key
-    ? 'Connected. Your key stays in this browser and is sent only to openrouter.ai.'
-    : 'Jev decides the reactions. Your key stays in this browser and is sent only to openrouter.ai.';
 }
 
 $('key').value = store.get('openrouter-key') || '';
@@ -109,10 +148,13 @@ $('key-save').onclick = () => {
   const key = $('key').value.trim();
   store.set('openrouter-key', key);
   connect(key);
+  feedback(key ? 'Key saved.' : 'Key removed.');
 };
 
 function renderPhrases() {
-  $('phrases').replaceChildren(...PHRASES[speaker].map((p) => button(p, () => say(p))));
+  const { en, es } = PHRASES[speaker];
+  const hint = Object.assign(document.createElement('p'), { className: 'note phrase-label', textContent: 'Works in any language:' });
+  $('phrases').replaceChildren(...en.map((p) => button(p, () => say(p))), hint, ...es.map((p) => button(p, () => say(p))));
 }
 
 $('speaker').onclick = (e) => {
@@ -120,7 +162,7 @@ $('speaker').onclick = (e) => {
   if (!b) return;
   speaker = b.dataset.speaker;
   select($('speaker'), b);
-  $('text').placeholder = PHRASES[speaker][0];
+  $('text').placeholder = PHRASES[speaker].en[0];
   renderPhrases();
 };
 renderPhrases();
@@ -136,7 +178,7 @@ $('say').onsubmit = (e) => {
 // streamed word by word, like a voice model's transcript.
 async function say(text) {
   if (!connected) {
-    status('Add an OpenRouter key to let Jev decide');
+    feedback('Add an OpenRouter key above to let Jev decide.', { error: true });
     $('key').focus();
     return;
   }
@@ -163,8 +205,8 @@ engine.onDecision = (d) => {
 
   const acts = document.createElement('div');
   acts.className = 'acts';
-  const note = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; acts.append(s); };
-  if (d.error) note('error', d.error);
+  const note = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; acts.append(s); return s; };
+  if (d.error) note('error', explain(d.error)).title = d.error;
   else if (d.skipped) note('skipped', `Not asked: ${d.skipped}`);
   else if (!d.actions.length) note('skipped', 'No reaction (Jev chose none)');
   for (const a of d.actions) {
@@ -172,6 +214,7 @@ engine.onDecision = (d) => {
     note(a.applied ? 'applied' : 'skipped', a.applied ? `✓ ${what}` : `✗ ${what} · ${a.reason}`);
   }
   li.append(acts);
+  feedback(d.error ? explain(d.error) : '', { error: !!d.error });
 
   if (d.ms != null) {
     const meta = document.createElement('div');
@@ -182,6 +225,7 @@ engine.onDecision = (d) => {
     li.append(meta);
   }
 
+  $('decisions').hidden = false;
   $('log').prepend(li);
   while ($('log').children.length > 50) $('log').lastChild.remove();
   const applied = d.actions.filter((a) => a.applied);
