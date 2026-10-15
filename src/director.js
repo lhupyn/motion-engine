@@ -1,7 +1,7 @@
-// Asks Jev what a line means for the avatar, then decides what actually plays.
-// Only catalog entries with a description are offered to Jev.
+// Asks the classifier what a line means for the avatar, then decides what
+// actually plays. Only catalog entries with a description are offered.
 
-import { ask } from './jev.js';
+import { ask } from './systemone.js';
 
 const NONE = 'none';
 

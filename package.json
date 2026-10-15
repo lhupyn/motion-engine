@@ -1,6 +1,6 @@
 {
   "name": "motion-engine",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Expressive face and body for TalkingHead avatars, driven by a decision model instead of tags in the LLM output",
   "type": "module",
   "main": "src/index.js",

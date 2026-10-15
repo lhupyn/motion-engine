@@ -213,7 +213,7 @@ describe('Body', () => {
     }
   });
 
-  it("gestures.json: Jev's menu (described entries) has distinct options and no left/right pairs", () => {
+  it("gestures.json: the classifier's menu (described entries) has distinct options and no left/right pairs", () => {
     const menu = ['head', 'hands'].flatMap((c) => Object.entries(GESTURES[c]).filter(([, g]) => g.description));
     expect(new Set(menu.map(([, g]) => g.description)).size).toBe(menu.length);
     expect(menu.map(([name]) => name).filter((n) => /_(left|right)$/.test(n))).toEqual([]);

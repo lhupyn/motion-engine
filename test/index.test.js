@@ -60,12 +60,28 @@ describe('MotionEngine', () => {
       vi.useRealTimers();
     });
 
-    it('does nothing without a classifier (no Jev configured)', () => {
+    it('does nothing without a classifier', () => {
       const plain = new MotionEngine(fakeHead());
       expect(() => plain.feed('Hello there.', { final: true })).not.toThrow();
     });
 
-    it('asks Jev once per sentence, not per fragment', async () => {
+    it('useClassifier() sets or replaces the classifier later', async () => {
+      const later = new MotionEngine(fakeHead());
+      later.feed('Too early.', { final: true });
+      later.useClassifier(classify);
+      later.feed('Hello there.', { final: true });
+      await flush();
+      expect(classify).toHaveBeenCalledTimes(1);
+      const other = vi.fn(async () => answer('none'));
+      later.useClassifier(other);
+      later.feed('And again.', { final: true });
+      await flush();
+      expect(other).toHaveBeenCalledTimes(1);
+      expect(classify).toHaveBeenCalledTimes(1);
+      later.dispose();
+    });
+
+    it('asks the classifier once per sentence, not per fragment', async () => {
       engine.feed(" I'm so");
       engine.feed(' glad you');
       engine.feed(' came! It');
@@ -121,7 +137,7 @@ describe('MotionEngine', () => {
       expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
     });
 
-    it('does not ask Jev about the person while the avatar is speaking (too late)', async () => {
+    it('does not ask about the person while the avatar is speaking (too late)', async () => {
       engine.feed('Let me tell you');
       engine.feed("I'm sad.", { speaker: 'user', final: true });
       await flush();
@@ -335,11 +351,11 @@ describe('MotionEngine', () => {
       });
     });
 
-    it('reports Jev errors without throwing', async () => {
-      classify.mockRejectedValueOnce(new Error('Jev 401: No auth'));
+    it('reports classifier errors without throwing', async () => {
+      classify.mockRejectedValueOnce(new Error('System One 401: No auth'));
       engine.feed('Hello there.', { final: true });
       await flush();
-      expect(decisions[0]).toMatchObject({ error: 'Jev 401: No auth', actions: [] });
+      expect(decisions[0]).toMatchObject({ error: 'System One 401: No auth', actions: [] });
     });
   });
 });

@@ -3,8 +3,7 @@ import { Face } from './face.js';
 import { Body } from './body.js';
 import { Director } from './director.js';
 import { Segmenter } from './segmenter.js';
-import { jev } from './jev.js';
-import { llm } from './llm.js';
+import { systemOne } from './systemone.js';
 
 // Not every provider sends a final fragment, so silence also ends the avatar's turn.
 const SILENCE_ENDS_TURN = 3000;
@@ -13,20 +12,19 @@ export class MotionEngine {
   /**
    * @param {object} head - TalkingHead instance, after showAvatar()
    * @param {object} [options]
-   * @param {object} [options.jev] - { apiKey, provider, model, url }
-   * @param {function} [options.classify] - Replaces Jev; same signature as jev()
+   * @param {function} [options.classify] - Decides the reactions, e.g. systemOne({ apiKey })
    * @param {object} [options.face]
    * @param {object} [options.body]
    * @param {object} [options.director] - Thresholds and timings
    * @param {number} [options.pause=800] - Classify unfinished text after this many ms without fragments
    */
-  constructor(head, { jev: jevOptions, classify, face, body, director, pause = 800 } = {}) {
+  constructor(head, { classify = null, face, body, director, pause = 800 } = {}) {
     this.adapter = new TalkingHeadAdapter(head);
     this.face = new Face(this.adapter, face);
     this.body = new Body(this.adapter, body);
     this.director = new Director(this.face, this.body, director);
     this.director.busy = () => this._avatarSpeaking;
-    this.classify = classify || (jevOptions ? jev(jevOptions) : null);
+    this.classify = classify;
     this.pause = pause;
     this.onDecision = null;
 
@@ -46,12 +44,13 @@ export class MotionEngine {
     });
   }
 
-  useJev(options) {
-    this.classify = jev(options);
+  /** Set or replace the classifier, e.g. once the visitor provides a key. */
+  useClassifier(classify) {
+    this.classify = classify;
   }
 
   /**
-   * Feed transcript text as it arrives. Each sentence is one Jev call. Lines
+   * Feed transcript text as it arrives. Each sentence is one classifier call. Lines
    * from the person are not classified while the avatar is speaking: the
    * reaction would come too late.
    *
@@ -165,4 +164,4 @@ export class MotionEngine {
   }
 }
 
-export { jev, llm };
+export { systemOne };

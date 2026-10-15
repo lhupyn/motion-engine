@@ -1,5 +1,6 @@
-// Client for Jev, TypeSafe's decision model. It answers typed questions
-// (choice, yes/no) with a confidence instead of writing text.
+// Client for the System One API that decision models share (Jev, Clef…):
+// typed questions (choice, yes/no) answered with a confidence instead of text.
+// The defaults point at Jev, TypeSafe's decision model.
 //
 // OpenRouter accepts requests from any website, so a page can use the
 // visitor's own key. TypeSafe's API only accepts its own console, so use it
@@ -19,9 +20,9 @@ const PROVIDERS = {
  * @returns {(state: object|string, questions: object, opts?: {signal?: AbortSignal}) =>
  *   Promise<{answers: object, model: ?string, usage: ?object, ms: number}>}
  */
-export function jev({ apiKey, provider = 'openrouter', model, url }) {
+export function systemOne({ apiKey, provider = 'openrouter', model, url }) {
   const p = PROVIDERS[provider];
-  if (!p) throw new Error(`Unknown Jev provider "${provider}" (use openrouter or typesafe)`);
+  if (!p) throw new Error(`Unknown System One provider "${provider}" (use openrouter or typesafe)`);
   const endpoint = url || p.url;
   const modelId = model || p.model;
 
@@ -36,7 +37,7 @@ export function jev({ apiKey, provider = 'openrouter', model, url }) {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = body.error?.message || body.detail?.message || res.statusText;
-      throw new Error(`Jev ${res.status}: ${msg}`);
+      throw new Error(`System One ${res.status}: ${msg}`);
     }
     return {
       answers: body.answers ?? body,
