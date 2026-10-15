@@ -62,6 +62,11 @@ async function initAvatar() {
   studio = new MotionStudio(engine);
   const count = engine.registerMotions(motions) + engine.registerMotions(motionsTH);
 
+  // Expose for console / devtools poking (demo only)
+  window.head = head;
+  window.engine = engine;
+  window.studio = studio;
+
   // Wire up event callbacks to UI
   engine.onStart = (name) => {
     statusEl.textContent = `Playing: ${name}`;
@@ -137,6 +142,81 @@ document.querySelectorAll('[data-motion]').forEach((btn) => {
 document.querySelectorAll('[data-sequence]').forEach((btn) => {
   btn.addEventListener('click', () => handleSequence(btn.dataset.sequence));
 });
+
+// Camera view buttons (TalkingHead framing: head / upper / mid / full)
+document.querySelectorAll('[data-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const view = btn.dataset.view;
+    head.setView(view);
+    document.querySelectorAll('[data-view].active').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    log(`Camera view: ${view}`, 'warn');
+  });
+});
+
+// ③ TalkingHead native primitives (raw, driven by TH's own API)
+document.querySelectorAll('[data-mood]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.setMood(btn.dataset.mood);
+    log(`TH mood: ${btn.dataset.mood}`, 'info');
+  });
+});
+document.querySelectorAll('[data-gesture]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.playGesture(btn.dataset.gesture, 4, false, 500);
+    log(`TH gesture: ${btn.dataset.gesture}`, 'info');
+  });
+});
+document.querySelectorAll('[data-pose]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    head.playPose(btn.dataset.pose);
+    log(`TH pose: ${btn.dataset.pose}`, 'info');
+  });
+});
+
+// FACS expression buttons (7-core emotion menu → engine.expr / resetExpression)
+document.querySelectorAll('[data-expr]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const name = btn.dataset.expr;
+    document.querySelectorAll('[data-expr].active').forEach((b) => b.classList.remove('active'));
+    if (name === '__reset__') {
+      engine.resetExpression();
+      statusEl.textContent = 'FACS: neutral';
+      log('FACS reset → neutral', 'warn');
+      return;
+    }
+    const r = engine.expr(name);
+    if (r) {
+      btn.classList.add('active');
+      statusEl.textContent = `FACS: ${r.name}`;
+      log(`FACS expr: ${name} → ${r.name} (${r.kind})`, 'info');
+    } else {
+      log(`FACS expr: ${name} — unresolved`, 'error');
+    }
+  });
+});
+
+// Transcript box — full pipeline: [emotion] + ::gesture:: + emoji, stripped like the chat bubble
+const transcriptInput = document.getElementById('transcript-text');
+const btnTranscript = document.getElementById('btn-transcript');
+function runTranscript() {
+  const text = transcriptInput.value.trim();
+  if (!text) return;
+  engine.handleTranscript(text);
+  const bubble = text
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/::[^:]+::/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  log(`Transcript ▸ raw:    ${text}`, 'info');
+  log(`Transcript ▸ bubble: ${bubble}`, 'info');
+}
+if (btnTranscript) btnTranscript.addEventListener('click', runTranscript);
+if (transcriptInput) {
+  transcriptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runTranscript();
+  });
+}
 
 // Stop button
 btnStop.addEventListener('click', () => {

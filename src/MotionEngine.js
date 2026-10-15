@@ -16,6 +16,7 @@
 import { OverlayManager } from './OverlayManager.js';
 import { FaceMirror } from './FaceMirror.js';
 import { extractBaseline, EMPATHIC_PREFIX, SKIP_KEYS } from './utils.js';
+import DEFAULT_FACS from './facs.json';
 
 /** Default timing options (ms) */
 const DEFAULTS = {
@@ -27,6 +28,85 @@ const DEFAULTS = {
   poseSettleTime: 1700,
   nativeDuration: 3,
 };
+
+/**
+ * Default emoji → motion-name map for `handleTranscript()`.
+ * Emoji is the natural control channel for LLM-driven avatars: the model emits
+ * emoji in its speech, they survive in the transcription, and are not vocalized.
+ *
+ * This is a COARSE emotional-signal translation, not a 1:1 dictionary: LLMs emit
+ * a wide, partly-symbolic palette (✨ sparkle, 🎂 cake, 💥 boom) that has no facial
+ * equivalent, so whole categories collapse onto a handful of motions (positive
+ * symbols → happy/celebrate, etc.). Tune it from what your model actually emits in
+ * audio. Mood-track names persist (first per turn wins); everything else plays once.
+ * Override per consumer via `setEmojiMap()`. Names must exist in the registered catalog.
+ *
+ * A value may be a single motion name OR an array of names: a celebration emoji
+ * fires the `celebrate` action AND arms the `happy` mood, so the face matches the
+ * gesture instead of staying neutral.
+ */
+const DEFAULT_EMOJI_MAP = {
+  // ---- moods (persistent — only the first per turn is honored) ----
+  // happy + positive symbols (the LLM leans hard on ✨/🌸/sparkle as "positive")
+  '😊': 'happy', '🙂': 'happy', '😄': 'happy', '😁': 'happy', '😀': 'happy', '😃': 'happy',
+  '☺': 'happy', '🥲': 'happy', '😌': 'happy', '😇': 'happy', '🙌': 'happy',
+  '✨': 'happy', '🌟': 'happy', '💫': 'happy', '⭐': 'happy', '🌈': 'happy',
+  '🌸': 'happy', '🌼': 'happy', '🌺': 'happy', '💖': 'happy', '💕': 'happy', '💗': 'happy',
+  // love / adoration
+  '😍': 'love', '🥰': 'love', '😘': 'love', '🤩': 'love', '😻': 'love', '🤗': 'love',
+  '❤': 'love', '🧡': 'love', '💛': 'love', '💚': 'love', '💙': 'love', '💜': 'love', '💝': 'love',
+  // sad
+  '😢': 'sad', '😭': 'sad', '😔': 'sad', '😞': 'sad', '😟': 'sad', '🥺': 'sad', '☹': 'sad', '🙁': 'sad', '😣': 'sad',
+  // angry
+  '😠': 'angry', '😡': 'angry', '🤬': 'angry', '😤': 'angry',
+  // fear
+  '😨': 'fear', '😱': 'fear', '😰': 'fear', '😖': 'fear',
+  // disgust
+  '🤢': 'disgust', '🤮': 'disgust', '😝': 'disgust',
+  // curious / thinking
+  '🤔': 'curious', '👀': 'curious', '🧐': 'curious', '💭': 'curious',
+  // shy / nervous
+  '😳': 'shy', '😅': 'nervous', '😬': 'nervous',
+  // smirk / playful
+  '😏': 'smirk', '😈': 'smirk', '😼': 'smirk',
+  // sleepy
+  '😴': 'sleep', '😪': 'sleep',
+  // neutral
+  '😐': 'neutral', '😶': 'neutral', '🫤': 'neutral',
+  // ---- actions (temporal — fired on every occurrence) ----
+  '👋': 'wave_right', '👍': 'thumbup_right', '👎': 'thumbdown_right',
+  '👏': 'applause', '🙏': 'pray', '🤷': 'shrug_both', '👌': 'ok_sign',
+  // celebration: fire the action AND arm the happy mood so the face matches it
+  '🎉': ['celebrate', 'happy'], '🎊': ['celebrate', 'happy'], '🥳': ['celebrate', 'happy'],
+  '🎂': ['celebrate', 'happy'], '🍾': ['celebrate', 'happy'],
+  '💥': 'excited', '🔥': 'excited', '⚡': 'excited',
+  '😂': 'laugh', '🤣': 'laugh', '😆': 'laugh',
+  '😉': 'wink', '🙄': 'eyeroll', '🤦': 'facepalm', '🥱': 'yawn', '💃': 'dance', '🕺': 'dance',
+  '😮': 'surprised', '😲': 'surprised', '😯': 'surprised', '🤯': 'surprised',
+};
+
+/** Hoisted so handleTranscript() doesn't recompile them per transcription chunk. */
+const MARKER_RE = /::([a-z0-9_]+)::/gi;
+const EMOJI_RE = /\p{Extended_Pictographic}/gu;
+const VARIATION_SELECTOR_RE = /️/g;
+/**
+ * FACS emotion markers: `[emotion]` (e.g. `[amused]`). Also catches natural
+ * stage-directions the LLM emits in brackets (`[laughs]`, `[winks]`) and tolerates
+ * a wrapper prefix / trailing word (`[emotion:amused]`). Unresolvable brackets are
+ * ignored. The whole inside is captured; handleTranscript splits and resolves it.
+ */
+const BRACKET_RE = /\[\s*([a-zA-Z][a-zA-Z _:-]*?)\s*\]/g;
+/**
+ * Eye-animation morphs (gaze + blink) are owned by TalkingHead's idle animation,
+ * which writes them via the newvalue slot — higher priority than the compositor's
+ * baseline. These must be driven through setValue() (the system slot) to win.
+ */
+const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
+/**
+ * Wrapper keywords the LLM sometimes prefixes onto a marker, e.g.
+ * `[emotion:amused]` or `[motion:calm]`. When present, the real name is the value.
+ */
+const WRAPPER_WORDS = new Set(['motion', 'emotion', 'emotions', 'feeling', 'feelings', 'expression', 'mood', 'face', 'gesture']);
 
 /**
  * @class MotionEngine
@@ -55,6 +135,7 @@ export class MotionEngine {
     };
 
     this._motions = {};
+    this._motionAliases = {};
     this._overlays = new OverlayManager(talkingHead);
     /** @type {FaceMirror|null} */
     this._mirror = null;
@@ -65,6 +146,24 @@ export class MotionEngine {
     this.onEnd = null;
     /** @type {function(string, Error):void|null} */
     this.onError = null;
+
+    /** Emoji → motion-name map used by handleTranscript(). @type {Object<string,string>} */
+    this._emojiMap = { ...DEFAULT_EMOJI_MAP };
+    /** Whether a mood was already set in the current turn. @type {boolean} */
+    this._turnMoodSet = false;
+
+    /** FACS data (AU map + expression recipes + intensity + aliases). @type {object} */
+    this._facs = options.facs || DEFAULT_FACS;
+
+    // --- Additive expression compositor (FACS) ---
+    /** Sustained mood-expression layer: { vs, current, target }. @type {?object} */
+    this._moodExpr = null;
+    /** Transient expression beats: [{ vs, elapsed, in, hold, out }]. @type {object[]} */
+    this._beats = [];
+    /** Morphs currently driven by the compositor (for clean release). @type {Set<string>} */
+    this._exprMorphs = new Set();
+    /** Mood-expression fade in/out time (ms). */
+    this.opt.exprMoodFade = this.opt.exprMoodFade ?? 400;
   }
 
   /**
@@ -93,7 +192,11 @@ export class MotionEngine {
       ? Object.keys(this.head.gestureTemplates)
       : [];
 
+    // Motion aliases (short co-speech names → canonical motion). Merged across calls.
+    if (motions._aliases) Object.assign(this._motionAliases, motions._aliases);
+
     for (const [name, motion] of Object.entries(motions)) {
+      if (name.startsWith('_')) continue; // skip meta keys (_aliases, etc.)
       if (gestureNames.includes(name)) {
         console.warn(`[MotionEngine] Skipping "${name}" — collides with gestureTemplates.`);
         continue;
@@ -180,6 +283,7 @@ export class MotionEngine {
    * @param {number} [dur] - Optional duration override for native gestures (seconds)
    */
   async play(name, dur) {
+    name = this._motionAliases[name] || name; // resolve short co-speech aliases
     const motion = this._motions[name];
 
     // Track resolution logic
@@ -226,6 +330,353 @@ export class MotionEngine {
   stop() {
     this._sequenceStopped = true;
     this._interruptAction();
+  }
+
+  /**
+   * Drive avatar motion straight from an LLM speech transcript chunk.
+   *
+   * This is the high-level entry point for speech-driven avatars: the consumer
+   * forwards each transcription chunk and the engine routes expression itself —
+   * no marker/emoji glue on the consumer side.
+   *
+   * Three channels, one pass:
+   *   - **Emoji** (natural, token-free): mapped via the emoji map to a motion.
+   *   - **`::name::` markers**: explicit names for what emoji can't address
+   *     (left/right gestures, poses).
+   *   - **`[emotion]` / `[emotion:intensity]`**: FACS expression markers resolved
+   *     to a weighted blend of Action Units (see `expr()`).
+   *   All markers are stripped from any user-facing text by the consumer, not here.
+   *
+   * Routing rule: a **mood** motion is applied only once per turn (first wins),
+   * so an in-content emoji can't keep resetting the persistent state; **action**
+   * motions fire on every occurrence. Call `resetTurn()` at each turn boundary.
+   *
+   * @param {string} text - A transcription chunk (may contain emoji and/or markers).
+   */
+  handleTranscript(text) {
+    if (!text) return;
+
+    // All three channels resolve through _route(): a FACS name (emotion or facial
+    // action) → the AU compositor; a body/gesture name → a motion; unknown → ignored.
+
+    // Explicit ::name:: markers. matchAll clones the regex internally, so the
+    // hoisted /g consts stay reentrancy-safe.
+    for (const m of text.matchAll(MARKER_RE)) {
+      this._route(m[1].toLowerCase());
+    }
+
+    // Emoji — the natural, token-free channel. A mapped value is a name or an
+    // array of names (e.g. 🎉 → celebrate gesture + happy expression).
+    for (const e of text.matchAll(EMOJI_RE)) {
+      const raw = e[0];
+      const mapped = this._emojiMap[raw] || this._emojiMap[raw.replace(VARIATION_SELECTOR_RE, '')];
+      if (!mapped) continue;
+      if (Array.isArray(mapped)) {
+        for (const name of mapped) this._route(name);
+      } else {
+        this._route(mapped);
+      }
+    }
+
+    // FACS markers. The LLM's format varies — [name], [wrapper:name], and
+    // sometimes a trailing word ([emotion:interest:slight]) — so split on ':',
+    // drop a leading wrapper keyword (emotion/motion/feeling/…), take the name,
+    // and ignore anything after it (each expression has one fixed level).
+    for (const b of text.matchAll(BRACKET_RE)) {
+      let parts = b[1].split(':').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      if (parts.length > 1 && WRAPPER_WORDS.has(parts[0])) parts = parts.slice(1);
+      if (parts.length) this._route(parts[0]);
+    }
+  }
+
+  /**
+   * Single entry point for every expression request. A FACS name (emotion or
+   * facial action) plays through the AU compositor; a known body/gesture name
+   * plays as a motion; anything else is ignored (garbage brackets, unknown words).
+   *
+   * @param {string} name - Emotion, facial action, or gesture name
+   */
+  _route(name) {
+    if (this._hasExpr(name)) { this.expr(name); return; }
+    const motionName = this._motionAliases[name] || name;
+    if (this._hasMotion(motionName)) this._routeName(motionName);
+  }
+
+  /**
+   * Whether a name resolves to a FACS expression (emotion or facial action).
+   * @private
+   */
+  _hasExpr(name) {
+    const key = String(name || '').trim().toLowerCase();
+    return !!(this._facs.expressions?.[key] || this._facs.aliases?.[key]);
+  }
+
+  /**
+   * Whether a name is a known motion / gesture / pose (body track).
+   * @private
+   */
+  _hasMotion(name) {
+    return !!(
+      this._motions[name] ||
+      this.head.poseTemplates?.[name] ||
+      this.head.animMoods?.[name] ||
+      this.head.gestureTemplates?.[name] ||
+      this.head.animEmojis?.[name]
+    );
+  }
+
+  /**
+   * Reset per-turn state. Call on each turn boundary (e.g. turn_complete) so the
+   * "one mood per turn" rule re-arms for the next turn.
+   */
+  resetTurn() {
+    this._turnMoodSet = false;
+  }
+
+  /**
+   * Replace the emoji → motion-name map used by handleTranscript().
+   *
+   * @param {Object<string,string>} map - Emoji to motion-name mapping
+   */
+  setEmojiMap(map) {
+    this._emojiMap = { ...map };
+  }
+
+  // ===========================================================================
+  // FACS Expressions (emotion name + intensity → Action Unit blend)
+  // ===========================================================================
+
+  /**
+   * Replace the FACS data (AU map, expression recipes, intensity words, aliases).
+   * @param {object} facs
+   */
+  setFacs(facs) {
+    this._facs = facs;
+  }
+
+  /**
+   * Play a FACS expression by name, routed to the additive compositor. The name
+   * may be any emotion word (resolved via the alias table). Each expression has a
+   * single fixed intensity baked into its recipe. A `mood`-kind recipe replaces
+   * the sustained expression layer; a `beat`-kind recipe (laugh, surprise, …)
+   * fires a transient overlay. Unknown names are a no-op.
+   *
+   * @param {string} name - Emotion word (e.g. "amused", "wistful", "laughs")
+   * @returns {object|null} The resolved expression, or null if unknown
+   */
+  expr(name) {
+    const resolved = this.resolveExpression(name);
+    if (!resolved) {
+      this._emit('onError', name, new Error(`Unknown expression: ${name}`));
+      return null;
+    }
+    this._emit('onStart', resolved.name);
+    if (resolved.kind === 'beat') this._pushBeat(resolved);
+    else this._setMoodLayer(resolved);
+    return resolved;
+  }
+
+  /**
+   * Set (or clear) the sustained mood-expression layer directly. Passing a falsy
+   * name or "neutral" fades the current mood expression out.
+   * @param {?string} name - Emotion word, or null/"neutral" to clear
+   * @returns {object|null} The resolved expression, or null
+   */
+  setMoodExpression(name) {
+    const key = String(name || '').trim().toLowerCase();
+    if (!key || key === 'neutral') {
+      if (this._moodExpr) this._moodExpr.target = 0;
+      return null;
+    }
+    const resolved = this.resolveExpression(key);
+    if (!resolved) {
+      this._emit('onError', name, new Error(`Unknown expression: ${name}`));
+      return null;
+    }
+    this._setMoodLayer(resolved);
+    return resolved;
+  }
+
+  /**
+   * Clear all compositor layers (mood + beats) and release driven morphs back to
+   * their mood-baseline rest. Call on a hard reset (e.g. session end, barge-in).
+   */
+  resetExpression() {
+    this._moodExpr = null;
+    this._beats = [];
+    for (const mt of this._exprMorphs) this.head.setBaselineValue(mt, this._restBaseline(mt));
+    this._exprMorphs = new Set();
+  }
+
+  /**
+   * Replace the sustained mood layer with a resolved expression (fades in from
+   * the current level). Empty vs (neutral) fades the layer out.
+   * @private
+   */
+  _setMoodLayer(resolved) {
+    const vs = resolved.vs;
+    if (!vs || Object.keys(vs).length === 0) {
+      if (this._moodExpr) this._moodExpr.target = 0;
+      return;
+    }
+    this._moodExpr = { vs, current: this._moodExpr?.current ?? 0, target: 1 };
+  }
+
+  /**
+   * Queue a transient expression beat (bloom → hold → fade) on top of the mood.
+   * @private
+   */
+  _pushBeat(resolved) {
+    const vs = resolved.vs;
+    if (!vs || Object.keys(vs).length === 0) return;
+    const env = resolved.envelope || { in: 300, hold: 1500, out: 600 };
+    this._beats.push({ vs, elapsed: 0, in: env.in, hold: env.hold, out: env.out });
+  }
+
+  /**
+   * The mood-baseline rest value for a morph (what it would be with no expression),
+   * mirroring TalkingHead's setMood() precedence so expression sums *on top* of the
+   * active mood rather than replacing it.
+   * @private
+   * @param {string} mt
+   * @returns {number}
+   */
+  _restBaseline(mt) {
+    const head = this.head;
+    const has = (o) => o && Object.prototype.hasOwnProperty.call(o, mt);
+    if (has(head.mood?.baseline)) return head.mood.baseline[mt];
+    if (has(head.avatar?.baseline)) return head.avatar.baseline[mt];
+    if (has(head.mtBaselineExceptions)) return head.mtBaselineExceptions[mt];
+    return head.mtBaselineDefault ?? 0;
+  }
+
+  /**
+   * Per-frame additive composite: sum the mood layer (faded) and all active beats
+   * (enveloped) into per-morph weights, write them over the mood baseline, and
+   * release any morph no longer driven. Called from update().
+   * @private
+   * @param {number} dt - Delta time (ms)
+   */
+  _composite(dt) {
+    if (!this._moodExpr && this._beats.length === 0 && this._exprMorphs.size === 0) return;
+
+    const sum = {};
+    const add = (vs, scale) => {
+      if (scale <= 0) return;
+      for (const [mt, w] of Object.entries(vs)) sum[mt] = (sum[mt] || 0) + w * scale;
+    };
+
+    // Sustained mood layer, with fade in/out.
+    if (this._moodExpr) {
+      const m = this._moodExpr;
+      const step = dt / (this.opt.exprMoodFade || 400);
+      if (m.current < m.target) m.current = Math.min(m.target, m.current + step);
+      else if (m.current > m.target) m.current = Math.max(m.target, m.current - step);
+      if (m.current <= 0 && m.target === 0) this._moodExpr = null;
+      else add(m.vs, m.current);
+    }
+
+    // Transient beats, with bloom → hold → fade envelope.
+    for (let i = this._beats.length - 1; i >= 0; i--) {
+      const b = this._beats[i];
+      b.elapsed += dt;
+      const total = b.in + b.hold + b.out;
+      if (b.elapsed >= total) { this._beats.splice(i, 1); continue; }
+      let f;
+      if (b.elapsed < b.in) f = b.in > 0 ? b.elapsed / b.in : 1;
+      else if (b.elapsed < b.in + b.hold) f = 1;
+      else f = b.out > 0 ? 1 - (b.elapsed - b.in - b.hold) / b.out : 0;
+      add(b.vs, f);
+    }
+
+    // Apply: expression sums on top of the mood-baseline rest, clamped to 1.
+    // Eye-animation morphs (gaze/blink) go through setValue() — the system slot,
+    // which outranks TalkingHead's idle-eye animation; the baseline would be
+    // ignored. Everything else writes to the baseline.
+    const next = new Set();
+    for (const [mt, w] of Object.entries(sum)) {
+      const val = Math.min(1, this._restBaseline(mt) + w);
+      if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, val, 200);
+      else this.head.setBaselineValue(mt, val);
+      next.add(mt);
+    }
+    // Release morphs no longer driven. Eye morphs release by letting their brief
+    // setValue window lapse (idle resumes); the rest reset to their mood rest.
+    for (const mt of this._exprMorphs) {
+      if (next.has(mt)) continue;
+      if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this._restBaseline(mt));
+    }
+    this._exprMorphs = next;
+  }
+
+  /**
+   * Resolve an emotion word to a set of morph-target weights, without playing it.
+   * Recipe AU weights are the final levels (one fixed intensity per expression).
+   * Useful for previews/tests.
+   *
+   * @param {string} name - Emotion word (canonical, alias, or unknown)
+   * @returns {{name:string, vs:Object<string,number>, envelope?:object, kind:string}|null}
+   */
+  resolveExpression(name) {
+    const key = String(name || '').trim().toLowerCase();
+    if (!key) return null;
+
+    const f = this._facs;
+    const canonical = f.expressions?.[key] ? key : f.aliases?.[key];
+    const recipe = canonical ? f.expressions?.[canonical] : null;
+    if (!recipe) return null;
+
+    return {
+      name: canonical,
+      vs: this._ausToVs(recipe.aus || {}),
+      envelope: recipe.envelope,
+      kind: recipe.kind || 'mood',
+    };
+  }
+
+  /**
+   * Convert a weighted Action-Unit set to morph-target weights via the AU map.
+   * Supports unilateral AUs (`AU12_L` / `AU12_R`) by filtering to one side.
+   * Weights accumulate additively and clamp to [0, 1].
+   * @private
+   * @param {Object<string,number>} aus
+   * @returns {Object<string,number>}
+   */
+  _ausToVs(aus) {
+    const vs = {};
+    for (const [au, weight] of Object.entries(aus)) {
+      let side = null;
+      let baseAu = au;
+      if (au.endsWith('_L')) { side = 'Left'; baseAu = au.slice(0, -2); }
+      else if (au.endsWith('_R')) { side = 'Right'; baseAu = au.slice(0, -2); }
+
+      const morphs = this._facs.au_map?.[baseAu];
+      if (!morphs) continue;
+
+      for (const [morph, mw] of Object.entries(morphs)) {
+        if (side && !morph.includes(side)) continue; // unilateral filter
+        vs[morph] = Math.min(1, (vs[morph] || 0) + weight * mw);
+      }
+    }
+    return vs;
+  }
+
+  /**
+   * Resolve a motion name to its track and play it, honoring the per-turn mood rule.
+   * @private
+   * @param {string} name - Motion name (catalog, pose, or native mood)
+   */
+  _routeName(name) {
+    const motion = this._motions[name];
+    const track = motion?._track
+      || (this.head.poseTemplates?.[name] ? 'pose'
+        : (this.head.animMoods?.[name] ? 'mood' : 'action'));
+
+    if (track === 'mood') {
+      if (this._turnMoodSet) return; // first mood of the turn wins
+      this._turnMoodSet = true;
+    }
+    this.play(name);
   }
 
   /**
@@ -413,7 +864,16 @@ export class MotionEngine {
     const opts = { mode: 'mirror', headPose: true, ...options };
     this._mirror = new FaceMirror(opts);
     this._mirror.loadMotions(this._motions);
-    await this._mirror.init();
+    // Face mirroring depends on the optional @mediapipe/tasks-vision peer dep.
+    // If it isn't available, degrade gracefully (no mirror) instead of throwing
+    // into the caller — the avatar still works, it just doesn't read the camera.
+    try {
+      await this._mirror.init();
+    } catch (err) {
+      console.warn('[MotionEngine] Face mirror unavailable, skipping:', err?.message || err);
+      this._mirror = null;
+      return;
+    }
 
     if (opts.mode === 'empathic') {
       this._mirror.onReaction = (reactionMood, intensity, gesture) => {
@@ -539,8 +999,9 @@ export class MotionEngine {
   // ===========================================================================
 
   /**
-   * Frame update hook — delegates to OverlayManager for bone overlays
-   * and FaceMirror for expression detection.
+   * Frame update hook — delegates to OverlayManager for bone overlays,
+   * FaceMirror for expression detection, and ticks the additive FACS
+   * expression compositor (mood layer + transient beats).
    * Connect to TalkingHead via: `head.opt.update = (dt) => engine.update(dt);`
    *
    * @param {number} dt - Delta time from TalkingHead render loop
@@ -548,6 +1009,7 @@ export class MotionEngine {
   update(dt) {
     this._overlays.update(dt);
     this._mirror?.update(dt);
+    this._composite(dt);
   }
 
   // ===========================================================================

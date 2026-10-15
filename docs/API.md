@@ -15,6 +15,8 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror.
 | `poseFadeIn` | `1500` | Transition time for pose changes (ms) |
 | `poseSettleTime` | `1700` | Wait after setPoseFromTemplate (ms) |
 | `nativeDuration` | `3` | Default duration for native gestures (s) |
+| `exprMoodFade` | `400` | Fade in/out time for FACS mood expressions (ms) |
+| `facs` | built-in `facs.json` | FACS data override (AU map + expression recipes + aliases) |
 
 ### Methods
 
@@ -27,7 +29,15 @@ Full API documentation for MotionEngine, MotionStudio, and FaceMirror.
 | `freeze(enabled?)` | — | Stop all idle animations (breathing, blinking, etc.) |
 | `getMotionNames()` | `string[]` | All registered motion names |
 | `getRegisteredMotions()` | `object` | Internal motions dict (for Studio) |
-| `update(dt)` | — | Frame hook: bone overlays + face mirror |
+| `handleTranscript(text)` | — | Parse a transcript chunk (emoji, `::markers::`, `[emotion]`) and route each — face → FACS, body → motion |
+| `expr(name)` | `object\|null` | Play a FACS expression (emotion or facial action) via the compositor |
+| `setMoodExpression(name)` | `object\|null` | Set/clear the sustained mood layer (`null` or `"neutral"` fades it out) |
+| `resetExpression()` | — | Clear all FACS layers (mood + beats), release morphs to neutral |
+| `resolveExpression(name)` | `object\|null` | Resolve an emotion word → `{name, vs, kind, envelope}` without playing |
+| `setFacs(facs)` | — | Replace the FACS data (AU map + expression recipes + aliases) |
+| `setEmojiMap(map)` | — | Replace the emoji → name map used by `handleTranscript` |
+| `resetTurn()` | — | Re-arm per-turn state at a turn boundary |
+| `update(dt)` | — | Frame hook: FACS compositor + bone overlays + face mirror |
 | `startMirror(videoEl, opts?)` | `Promise<void>` | Start face mirroring (empathic or mirror mode) |
 | `stopMirror()` | — | Stop and dispose face mirror, clean up empathic state |
 | `pauseMirror()` | — | Pause face detection |
@@ -118,6 +128,39 @@ Mood entries can also include a `_react` object for empathic mode. This defines 
 | `mood` | `string` | Avatar mood to play (can differ from detected mood) |
 | `intensity` | `number` | Attenuation factor (0-1), applied to mood baselines |
 | `gesture` | `string\|undefined` | Optional action to play alongside (e.g. `"nod_yes"`) |
+
+---
+
+## FACS expression system (`facs.json`)
+
+The FACS layer is one data file with these parts:
+
+| Key | What |
+|---|---|
+| `au_map` | FACS Action Unit → ARKit base blendshapes. Unilateral via `AU12_L` / `AU12_R`. |
+| `expressions` | emotion / facial-action name → recipe (see below) |
+| `aliases` | free-text word → canonical expression (`joy`→`happy`, `frustrated`→`angry`, …) |
+| `_sources`, `_doc` | provenance (EMFACS-7, ARKit↔FACS convention, AU-Blendshape) |
+
+### Expression recipe
+
+```json
+"happy":    { "facs": "EMFACS-7 happiness: AU6+AU12", "aus": { "AU6": 0.42, "AU12": 0.7 } },
+"laugh":    { "kind": "beat", "aus": { "AU6": 0.56, "AU12": 0.7 }, "envelope": { "in": 250, "hold": 1400, "out": 500 } }
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `aus` | `Object<AU, weight>` | Action Units with their **final** weight (0–1). `morph = weight × au_map weight`, clamped. No runtime intensity — one fixed calibrated level per expression. |
+| `kind` | `"mood"` \| `"beat"` | `mood` (default) sustains until replaced/reset; `beat` is a transient bloom → hold → fade. |
+| `envelope` | `{in,hold,out}` ms | Beat timing (default `300/1500/600`). |
+| `facs` | `string` | Provenance note — ignored by the engine. |
+
+### Compositor & routing
+
+`update(dt)` sums the active **mood layer** (faded in/out) plus **beats** (enveloped) on top of the mood baseline. Eye-animation morphs (`eyeLook*`/`eyeBlink*`) are written via `setValue()` (the system slot, to outrank TalkingHead's idle-eye animation); everything else writes the baseline and yields to visemes/blinks. Sustained moods carry no mouth-opening AUs (they fight lipsync) — jaw lives only in beats.
+
+**Markers** (`handleTranscript` reads all three from the speech stream): `[emotion]` → FACS expression (small prompt menu; off-menu words resolve via aliases); `::name::` → explicit motion/gesture; emoji → mapped via the emoji map.
 
 ---
 

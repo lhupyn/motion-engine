@@ -307,7 +307,10 @@ sliderCooldown.addEventListener('input', () => {
 document.querySelectorAll('[data-mood]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const mood = btn.dataset.mood;
-    engine.play(mood);
+    // Facial names live in facs.json; body/idle names (e.g. sleep) are motions.
+    if (mood === 'neutral') engine.resetExpression();
+    else if (engine.resolveExpression(mood)) engine.expr(mood);
+    else engine.play(mood);
     moodStatusEl.textContent = mood;
     log(`Manual: ${mood}`);
   });

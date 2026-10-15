@@ -34,11 +34,16 @@ function createMockHead() {
       headRotateZ: { newvalue: 0, baseline: 0, needsUpdate: false },
     },
     avatar: { baseline: {} },
+    mood: { baseline: {} },
+    mtBaselineDefault: 0,
+    mtBaselineExceptions: {},
     poseDelta: { props: {} },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
     setPoseFromTemplate: vi.fn(),
     setMood: vi.fn(),
+    setBaselineValue: vi.fn(),
+    setValue: vi.fn(),
   };
 }
 
@@ -721,5 +726,274 @@ describe('MotionEngine', () => {
       expect(head.mtAvatar.headRotateY.newvalue).toBe(0);
       expect(head.mtAvatar.headRotateZ.newvalue).toBe(0);
     });
+  });
+});
+
+// =============================================================================
+// handleTranscript — speech-driven routing
+// =============================================================================
+
+describe('handleTranscript', () => {
+  let head, engine, playSpy, exprSpy;
+
+  beforeEach(() => {
+    head = createMockHead();
+    engine = new MotionEngine(head);
+    // Only BODY gestures live in motions now; emotions/facial-actions are FACS.
+    engine.registerMotions({
+      wave_right: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+      wave_left: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+      celebrate: { _track: 'action', dt: [300, 1000, 300], vs: {} },
+    });
+    // Spy on both destinations so we can assert which subsystem a channel hits.
+    playSpy = vi.spyOn(engine, 'play').mockResolvedValue();
+    exprSpy = vi.spyOn(engine, 'expr');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('routes an emotion emoji to the FACS compositor (😊 → expr happy)', () => {
+    engine.handleTranscript('😊 hello');
+    expect(exprSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes a body-gesture emoji to a motion, every occurrence (👋 → play wave_right)', () => {
+    engine.handleTranscript('👋 hi 👋 bye');
+    expect(playSpy).toHaveBeenNthCalledWith(1, 'wave_right');
+    expect(playSpy).toHaveBeenNthCalledWith(2, 'wave_right');
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('mixes a FACS emotion and a body gesture in one chunk (😊 👋)', () => {
+    engine.handleTranscript('😊 hi 👋');
+    expect(exprSpy).toHaveBeenCalledWith('happy');
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+  });
+
+  it('splits an array-valued emoji across subsystems (🥳 → celebrate motion + happy FACS)', () => {
+    engine.handleTranscript('🥳 we did it');
+    expect(playSpy).toHaveBeenCalledWith('celebrate');
+    expect(exprSpy).toHaveBeenCalledWith('happy');
+  });
+
+  it('matches an emoji with the U+FE0F variation selector (❤️ → love, FACS)', () => {
+    engine.handleTranscript('I love this ❤️');
+    expect(exprSpy).toHaveBeenCalledWith('love');
+  });
+
+  it('routes a ::name:: gesture marker to a motion', () => {
+    engine.handleTranscript('look ::wave_left:: now');
+    expect(playSpy).toHaveBeenCalledWith('wave_left');
+  });
+
+  it('routes a ::name:: facial marker to FACS (::look_left:: → gaze)', () => {
+    engine.handleTranscript('over there ::look_left::');
+    expect(exprSpy).toHaveBeenCalledWith('look_left');
+  });
+
+  it('parses a [emotion:intensity] bracket into FACS', () => {
+    engine.handleTranscript("that's [amused:strong] clever");
+    expect(exprSpy).toHaveBeenCalledWith('amused');
+  });
+
+  it('strips a wrapper keyword the LLM adds ([emotion:interest:slight] -> interest, slight)', () => {
+    engine.handleTranscript('a river of data [emotion:interest:slight] flows');
+    expect(exprSpy).toHaveBeenCalledWith('interest');
+  });
+
+  it('strips a wrapper keyword without intensity ([motion:calm] -> calm)', () => {
+    engine.handleTranscript('[motion:calm] breathe');
+    expect(exprSpy).toHaveBeenCalledWith('calm');
+  });
+
+  it('routes a [gesture] bracket to a motion when not a FACS name', () => {
+    engine.handleTranscript('say hi [wave_right]');
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unmapped emoji', () => {
+    engine.handleTranscript('pizza 🍕 time');
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unresolvable bracket (neither FACS nor motion)', () => {
+    engine.handleTranscript('see array[foobar] there');
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on empty or text-only input', () => {
+    engine.handleTranscript('');
+    engine.handleTranscript('plain text, no markers');
+    expect(playSpy).not.toHaveBeenCalled();
+    expect(exprSpy).not.toHaveBeenCalled();
+  });
+
+  it('honors a custom emoji map via setEmojiMap()', () => {
+    engine.setEmojiMap({ '🔥': 'wave_right' });
+    engine.handleTranscript('😊 🔥'); // 😊 no longer mapped
+    expect(playSpy).toHaveBeenCalledWith('wave_right');
+    expect(playSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// =============================================================================
+// FACS expressions — emotion name + intensity → Action Unit blend
+// =============================================================================
+
+describe('FACS expressions', () => {
+  let head, engine;
+
+  // Synthetic FACS so the resolver-math assertions don't couple to real recipe
+  // calibration (which is tuned per-model and changes over time).
+  const TEST_FACS = {
+    au_map: {
+      AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
+      AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
+    },
+    expressions: {
+      grin: { aus: { AU12: 0.8, AU6: 0.5 } },
+      wink: { aus: { AU12_L: 0.8 } },
+      none: { aus: {} },
+    },
+    aliases: { chuckles: 'grin' },
+  };
+
+  beforeEach(() => {
+    head = createMockHead();
+    engine = new MotionEngine(head);
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('resolves recipe AU weights straight to morph targets (synthetic map)', () => {
+    engine.setFacs(TEST_FACS);
+    const r = engine.resolveExpression('grin'); // AU12:0.8, AU6:0.5 — no intensity scaling
+    expect(r.name).toBe('grin');
+    expect(r.vs.mouthSmileLeft).toBeCloseTo(0.8);
+    expect(r.vs.mouthSmileRight).toBeCloseTo(0.8);
+    expect(r.vs.cheekSquintLeft).toBeCloseTo(0.5);
+  });
+
+  it('applies a unilateral AU to one side only (contempt = AU12_L + AU14_L)', () => {
+    const r = engine.resolveExpression('contempt', 'moderate');
+    expect(r.vs.mouthSmileLeft).toBeGreaterThan(0);
+    expect(r.vs.mouthSmileRight).toBeUndefined();
+    expect(r.vs.mouthDimpleLeft).toBeGreaterThan(0);
+    expect(r.vs.mouthDimpleRight).toBeUndefined();
+  });
+
+  it('resolves free-text emotion words via aliases (smirk→contempt, laughs→laugh)', () => {
+    expect(engine.resolveExpression('smirk').name).toBe('contempt');
+    expect(engine.resolveExpression('laughs').name).toBe('laugh');
+  });
+
+  it('returns null for an unknown or empty emotion', () => {
+    expect(engine.resolveExpression('flurb')).toBeNull();
+    expect(engine.resolveExpression('')).toBeNull();
+  });
+
+  it('resolves facial actions: wink (unilateral blink beat) and look_left (gaze)', () => {
+    const w = engine.resolveExpression('winks'); // alias → wink
+    expect(w.name).toBe('wink');
+    expect(w.kind).toBe('beat');
+    expect(w.vs.eyeBlinkLeft).toBeGreaterThan(0);
+    expect(w.vs.eyeBlinkRight).toBeUndefined(); // unilateral (AU43_L)
+    const g = engine.resolveExpression('look_left'); // gaze AU61
+    expect(g.vs.eyeLookOutLeft).toBeGreaterThan(0);
+    expect(g.vs.eyeLookInRight).toBeGreaterThan(0);
+  });
+
+  it('drives eye morphs via setValue (system slot), not the baseline', () => {
+    engine.expr('look_left');
+    for (let i = 0; i < 5; i++) engine.update(16); // into the hold
+    const eyeCalls = head.setValue.mock.calls.filter(([mt]) => /^eyeLook/.test(mt));
+    expect(eyeCalls.length).toBeGreaterThan(0);
+    // eye morphs must NOT be written to the baseline (idle would override)
+    const eyeBaseline = head.setBaselineValue.mock.calls.filter(([mt]) => /^eyeLook/.test(mt));
+    expect(eyeBaseline.length).toBe(0);
+  });
+
+  it('clamps additive AU overlap on the same morph to 1', () => {
+    engine.setFacs({
+      au_map: { AU12: { mouthSmileLeft: 1 }, AUX: { mouthSmileLeft: 1 } },
+      expressions: { test: { aus: { AU12: 0.8, AUX: 0.8 } } },
+      aliases: {},
+    });
+    expect(engine.resolveExpression('test').vs.mouthSmileLeft).toBe(1);
+  });
+
+  it('tags recipes with kind (happy=mood, laughs→laugh=beat)', () => {
+    expect(engine.resolveExpression('happy').kind).toBe('mood');
+    expect(engine.resolveExpression('laughs').kind).toBe('beat');
+  });
+
+  it('expr() with a mood-kind sets the sustained mood layer', () => {
+    const r = engine.expr('happy', 'moderate');
+    expect(r.name).toBe('happy');
+    expect(engine._moodExpr).not.toBeNull();
+    expect(engine._beats).toHaveLength(0);
+  });
+
+  it('expr() with a beat-kind queues a transient beat (laughs)', () => {
+    const r = engine.expr('laughs');
+    expect(r.name).toBe('laugh');
+    expect(engine._beats).toHaveLength(1);
+    expect(engine._moodExpr).toBeNull();
+  });
+
+  it('composites the mood layer additively over the mood baseline', () => {
+    engine.setFacs(TEST_FACS);
+    head.mood.baseline = { mouthSmileLeft: 0.1 };
+    engine.expr('grin', 'strong'); // AU12 0.8 @ 1.0 → mouthSmileLeft 0.8
+    for (let i = 0; i < 40; i++) engine.update(16); // fade in to current = 1
+    const last = head.setBaselineValue.mock.calls.filter(([mt]) => mt === 'mouthSmileLeft').pop();
+    expect(last).toBeDefined();
+    expect(last[1]).toBeCloseTo(0.9, 1); // 0.1 rest + 0.8 expression
+  });
+
+  it('a beat blooms then releases its morphs back to rest', () => {
+    engine.expr('laughs'); // in250 hold1400 out500 ≈ 2150ms
+    for (let i = 0; i < 5; i++) engine.update(16); // blooming
+    expect(head.setBaselineValue).toHaveBeenCalled();
+    head.setBaselineValue.mockClear();
+    for (let i = 0; i < 200; i++) engine.update(16); // run past the beat
+    expect(engine._beats).toHaveLength(0);
+    expect(engine._exprMorphs.size).toBe(0);
+    const released = head.setBaselineValue.mock.calls.filter(([, v]) => v === 0);
+    expect(released.length).toBeGreaterThan(0);
+  });
+
+  it('expr("neutral") fades any mood layer out', () => {
+    engine.expr('happy');
+    for (let i = 0; i < 40; i++) engine.update(16);
+    engine.expr('neutral');
+    expect(engine._moodExpr.target).toBe(0);
+    for (let i = 0; i < 40; i++) engine.update(16);
+    expect(engine._moodExpr).toBeNull();
+  });
+
+  it('resetExpression() clears layers and releases morphs', () => {
+    engine.expr('happy', 'strong');
+    for (let i = 0; i < 10; i++) engine.update(16);
+    engine.resetExpression();
+    expect(engine._moodExpr).toBeNull();
+    expect(engine._beats).toHaveLength(0);
+    expect(engine._exprMorphs.size).toBe(0);
+  });
+
+  it('expr() returns null and fires onError for an unknown emotion', () => {
+    const onError = vi.fn();
+    engine.onError = onError;
+    expect(engine.expr('flurb')).toBeNull();
+    expect(onError).toHaveBeenCalled();
   });
 });
