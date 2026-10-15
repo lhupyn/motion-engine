@@ -90,6 +90,7 @@ export function systemOne({ apiKey, provider = 'openrouter', model, url }) {
   };
 }
 
+/** @internal Question builders for the director. */
 export const ask = {
   /**
    * @param {string} instructions

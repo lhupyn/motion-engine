@@ -69,18 +69,3 @@ export declare function systemOne({ apiKey, provider, model, url }: {
     model?: string;
     url?: string;
 }): Classify;
-export declare const ask: {
-    /**
-     * @param {string} instructions
-     * @param {Record<string, string>} options - Option name → what it means
-     * @returns {ChoiceQuestion}
-     */
-    choice: (instructions: string, options: Record<string, string>) => ChoiceQuestion;
-    /**
-     * @param {string} instructions
-     * @param {string} whenTrue
-     * @param {string} whenFalse
-     * @returns {NoulQuestion}
-     */
-    noul: (instructions: string, whenTrue: string, whenFalse: string) => NoulQuestion;
-};

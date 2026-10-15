@@ -76,14 +76,6 @@ export type FaceOptions = {
  * @property {number} [fade=400] - Mood cross-fade, ms
  */
 export declare class Face {
-    adapter: import("./adapter.js").TalkingHeadAdapter;
-    facs: FacsCatalog;
-    fade: number;
-    _moods: any[];
-    _beats: any[];
-    _driven: Set<any>;
-    _sum: Map<any, any>;
-    _spare: Set<any>;
     /**
      * @param {import('./adapter.js').TalkingHeadAdapter} adapter
      * @param {FaceOptions} [options]
@@ -97,32 +89,9 @@ export declare class Face {
      */
     get current(): string | null;
     /**
-     * @param {string} name
-     * @returns {{name: string, kind: 'mood'|'beat', vs: Record<string, number>, envelope: ?object, offsets: Record<string, number>}|null}
-     */
-    resolve(name: string): {
-        name: string;
-        kind: 'mood' | 'beat';
-        vs: Record<string, number>;
-        envelope: object | null;
-        offsets: Record<string, number>;
-    } | null;
-    /**
      * A mood replaces the held expression (neutral just fades it out); a beat plays once on top.
      * @param {string} name
      * @returns {boolean} false if the name isn't in the catalog
      */
     play(name: string): boolean;
-    reset(): void;
-    /** @param {number} dt - ms since the last frame */
-    update(dt: number): void;
-    _offsets(offset: any): {};
-    _ausToVs(aus: any): {};
 }
-/**
- * @param {FacsCatalog} facs
- * Recipes that break the catalog's per-avatar calibration: an AU above its
- * `au_limits` level, or a combination from `avoid`.
- * @returns {string[]} One message per problem
- */
-export declare function auViolations({ au_map: map, au_limits: limits, avoid, expressions }: FacsCatalog): string[];

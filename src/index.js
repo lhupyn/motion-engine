@@ -34,6 +34,22 @@ const SILENCE_ENDS_TURN = 3000;
  */
 
 export class MotionEngine {
+  // Not part of the documented API: kept out of the published types (stripInternal).
+  /** @internal */ adapter;
+  /** @internal */ director;
+  /** @internal @type {Classify|null} */ classify;
+  /** @internal */ pause;
+  /** @internal */ _segments = { avatar: new Segmenter(), user: new Segmenter() };
+  /** @internal */ _timers = {};
+  /** @internal */ _inflight = new Map();
+  /** @internal */ _seq = 0;
+  /** @internal */ _applied = 0;
+  /** @internal */ _previous = null;
+  /** @internal */ _avatarSpeaking = false;
+  /** @internal */ _cut = false;
+  /** @internal */ _disposed = false;
+  /** @internal */ _offFrame;
+
   /**
    * @param {object} head - TalkingHead instance, after showAvatar()
    * @param {Options} [options]
@@ -46,21 +62,10 @@ export class MotionEngine {
     this.body = new Body(this.adapter, body);
     this.director = new Director(this.face, this.body, director);
     this.director.busy = () => this._avatarSpeaking;
-    /** @type {Classify|null} */
     this.classify = classify;
     this.pause = pause;
     /** @type {((decision: Decision) => void) | null} */
     this.onDecision = null;
-
-    this._segments = { avatar: new Segmenter(), user: new Segmenter() };
-    this._timers = {};
-    this._inflight = new Map();
-    this._seq = 0;
-    this._applied = 0;
-    this._previous = null;
-    this._avatarSpeaking = false;
-    this._cut = false;
-    this._disposed = false;
 
     this._offFrame = this.adapter.onFrame((dt) => {
       this.body.update(dt);
@@ -142,6 +147,7 @@ export class MotionEngine {
     this.face.reset();
   }
 
+  /** @internal */
   _endTurnAfterSilence() {
     clearTimeout(this._timers.silence);
     this._timers.silence = setTimeout(() => this._endAvatarTurn(), SILENCE_ENDS_TURN);
@@ -149,6 +155,7 @@ export class MotionEngine {
 
   // Silence, not a final fragment: also forget the heard text, or it would
   // grow across turns and break the dedupe of a later final.
+  /** @internal */
   _endAvatarTurn() {
     this._avatarSpeaking = false;
     this._cut = false;
@@ -158,6 +165,7 @@ export class MotionEngine {
     seg.reset();
   }
 
+  /** @internal */
   async _handle(text, speaker) {
     // The classifier can be removed while text is still buffered.
     if (!this.classify) return;

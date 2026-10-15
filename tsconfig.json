@@ -11,7 +11,8 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "lib": ["es2023", "dom"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "stripInternal": true
   },
   "include": ["src/**/*.js"]
 }

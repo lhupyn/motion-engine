@@ -37,6 +37,14 @@ const RAMP = 300;
  */
 
 export class Body {
+  // Not part of the documented API: kept out of the published types (stripInternal).
+  /** @internal */ adapter;
+  /** @internal @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */ gestures = {
+    head: {},
+    hands: {},
+  };
+  /** @internal */ _channels;
+
   /**
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {BodyOptions} [options]
@@ -53,8 +61,6 @@ export class Body {
   ) {
     const opt = { fadeIn, fadeOut, cutFade, settle };
     this.adapter = adapter;
-    /** @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */
-    this.gestures = { head: {}, hands: {} };
     this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
 
     const builtIn = new Set(adapter.gestureNames());
@@ -91,6 +97,7 @@ export class Body {
   /**
    * @param {string} name
    * @returns {'head'|'hands'|null}
+   * @internal
    */
   channelOf(name) {
     return Object.keys(this.gestures).find((c) => this.gestures[c][name]) ?? null;
@@ -112,7 +119,7 @@ export class Body {
     for (const c of channel ? [channel] : Object.keys(this._channels)) this._channels[c].stop();
   }
 
-  /** @param {number} dt - ms since the last frame */
+  /** @internal @param {number} dt - ms since the last frame */
   update(dt) {
     this._channels.head.update(dt);
     this._channels.hands.update(dt);

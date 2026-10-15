@@ -1,8 +1,5 @@
-import { TalkingHeadAdapter } from './adapter.js';
 import { Face } from './face.js';
 import { Body } from './body.js';
-import { Director } from './director.js';
-import { Segmenter } from './segmenter.js';
 import { systemOne } from './systemone.js';
 export type Classify = import('./systemone.js').Classify;
 export type Options = {
@@ -67,31 +64,10 @@ export type Decision = {
  * @property {string} [error] - The request failed
  */
 export declare class MotionEngine {
-    adapter: TalkingHeadAdapter;
     face: Face;
     body: Body;
-    director: Director;
-    /** @type {Classify|null} */
-    classify: Classify | null;
-    pause: number;
     /** @type {((decision: Decision) => void) | null} */
     onDecision: ((decision: Decision) => void) | null;
-    _segments: {
-        avatar: Segmenter;
-        user: Segmenter;
-    };
-    _timers: {};
-    _inflight: Map<any, any>;
-    _seq: number;
-    _applied: number;
-    _previous: {
-        speaker: any;
-        text: any;
-    } | null;
-    _avatarSpeaking: boolean;
-    _cut: boolean;
-    _disposed: boolean;
-    _offFrame: Function;
     /**
      * @param {object} head - TalkingHead instance, after showAvatar()
      * @param {Options} [options]
@@ -120,8 +96,5 @@ export declare class MotionEngine {
     interrupt(): void;
     /** Unhook from the avatar and stop everything; the engine can't be used afterwards. */
     dispose(): void;
-    _endTurnAfterSilence(): void;
-    _endAvatarTurn(): void;
-    _handle(text: any, speaker: any): Promise<void>;
 }
 export { systemOne };

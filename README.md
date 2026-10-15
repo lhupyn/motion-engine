@@ -97,7 +97,7 @@ engine.body.play('thumbs_up');    // hands channel; plays with the nod
 engine.body.stop();               // both, or stop('head') / stop('hands')
 ```
 
-`engine.face.names` and `engine.body.names` list what's available.
+`engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
 
 Besides `feed()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
 

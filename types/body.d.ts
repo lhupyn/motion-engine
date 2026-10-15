@@ -77,16 +77,6 @@ export type BodyOptions = {
  * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
  */
 export declare class Body {
-    adapter: import("./adapter.js").TalkingHeadAdapter;
-    /** @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */
-    gestures: {
-        head: Record<string, Gesture>;
-        hands: Record<string, Gesture>;
-    };
-    _channels: {
-        head: Channel;
-        hands: Channel;
-    };
     /**
      * @param {import('./adapter.js').TalkingHeadAdapter} adapter
      * @param {BodyOptions} [options]
@@ -103,11 +93,6 @@ export declare class Body {
         hands: string | null;
     };
     /**
-     * @param {string} name
-     * @returns {'head'|'hands'|null}
-     */
-    channelOf(name: string): 'head' | 'hands' | null;
-    /**
      * Interrupts the current gesture on its channel.
      * @param {string} name
      * @returns {Promise<boolean>} true when done, false if interrupted or unknown
@@ -115,34 +100,4 @@ export declare class Body {
     play(name: string): Promise<boolean>;
     /** @param {'head'|'hands'} [channel] - Both when omitted */
     stop(channel?: 'head' | 'hands'): void;
-    /** @param {number} dt - ms since the last frame */
-    update(dt: number): void;
 }
-declare class Channel {
-    adapter: any;
-    kind: any;
-    opt: any;
-    current: any;
-    frames: {};
-    _cancel: (() => void) | null;
-    _osc: Oscillation;
-    constructor(adapter: any, kind: any, opt: any);
-    play(name: any, g: any): Promise<boolean>;
-    /** @param {Array} [next] - Frames of the hand gesture taking over; without them, a real stop */
-    stop(next?: any[]): void;
-    update(dt: any): void;
-    _wait(ms: any): Promise<any>;
-}
-declare class Oscillation {
-    adapter: any;
-    _run: {
-        t: number;
-        length: any;
-        bones: [string, any][];
-    } | null;
-    constructor(adapter: any);
-    start(bones: any, length: any, delay: any): void;
-    update(dt: any): void;
-    clear(): void;
-}
-export {};

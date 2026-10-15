@@ -33,6 +33,17 @@ const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
  */
 
 export class Face {
+  // Not part of the documented API: kept out of the published types (stripInternal).
+  /** @internal */ adapter;
+  /** @internal @type {FacsCatalog} */ facs;
+  /** @internal */ fade;
+  /** @internal */ _moods = [];
+  /** @internal */ _beats = [];
+  /** @internal */ _driven = new Set();
+  // Reused every frame: the summed morphs, and the next frame's driven set.
+  /** @internal */ _sum = new Map();
+  /** @internal */ _spare = new Set();
+
   /**
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {FaceOptions} [options]
@@ -43,12 +54,6 @@ export class Face {
     // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
     for (const v of auViolations(facs)) console.warn(`[motion-engine] ${v}`);
     this.fade = fade;
-    this._moods = [];
-    this._beats = [];
-    this._driven = new Set();
-    // Reused every frame: the summed morphs, and the next frame's driven set.
-    this._sum = new Map();
-    this._spare = new Set();
   }
 
   /** @returns {string[]} */
@@ -67,6 +72,7 @@ export class Face {
   /**
    * @param {string} name
    * @returns {{name: string, kind: 'mood'|'beat', vs: Record<string, number>, envelope: ?object, offsets: Record<string, number>}|null}
+   * @internal
    */
   resolve(name) {
     const recipe = this.facs.expressions[name];
@@ -101,6 +107,7 @@ export class Face {
     return true;
   }
 
+  /** @internal */
   reset() {
     this._moods = [];
     this._beats = [];
@@ -108,7 +115,7 @@ export class Face {
     this._driven.clear();
   }
 
-  /** @param {number} dt - ms since the last frame */
+  /** @internal @param {number} dt - ms since the last frame */
   update(dt) {
     if (!this._moods.length && !this._beats.length && !this._driven.size) return;
 
@@ -147,6 +154,7 @@ export class Face {
 
   // A morph shared by AUs with different offsets follows the latest one, so a
   // staged AU never shows before what it waits for.
+  /** @internal */
   _offsets(offset) {
     const out = {};
     for (const [au, ms] of Object.entries(offset)) {
@@ -156,6 +164,7 @@ export class Face {
   }
 
   // A trailing _L/_R makes an AU unilateral.
+  /** @internal */
   _ausToVs(aus) {
     const vs = {};
     for (const [au, weight] of Object.entries(aus)) {
@@ -182,10 +191,11 @@ function beatLevel(b, offset) {
 }
 
 /**
- * @param {FacsCatalog} facs
  * Recipes that break the catalog's per-avatar calibration: an AU above its
  * `au_limits` level, or a combination from `avoid`.
+ * @param {FacsCatalog} facs
  * @returns {string[]} One message per problem
+ * @internal
  */
 export function auViolations({ au_map: map, au_limits: limits = {}, avoid = [], expressions }) {
   const out = [];
