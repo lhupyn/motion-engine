@@ -2,7 +2,7 @@
 
 Expressive face and body for [TalkingHead](https://github.com/met4citizen/TalkingHead) avatars, decided by a classifier that reads the transcript — not by tags in the LLM's output.
 
-**[Live demo](https://lhupyn.github.io/motion-engine/)** — bring your own OpenRouter key.
+**[Live demo](https://lhupyn.github.io/motion-engine/)** — try expressions and gestures right away; add an OpenRouter key to let Jev react to text.
 
 ![motion-engine demo](images/demo.jpg)
 
@@ -38,7 +38,7 @@ Measured in the demo with `typesafe/jev-1.14`: about **0.4–0.75 s** and **~$0.
         ▼
    Segmenter      sentences; a repeated final turn is deduped; filler dropped
         ▼  one call per sentence
-   Classifier     Jev by default, or your own: expression? head? hands?
+   Classifier     systemOne() (Jev by default) or your own: expression? head? hands?
         ▼         (+ "is this intelligible?" for the person's lines)
    Director       thresholds · cooldowns · one gesture per channel · relax to neutral
      ▼      ▼
@@ -99,12 +99,12 @@ No build step: plain ES modules, with the catalogs loaded as JSON modules (`impo
   "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
   "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
-  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@1.0.0/src/index.js"
+  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.0.0/src/index.js"
 } }
 </script>
 ```
 
-`@1.0.0` pins this release; use the tag you want. JSON import attributes need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. Or install from GitHub (not on npm yet) and use any bundler: `npm i github:lhupyn/motion-engine`. TalkingHead is not a dependency — bring your own (verified against 1.7).
+`@2.0.0` pins this release; use the tag you want. JSON import attributes need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. Or install from GitHub (not on npm yet) and use any bundler: `npm i github:lhupyn/motion-engine`. TalkingHead is not a dependency — bring your own (verified against 1.7).
 
 ```js
 import { TalkingHead } from 'talkinghead';
@@ -114,6 +114,7 @@ const head = new TalkingHead(document.getElementById('avatar'), { /* ... */ });
 await head.showAvatar({ url: './avatar.glb', body: 'F' });
 
 const engine = new MotionEngine(head, { classify: systemOne({ apiKey: userKey }) }); // Jev via OpenRouter
+// userKey is the visitor's own OpenRouter key: never ship yours in a bundle (see Providers and keys).
 engine.onDecision = (d) => console.log(d.text, d.actions, d.ms, d.usage);
 engine.feed('Hello! It is so nice to see you again.', { speaker: 'avatar', final: true });
 ```
@@ -215,7 +216,7 @@ Planned, not built yet:
 
 **Code:** [MIT](LICENSE), Copyright (c) 2026 lhupyn.
 
-**Demo avatar — not covered by the MIT license.** `demo/public/female_1.glb` was created with [Ready Player Me](https://readyplayer.me). Ready Player Me's terms license avatars made with its creator under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): attribution, non-commercial use only, share-alike. Ready Player Me's public service shut down on 2026-01-31. Don't use this file in commercial products; bring your own avatar.
+**Demo avatar — not covered by the MIT license.** `demo/public/female_1.glb` was created with Ready Player Me. Ready Player Me's terms license avatars made with its creator under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): attribution, non-commercial use only, share-alike. Ready Player Me's public service shut down on 2026-01-31. Don't use this file in commercial products; bring your own avatar.
 
 **Credits**
 
@@ -252,7 +253,7 @@ new MotionEngine(head, {
 | --- | --- | --- |
 | `minConfidence` | `{ expression: 0.45, head: 0.5, hands: 0.55 }` | Minimum confidence per channel. Partial objects are merged with the defaults. |
 | `minClarity` | `0.5` | For the person's lines: below this "intelligible" score, nothing plays. |
-| `cooldown` | `{ head: 2500, hands: 4000 }` | Minimum ms between gestures on each channel. |
+| `cooldown` | `{ head: 2500, hands: 4000 }` | Minimum ms between gestures on each channel. Partial objects are merged with the defaults. |
 | `relaxAfter` | `6000` | Ms after the last decision before the face relaxes to `neutral`. |
 
 **`face`**
@@ -276,7 +277,7 @@ Beats without their own `envelope` use `{ in: 300, hold: 1500, out: 600 }` ms.
 
 ## Appendix B: Catalogs
 
-Both catalogs are plain JSON and ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`), so you can start from them. Pass your own as `face: { facs }` and `body: { gestures }`:
+Both catalogs are plain JSON and ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`; with the CDN import map, import `https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.0.0/src/facs.json` instead), so you can start from them. Pass your own as `face: { facs }` and `body: { gestures }`:
 
 ```js
 import facs from './my-facs.json' with { type: 'json' };
@@ -323,7 +324,7 @@ Values below are illustrative.
 | `expressions.<name>.description` | When to use it. Without it, the classifier never picks it. |
 | `facs` | Provenance note (which AU combination, which source). Not used at runtime. |
 | `kind` | `'mood'` (default) holds until replaced and cross-fades; `'beat'` plays once on top. |
-| `aus` | AU → final level. A trailing `_L` / `_R` makes it one-sided (`AU12_L`). Final blendshape value = AU level × `au_map` weight, clamped to 0–1. |
+| `aus` | AU → final level. A trailing `_L` / `_R` makes it one-sided (`AU12_L`). Each AU adds level × `au_map` weight to its blendshapes; the sum is added to the avatar's rest level and capped at 1. |
 | `envelope` | Beats only: `{ in, hold, out }` in ms. |
 
 Keep an entry named `neutral`: the director relaxes to it.
@@ -363,7 +364,7 @@ Keep an entry named `neutral`: the director relaxes to it.
 }
 ```
 
-**Gestures.** Each `head` and `hands` entry is a TalkingHead animation template (TalkingHead's README, Appendix D): `dt` frame timings (a `[min, max]` pair counts as its midpoint), optional `rescale`, and `vs` values per frame. Head entries play as plain animations; hand entries go through TalkingHead's gesture system. Gestures are body-only by design — the face belongs to the FACS layer, and a test keeps blendshapes out of `gestures.json`.
+**Gestures.** Each `head` and `hands` entry is a TalkingHead animation template (TalkingHead's README, Appendix D): `dt` frame timings (a `[min, max]` pair is a random duration in that range; motion-engine times the gesture by its midpoint), optional `rescale`, and `vs` values per frame. Head entries play as plain animations; hand entries go through TalkingHead's gesture system. Gestures are body-only by design — the face belongs to the FACS layer, and a test keeps blendshapes out of `gestures.json`.
 
 **Hand frames.** Each frame in `vs.gesture` is `[pose, duration, mirror, transitionMs]`:
 
@@ -378,7 +379,7 @@ Frames fire at the `dt` boundaries, so several frames chain poses (`applause` al
 
 **Poses.** Pose name → bone rotations in radians (Euler XYZ), the same format as TalkingHead's `gestureTemplates`. As in TalkingHead, one-hand poses are written for the left arm and mirrored for the right. A pose can't reuse a built-in's name (it's skipped with a warning). The bundled poses are fitted to the demo avatar's proportions; on another avatar, hands may miss their target (the chest, the chin) and the poses may need re-solving.
 
-**Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (rotation offsets in radians), `phase` (z only); plus `delay` and `duration` in ms.
+**Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (rotation offsets in radians), `phase` (z only); plus `delay` (default 0) and `duration` (default: the gesture's length) in ms.
 
 ## Appendix C: Classifiers
 
@@ -454,7 +455,7 @@ new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ an
 
 ## Appendix D: FACS grounding and sources
 
-The seven core emotions (happiness, sadness, surprise, fear, anger, disgust, contempt) use the canonical EMFACS-7 Action Unit combinations. The rest of the ~30 expressions are documented blends of the same primitives; each records its provenance in its `facs` field.
+The seven core emotions (happiness, sadness, surprise, fear, anger, disgust, contempt) use the canonical EMFACS-7 Action Unit combinations. The other 32 expressions (moods and beats, besides `neutral`) are documented blends of the same primitives; each records its provenance in its `facs` field.
 
 - **EMFACS-7** — Emotional FACS (Ekman & Friesen, 1983): canonical AU combinations for the basic emotions. [paulekman.com](https://www.paulekman.com/facial-action-coding-system/)
 - **ARKit ↔ FACS** — each ARKit blendshape ≈ one FACS AU. [Melinda Ozel's cheat sheet](https://melindaozel.com/arkit-to-facs-cheat-sheet/) · [clinical blendshape ↔ AU mapping](https://www.sciencedirect.com/science/article/pii/S2451958826001995) · [interactive ARKit-52 ↔ AU guide](https://arkit.miniface.org/faces)
