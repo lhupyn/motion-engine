@@ -9,6 +9,8 @@ function fakes() {
         happy: { description: 'Glad', aus: { AU12: 0.5 } },
         tender: { description: 'Caring', aus: { AU1: 0.3 } },
         wink: { description: 'Playful wink', kind: 'beat', aus: { AU46: 0.7 } },
+        laugh: { description: 'Laugh', kind: 'beat', aus: { AU26: 0.3 } },
+        yawn: { description: 'Yawn', kind: 'beat', whileSpeaking: false, aus: { AU26: 1 } },
         look_left: { kind: 'beat', aus: { AU61: 0.5 } }, // no description → not offered
       },
     },
@@ -46,7 +48,7 @@ describe('Director', () => {
   describe('questions', () => {
     it('offers only described items, plus none', () => {
       const q = d.questions('avatar');
-      expect(Object.keys(q.expression.criteria)).toEqual(['happy', 'tender', 'wink', 'none']);
+      expect(Object.keys(q.expression.criteria)).toEqual(['happy', 'tender', 'wink', 'laugh', 'yawn', 'none']);
       expect(Object.keys(q.head.criteria)).toEqual(['nod', 'none']);
       expect(Object.keys(q.hands.criteria)).toEqual(['wave', 'clap', 'none']);
       expect(q.expression.criteria.happy).toBe('Glad');
@@ -97,6 +99,18 @@ describe('Director', () => {
       const [a] = d.apply({ expression: choice('happy') }, 'avatar');
       expect(a.reason).toBe('already showing');
       expect(face.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('a beat marked whileSpeaking: false is skipped while TalkingHead speaks; others play over the words', () => {
+      d.talking = () => true;
+      expect(d.apply({ expression: choice('yawn') }, 'avatar')[0]).toMatchObject({
+        applied: false,
+        reason: 'avatar is speaking',
+      });
+      expect(d.apply({ expression: choice('laugh') }, 'avatar')[0].applied).toBe(true);
+      expect(d.apply({ expression: choice('happy') }, 'avatar')[0].applied).toBe(true);
+      d.talking = () => false;
+      expect(d.apply({ expression: choice('yawn') }, 'avatar')[0].applied).toBe(true);
     });
 
     it('beats always play (a second wink is a new wink)', () => {

@@ -427,6 +427,7 @@
       "description": "Tongue out: cheeky teasing, silly playfulness.",
       "facs": "AU19 tongue show + lips part (AU25) + slight jaw drop (AU26)",
       "kind": "beat",
+      "whileSpeaking": false,
       "aus": {
         "AU19": 0.8,
         "AU25": 0.45,
@@ -458,6 +459,7 @@
     "open_mouth": {
       "facs": "AU25+AU26 lips part + jaw drop",
       "kind": "beat",
+      "whileSpeaking": false,
       "aus": {
         "AU25": 0.4,
         "AU26": 0.5
@@ -501,6 +503,7 @@
       "description": "A yawn: boredom or tiredness.",
       "facs": "AU1+AU25+AU26+AU43 (brows up, jaw wide open, eyes shut)",
       "kind": "beat",
+      "whileSpeaking": false,
       "aus": {
         "AU1": 0.3,
         "AU25": 0.3,

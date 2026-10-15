@@ -102,7 +102,10 @@ describe('Face', () => {
       au_limits: { AU12: { max: 0.5 } },
       expressions: { grin: { aus: { AU12: 0.9 } } },
     };
-    const face = new Face({ restBaseline: () => 0, setExpressionMorph: vi.fn(), releaseMorph: vi.fn() }, { facs });
+    const face = new Face(
+      { restBaseline: () => 0, setExpressionMorph: vi.fn(), releaseMorph: vi.fn(), duckMouth: () => () => {} },
+      { facs },
+    );
     expect(warn).toHaveBeenCalledWith('[motion-engine] grin: AU12 0.9 is above 0.5');
     expect(face.play('grin')).toBe(true);
     face.update(400);

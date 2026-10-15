@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Face } from '../src/face.js';
 import { TalkingHeadAdapter } from '../src/adapter.js';
 
@@ -24,6 +24,7 @@ const TEST_FACS = {
     AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
     AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
     AU61: { eyeLookOutLeft: 1, eyeLookInRight: 1 },
+    AU26: { jawOpen: 0.7 },
     AU19: { tongueOut: 1 },
     AU25: { mouthLowerDownLeft: 0.5 },
   },
@@ -176,6 +177,26 @@ describe('Face', () => {
     run(f, 1200);
     expect(f._beats).toHaveLength(0);
     expect(adapter.baseline.cheekSquintLeft).toBe(0);
+  });
+
+  describe('speech', () => {
+    it('hands the mouth-opening blendshapes to the lip-sync at the speechMouth floor, and takes them back on dispose', () => {
+      const off = vi.fn();
+      const duck = vi.spyOn(adapter, 'duckMouth').mockReturnValue(off);
+      const f = new Face(adapter, { facs: TEST_FACS, speechMouth: 0.2 });
+      expect(duck).toHaveBeenCalledWith(['mouthLowerDownLeft', 'jawOpen'], 0.2);
+      f.dispose();
+      expect(off).toHaveBeenCalled();
+    });
+
+    it('defaults to 0.3; speechMouth: 1 turns it off', () => {
+      const duck = vi.spyOn(adapter, 'duckMouth');
+      new Face(adapter, { facs: TEST_FACS });
+      expect(duck).toHaveBeenLastCalledWith(expect.any(Array), 0.3);
+      duck.mockClear();
+      new Face(adapter, { facs: TEST_FACS, speechMouth: 1 });
+      expect(duck).not.toHaveBeenCalled();
+    });
   });
 
   it('reset() returns every driven morph to rest at once', () => {

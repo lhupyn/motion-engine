@@ -62,6 +62,7 @@ export class MotionEngine {
     this.body = new Body(this.adapter, body);
     this.director = new Director(this.face, this.body, director);
     this.director.busy = () => this._avatarSpeaking;
+    this.director.talking = () => this.adapter.isSpeaking();
     this.classify = classify;
     this.pause = pause;
     /** @type {((decision: Decision) => void) | null} */
@@ -144,7 +145,7 @@ export class MotionEngine {
     for (const t of Object.values(this._timers)) clearTimeout(t);
     this.director.dispose();
     this.body.stop();
-    this.face.reset();
+    this.face.dispose();
   }
 
   /** @internal */

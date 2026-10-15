@@ -8,6 +8,9 @@ import FACS from './facs.json' with { type: 'json' };
 
 const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
+// AUs that open the mouth; their blendshapes give way to the lip-sync visemes.
+const MOUTH_OPENING_AUS = ['AU10', 'AU16', 'AU20', 'AU25', 'AU26', 'AU27'];
+
 /**
  * @typedef {object} Expression
  * @property {string} [description] - When to use it; without one the classifier never picks it
@@ -16,6 +19,8 @@ const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
  * @property {Record<string, number>} [aus] - AU → level; a trailing _L/_R makes it one-sided
  * @property {{in?: number, hold?: number, out?: number}} [envelope] - Beats only, ms
  * @property {Record<string, number>} [offset] - Beats only: AU → ms it starts later and ends earlier
+ * @property {boolean} [whileSpeaking=true] - Beats only: false = the director never starts it while the avatar speaks
+ *   (a yawn can't share the jaw with the lip-sync; a laugh can)
  */
 
 /**
@@ -30,6 +35,8 @@ const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
  * @typedef {object} FaceOptions
  * @property {FacsCatalog} [facs] - Default: the bundled facs.json
  * @property {number} [fade=400] - Mood cross-fade, ms
+ * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
+ *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
  */
 
 export class Face {
@@ -37,6 +44,7 @@ export class Face {
   /** @internal */ adapter;
   /** @internal @type {FacsCatalog} */ facs;
   /** @internal */ fade;
+  /** @internal */ _unduck;
   /** @internal */ _moods = [];
   /** @internal */ _beats = [];
   /** @internal */ _driven = new Set();
@@ -48,12 +56,14 @@ export class Face {
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {FaceOptions} [options]
    */
-  constructor(adapter, { facs = /** @type {FacsCatalog} */ (FACS), fade = 400 } = {}) {
+  constructor(adapter, { facs = /** @type {FacsCatalog} */ (FACS), fade = 400, speechMouth = 0.3 } = {}) {
     this.adapter = adapter;
     this.facs = facs;
     // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
     for (const v of auViolations(facs)) console.warn(`[motion-engine] ${v}`);
     this.fade = fade;
+    const mouth = new Set(MOUTH_OPENING_AUS.flatMap((au) => Object.keys(facs.au_map[au] || {})));
+    this._unduck = speechMouth < 1 ? adapter.duckMouth([...mouth], Math.max(0, speechMouth)) : () => {};
   }
 
   /** @returns {string[]} */
@@ -113,6 +123,12 @@ export class Face {
     this._beats = [];
     for (const mt of this._driven) this.adapter.releaseMorph(mt);
     this._driven.clear();
+  }
+
+  /** @internal Reset, and hand the mouth back to TalkingHead. */
+  dispose() {
+    this.reset();
+    this._unduck();
   }
 
   /** @internal @param {number} dt - ms since the last frame */

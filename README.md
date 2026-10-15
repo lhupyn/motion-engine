@@ -9,7 +9,7 @@ Expressive face and body for [TalkingHead](https://github.com/met4citizen/Talkin
 - **The main LLM just talks.** No emoji, no `[happy]` markers, no extra rules in its prompt.
 - **Jev decides.** Each sentence goes to [Jev](https://typesafe.ai), TypeSafe's decision model, which picks an expression, a head movement and a hand gesture, each with a confidence.
 - **A director filters.** Thresholds, cooldowns and a few rules decide what actually plays.
-- **FACS faces, two body channels.** Expressions are Action Unit recipes on ARKit blendshapes and leave lip-sync working; head and hand gestures play together.
+- **FACS faces, two body channels.** Expressions are Action Unit recipes on ARKit blendshapes that give way to lip-sync while speaking; head and hand gestures play together.
 
 ## Contents
 
@@ -26,7 +26,7 @@ motion-engine gives that job to a decision model that answers multiple-choice qu
 
 `feed()` → **segmenter** (sentences; a repeated final turn deduped; under two letters or only filler like `"mm"` dropped, `"No."` kept; an unfinished sentence goes after `pause` ms) → **classifier**, one call per sentence: expression? head? hands? (+ "intelligible?" for the person's lines) → **director** (rules below) → **face** (FACS compositor) and **body** (head + hands channels) → **adapter**, the only module that touches TalkingHead, contract-tested against 1.7.
 
-**Director rules.** A skipped choice reports why in `onDecision`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`, `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
+**Director rules.** A skipped choice reports why in `onDecision`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `avatar is speaking` (a beat with `whileSpeaking: false`), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`, `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
 
 ## Speaker turns
 
@@ -180,6 +180,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | --- | --- | --- |
 | `facs` | built-in `facs.json` | Expression catalog ([Appendix B](#appendix-b-catalogs)). |
 | `fade` | `400` | Mood cross-fade, ms. Beats without an `envelope` use `{ in: 300, hold: 1500, out: 600 }`. |
+| `speechMouth` | `0.3` | While a viseme plays, mouth-opening morphs (from AU10, AU16, AU20, AU25, AU26, AU27) drop to this share, so speech doesn't over-open the mouth or bare the teeth, and p/b/m still close. `1` = off. |
 
 **`body`**
 
@@ -236,6 +237,7 @@ Values are illustrative.
 | `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. |
 | `aus` | AU → level. `_L` / `_R` makes it one-sided. Each AU adds level × `au_map` weight to the avatar's rest level, capped at 1. |
 | `envelope` | Beats: `{ in, hold, out }` ms. |
+| `whileSpeaking` | Beats, default `true`. `false`: never starts while the avatar speaks (`yawn`). |
 | `offset` | Beats: `{ AU: ms }`. That AU starts `ms` later and ends `ms` earlier, nested inside the rest (`tongue_out`); capped at half of `hold`. |
 
 `au_limits` and `avoid` don't clamp: the tests fail if a bundled recipe breaks them, and a custom one plays as written with a console warning.

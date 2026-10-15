@@ -27,7 +27,7 @@ const INSTRUCTIONS = {
  * @property {string} name
  * @property {number} confidence
  * @property {boolean} applied
- * @property {string} [reason] - Why it didn't play: low confidence, already showing, already moving, cooldown, unclear transcript, not in catalog
+ * @property {string} [reason] - Why it didn't play: low confidence, already showing, avatar is speaking, already moving, cooldown, unclear transcript, not in catalog
  */
 
 /**
@@ -63,6 +63,8 @@ export class Director {
       cooldown: { ...DEFAULTS.cooldown, ...options.cooldown },
     };
     this.busy = () => false;
+    // TalkingHead's own speech state: audio runs behind the transcript.
+    this.talking = () => false;
     this._lastGesture = { head: -Infinity, hands: -Infinity };
     this._relaxTimer = null;
     this._questions = {};
@@ -110,6 +112,8 @@ export class Director {
       else if (!kind) a.reason = 'not in catalog';
       else if (!(a.confidence >= this.opt.minConfidence.expression)) a.reason = 'low confidence';
       else if (kind === 'mood' && this.face.current === a.name) a.reason = 'already showing';
+      else if (kind === 'beat' && this.face.facs.expressions[a.name].whileSpeaking === false && this.talking())
+        a.reason = 'avatar is speaking';
       else {
         this.face.play(a.name);
         a.applied = true;

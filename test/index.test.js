@@ -411,6 +411,22 @@ describe('MotionEngine', () => {
       });
     });
 
+    it("asks TalkingHead whether it's speaking: a yawn waits, a laugh plays over the words", async () => {
+      const head = fakeHead();
+      const e = new MotionEngine(head, {
+        classify: async (state) => answer(state.text.startsWith('Ha') ? 'laugh' : 'yawn'),
+      });
+      e.onDecision = (d) => decisions.push(d);
+      head.isSpeaking = true;
+      e.feed('So tired today. Ha, good one!', { final: true });
+      await flush();
+      expect(decisions.map((d) => d.actions[0])).toMatchObject([
+        { name: 'yawn', applied: false, reason: 'avatar is speaking' },
+        { name: 'laugh', applied: true },
+      ]);
+      e.dispose();
+    });
+
     it('reports classifier errors without throwing', async () => {
       classify.mockRejectedValueOnce(new Error('System One 401: No auth'));
       engine.feed('Hello there.', { final: true });

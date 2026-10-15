@@ -15,6 +15,10 @@ const OWN = Symbol('motion-engine');
 // animations get a key of their own.
 const key = (name) => `motion-engine:${name}`;
 
+// TalkingHead drives vowels at 0.6 (up to 1 at the end of long words) and PP/FF
+// at 0.9: a vowel at its usual level already counts as a fully open mouth.
+const VISEME_PEAK = 0.6;
+
 // Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
 // baseline, so they go through the system slot (it expires on its own). Every
 // other morph is written as baseline so lip-sync visemes still play over it.
@@ -126,6 +130,70 @@ export class TalkingHeadAdapter {
   /** [internal] Back to the rest level. */
   releaseMorph(mt) {
     if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this.restBaseline(mt));
+  }
+
+  /** [internal] Whether TalkingHead is playing speech (audio or lip-sync) right now. */
+  isSpeaking() {
+    return !!this.head.isSpeaking;
+  }
+
+  /**
+   * [internal] Lets the lip-sync take the mouth back: while a viseme plays, the
+   * given morphs drop to `floor` of their value (by how open the viseme is),
+   * whatever drives them. Uses TalkingHead's own per-morph hooks, the ones that
+   * make the eyelids follow the gaze: `limit` shapes the applied value and the
+   * visemes' `onchange` re-evaluates the morphs. Installed on the current avatar
+   * and in mtLimits/mtOnchange, so a reloaded avatar keeps it.
+   * @param {string[]} morphs
+   * @param {number} floor - 0 = gone at a full viseme, 1 = untouched
+   * @returns {function} Removes it, restoring any hook it wrapped
+   */
+  duckMouth(morphs, floor) {
+    const head = this.head;
+    const mt = head.mtAvatar;
+    if (!mt || !head.mtLimits || !head.mtOnchange) return () => {};
+    const visemes = Object.keys(mt).filter((n) => n.startsWith('viseme_') && n !== 'viseme_sil');
+    const targets = morphs.filter((n) => mt[n]);
+    const open = () => visemes.reduce((m, n) => Math.max(m, mt[n]?.value || 0), 0);
+    const duck = (v) => v * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK));
+
+    const undo = [];
+    // One hook per morph, in both places TalkingHead keeps it.
+    const wrap = (table, name, field, make) => {
+      const prev = table[name] ?? null;
+      const ours = make(prev);
+      table[name] = ours;
+      const entry = mt[name];
+      const live = entry?.[field] ?? null;
+      if (entry) entry[field] = live === prev ? ours : make(live);
+      const installed = entry?.[field];
+      undo.push(() => {
+        if (table[name] === ours) {
+          if (prev === null) delete table[name];
+          else table[name] = prev;
+        }
+        if (entry && entry[field] === installed) entry[field] = live;
+      });
+    };
+    for (const n of targets) wrap(head.mtLimits, n, 'limit', (prev) => (prev ? (v) => duck(prev(v)) : duck));
+    const refresh = () => {
+      for (const n of targets) if (mt[n]) mt[n].needsUpdate = true;
+    };
+    for (const n of visemes) {
+      wrap(head.mtOnchange, n, 'onchange', (prev) =>
+        prev
+          ? (v) => {
+              prev(v);
+              refresh();
+            }
+          : refresh,
+      );
+    }
+    refresh();
+    return () => {
+      for (const u of undo.reverse()) u();
+      refresh();
+    };
   }
 
   /** [internal] A morph's level with no expression, in setMood()'s precedence order. */

@@ -4,7 +4,7 @@ export type Action = {
     confidence: number;
     applied: boolean;
     /**
-     * - Why it didn't play: low confidence, already showing, already moving, cooldown, unclear transcript, not in catalog
+     * - Why it didn't play: low confidence, already showing, avatar is speaking, already moving, cooldown, unclear transcript, not in catalog
      */
     reason?: string;
 };
@@ -50,6 +50,7 @@ export declare class Director {
         };
     };
     busy: () => boolean;
+    talking: () => boolean;
     _lastGesture: {
         head: number;
         hands: number;

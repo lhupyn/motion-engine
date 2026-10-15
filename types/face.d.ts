@@ -27,6 +27,11 @@ export type Expression = {
      * - Beats only: AU → ms it starts later and ends earlier
      */
     offset?: Record<string, number>;
+    /**
+     * - Beats only: false = the director never starts it while the avatar speaks
+     * (a yawn can't share the jaw with the lip-sync; a laugh can)
+     */
+    whileSpeaking?: boolean;
 };
 export type FacsCatalog = {
     /**
@@ -53,6 +58,11 @@ export type FaceOptions = {
      * - Mood cross-fade, ms
      */
     fade?: number;
+    /**
+     * - While a viseme plays, mouth-opening morphs drop to this share of their value,
+     * so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
+     */
+    speechMouth?: number;
 };
 /**
  * @typedef {object} Expression
@@ -62,6 +72,8 @@ export type FaceOptions = {
  * @property {Record<string, number>} [aus] - AU → level; a trailing _L/_R makes it one-sided
  * @property {{in?: number, hold?: number, out?: number}} [envelope] - Beats only, ms
  * @property {Record<string, number>} [offset] - Beats only: AU → ms it starts later and ends earlier
+ * @property {boolean} [whileSpeaking=true] - Beats only: false = the director never starts it while the avatar speaks
+ *   (a yawn can't share the jaw with the lip-sync; a laugh can)
  */
 /**
  * @typedef {object} FacsCatalog
@@ -74,13 +86,15 @@ export type FaceOptions = {
  * @typedef {object} FaceOptions
  * @property {FacsCatalog} [facs] - Default: the bundled facs.json
  * @property {number} [fade=400] - Mood cross-fade, ms
+ * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
+ *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
  */
 export declare class Face {
     /**
      * @param {import('./adapter.js').TalkingHeadAdapter} adapter
      * @param {FaceOptions} [options]
      */
-    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { facs, fade }?: FaceOptions);
+    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { facs, fade, speechMouth }?: FaceOptions);
     /** @returns {string[]} */
     get names(): string[];
     /**
