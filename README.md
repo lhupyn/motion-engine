@@ -207,6 +207,7 @@ Planned, not built yet:
 
 - **Blend the top two expressions** by the probabilities Jev already returns (no extra tokens).
 - **An intensity question** — one score question, so expressions and head movements can play softer or stronger.
+- **Torso posture channel** — a third body channel for conversational posture: leaning in (interest), leaning back (surprise, doubt), shrinking (shyness). One more question per call, visible in the demo's framing.
 - **Pose authoring tool** — an FK solver that fits the catalog's poses to a new avatar.
 - **Camera-based listening** (FaceMirror) as an optional plugin.
 
@@ -220,7 +221,7 @@ Planned, not built yet:
 
 - [TalkingHead](https://github.com/met4citizen/TalkingHead) by Mika Suominen — MIT. Loaded from a CDN in the demo; not bundled.
 - [three.js](https://threejs.org) — MIT. Loaded from a CDN in the demo; not bundled.
-- [Jev](https://typesafe.ai) by TypeSafe — the decision model, used through its API.
+- [Jev](https://typesafe.ai) by TypeSafe — the default decision model, called through its API (not bundled).
 - FACS sources: [Appendix D](#appendix-d-facs-grounding-and-sources).
 
 ---
