@@ -209,6 +209,7 @@ Planned, not built yet:
 - **Blend the top two expressions** by the probabilities Jev already returns (no extra tokens).
 - **An intensity question** — one score question, so expressions and head movements can play softer or stronger.
 - **Torso posture channel** — a third body channel for conversational posture: leaning in (interest), leaning back (surprise, doubt), shrinking (shyness). One more question per call, visible in the demo's framing.
+- **Demo avatar with hair and clothes physics** — an avatar rigged with hair/clothing bones, driven by TalkingHead's Dynamic Bones, so the demo shows secondary motion with motion-engine's gestures.
 - **Pose authoring tool** — an FK solver that fits the catalog's poses to a new avatar.
 - **Camera-based listening** (FaceMirror) as an optional plugin.
 
@@ -385,6 +386,8 @@ Frames fire at the `dt` boundaries, so several frames chain poses (`applause` al
 **Poses.** Pose name → bone rotations in radians (Euler XYZ), the same format as TalkingHead's `gestureTemplates`. As in TalkingHead, one-hand poses are written for the left arm and mirrored for the right. A pose can't reuse a built-in's name (it's skipped with a warning). The bundled poses are fitted to the demo avatar's proportions; on another avatar, hands may miss their target (the chest, the chin) and the poses may need re-solving.
 
 **Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (rotation offsets in radians), `phase` (z only); plus `delay` (default 0) and `duration` (default: the gesture's length) in ms.
+
+**Hair and clothes.** Overlays are scripted. For physics — hair, skirts, coats or earrings swinging as the body moves — use TalkingHead's Dynamic Bones ([Appendix E of its README](https://github.com/met4citizen/TalkingHead#appendix-e-dynamic-bones-advanced)) on an avatar rigged with those bones: they react to motion-engine's gestures with no extra code. Extra bones add only a few KB to a GLB; the work is the rigging. The demo avatar has no such bones.
 
 ## Appendix C: Classifiers
 
