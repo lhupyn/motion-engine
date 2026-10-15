@@ -1,0 +1,139 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Face } from '../src/face.js';
+import FACS from '../src/facs.json';
+
+/** Records every morph write; rest level comes from a plain map. */
+function fakeAdapter(rest = {}) {
+  const baseline = {};
+  const system = {};
+  return {
+    baseline,
+    system,
+    restBaseline: (mt) => rest[mt] ?? 0,
+    setMorphBaseline: (mt, v) => { baseline[mt] = v; },
+    setMorphValue: (mt, v) => { system[mt] = v; },
+  };
+}
+
+// Synthetic data so the math doesn't couple to per-model calibration.
+const TEST_FACS = {
+  au_map: {
+    AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
+    AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
+    AU61: { eyeLookOutLeft: 1, eyeLookInRight: 1 },
+  },
+  expressions: {
+    neutral: { aus: {} },
+    grin: { aus: { AU12: 0.8, AU6: 0.5 } },
+    smirk: { aus: { AU12_L: 0.6 } },
+    cheeky: { aus: { AU6: 0.4 } },
+    overlap: { aus: { AU12: 0.8, AU6: 0.8 } },
+    glance: { kind: 'beat', aus: { AU61: 0.7 }, envelope: { in: 100, hold: 200, out: 100 } },
+  },
+};
+
+const run = (face, ms, step = 16) => { for (let t = 0; t < ms; t += step) face.update(step); };
+
+describe('Face', () => {
+  let adapter, face;
+  beforeEach(() => {
+    adapter = fakeAdapter({ mouthSmileLeft: 0.1 });
+    face = new Face(adapter, { facs: TEST_FACS, fade: 400 });
+  });
+
+  describe('resolve', () => {
+    it('turns AU weights into blendshape weights', () => {
+      const r = face.resolve('grin');
+      expect(r).toMatchObject({ name: 'grin', kind: 'mood' });
+      expect(r.vs).toEqual({ mouthSmileLeft: 0.8, mouthSmileRight: 0.8, cheekSquintLeft: 0.5, cheekSquintRight: 0.5 });
+    });
+
+    it('applies a unilateral AU to one side only', () => {
+      expect(face.resolve('smirk').vs).toEqual({ mouthSmileLeft: 0.6 });
+    });
+
+    it('tags beats and keeps their envelope', () => {
+      expect(face.resolve('glance')).toMatchObject({ kind: 'beat', envelope: { in: 100, hold: 200, out: 100 } });
+    });
+
+    it('returns null for names outside the catalog', () => {
+      expect(face.resolve('flurb')).toBeNull();
+    });
+  });
+
+  describe('moods', () => {
+    it('fade in on top of the rest level', () => {
+      expect(face.play('grin')).toBe(true);
+      run(face, 200);
+      expect(adapter.baseline.mouthSmileLeft).toBeGreaterThan(0.1);
+      expect(adapter.baseline.mouthSmileLeft).toBeLessThan(0.9);
+      run(face, 400);
+      expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.9); // 0.1 rest + 0.8
+    });
+
+    it('cross-fade: the old expression fades out while the new one fades in', () => {
+      face.play('grin');
+      run(face, 600);
+      face.play('smirk');
+      run(face, 200); // halfway
+      expect(adapter.baseline.mouthSmileRight).toBeGreaterThan(0);   // grin still fading out
+      expect(adapter.baseline.mouthSmileRight).toBeLessThan(0.8);
+      run(face, 400);
+      expect(adapter.baseline.mouthSmileRight).toBe(0);              // released to rest
+      expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.7);      // 0.1 rest + 0.6 smirk
+    });
+
+    it('neutral fades the held expression out and releases its morphs', () => {
+      face.play('grin');
+      run(face, 600);
+      face.play('neutral');
+      run(face, 600);
+      expect(adapter.baseline.mouthSmileLeft).toBe(0.1);
+      expect(adapter.baseline.cheekSquintLeft).toBe(0);
+    });
+
+    it('clamps overlapping weights to 1', () => {
+      face.facs = { ...TEST_FACS, au_map: { AU12: { mouthSmileLeft: 1 }, AU6: { mouthSmileLeft: 1 } } };
+      expect(face.resolve('overlap').vs.mouthSmileLeft).toBe(1);
+    });
+  });
+
+  describe('beats', () => {
+    it('drive eye morphs through the system slot, never the baseline', () => {
+      face.play('glance');
+      run(face, 150);
+      expect(adapter.system.eyeLookOutLeft).toBeGreaterThan(0);
+      expect(adapter.baseline.eyeLookOutLeft).toBeUndefined();
+    });
+
+    it('play on top of a mood and then disappear', () => {
+      face.play('grin');
+      face.play('glance');
+      run(face, 600);
+      expect(face._beats).toHaveLength(0);
+      expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.9); // the mood is untouched
+    });
+  });
+
+  it('reset() returns every driven morph to rest at once', () => {
+    face.play('grin');
+    run(face, 600);
+    face.reset();
+    expect(adapter.baseline.mouthSmileLeft).toBe(0.1);
+    expect(adapter.baseline.cheekSquintLeft).toBe(0);
+  });
+
+  it('play() refuses names outside the catalog', () => {
+    expect(face.play('flurb')).toBe(false);
+  });
+
+  it('every expression in facs.json resolves to known blendshapes', () => {
+    const real = new Face(fakeAdapter());
+    for (const name of real.names) {
+      const r = real.resolve(name);
+      if (name === 'neutral') continue;
+      expect(Object.keys(r.vs).length, name).toBeGreaterThan(0);
+      for (const w of Object.values(r.vs)) expect(w).toBeLessThanOrEqual(1);
+    }
+  });
+});

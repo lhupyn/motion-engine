@@ -1,509 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MotionEngine — Demo</title>
+  <title>motion-engine</title>
   <script type="importmap">
-  { "imports":
-    {
+  { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
       "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
       "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
-    }
-  }
+  } }
   </script>
-
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --bg: #f6f6f4;
+      --stage: #e9e8e4;
+      --panel: #ffffff;
+      --text: #1d1d1b;
+      --muted: #6b6a66;
+      --line: #dddcd7;
+      --chip: #f1f0ec;
+      --chip-hover: #e6e5e0;
+      --accent: #2f6f5e;
+      --accent-text: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141413;
+        --stage: #1c1c1a;
+        --panel: #1f1f1d;
+        --text: #ecebe7;
+        --muted: #9a9993;
+        --line: #33332f;
+        --chip: #2a2a27;
+        --chip-hover: #34342f;
+        --accent: #6fc2a8;
+        --accent-text: #10201b;
+      }
     }
 
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
     body {
-      background: #111;
-      color: #eee;
-      font-family: system-ui, sans-serif;
-      display: flex;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      display: grid;
+      grid-template-columns: 1fr 380px;
       height: 100vh;
     }
 
-    #avatar-container {
-      flex: 1;
-      position: relative;
-      background: #1a1a2e;
-    }
-
-    #avatar-container canvas {
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    #panel {
-      width: 380px;
-      padding: 20px;
-      overflow-y: auto;
-      background: #1e1e1e;
-      border-left: 1px solid #333;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    h2 {
-      font-size: 16px;
-      color: #aaa;
-      border-bottom: 1px solid #333;
-      padding-bottom: 8px;
-    }
-
-    .btn {
-      padding: 10px 16px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      background: #2a2a2a;
-      color: #eee;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all .15s;
-    }
-
-    .btn:hover {
-      background: #3a3a3a;
-      border-color: #666;
-    }
-
-    .btn:active {
-      background: #444;
-    }
-
-    .btn.active {
-      background: #1a5a2a;
-      border-color: #2a8a4a;
-    }
-
-    .btn-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .legend {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding: 8px;
-      background: #0a0a0a;
-      border-radius: 6px;
-      font-size: 10px;
-      color: #666;
-    }
-
-    .legend span {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .legend .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .btn.mood {
-      background: #2a1a2a;
-      border-color: #5a2a5a;
-    }
-
-    .btn.mood:hover {
-      background: #3a2a3a;
-      border-color: #6a3a6a;
-    }
-
-    .btn.th {
-      background: #1a2a3a;
-      border-color: #2a4a6a;
-    }
-
-    .btn.th:hover {
-      background: #2a3a4a;
-      border-color: #3a5a7a;
-    }
-
-    .btn.emoji {
-      background: #2a2a1a;
-      border-color: #5a5a2a;
-    }
-
-    .btn.emoji:hover {
-      background: #3a3a2a;
-      border-color: #6a6a3a;
-    }
-
-    .btn.facs {
-      background: #2a1f10;
-      border-color: #7a5a2a;
-    }
-
-    .btn.facs:hover {
-      background: #3a2f20;
-      border-color: #8a6a3a;
-    }
-
-    .btn.facs.active {
-      background: #7a5a2a;
-      border-color: #ba8a4a;
-    }
-
-    .btn.facs-reset {
-      grid-column: 1 / -1;
-      background: #161616;
-      border-color: #444;
-      color: #aaa;
-    }
-
-    .btn.facs-reset:hover {
-      background: #222;
-      border-color: #666;
-    }
-
-    .subtle {
-      color: #666;
-      font-weight: normal;
-      font-size: 12px;
-    }
-
-    .view-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-
-    .btn.view {
-      background: #10202a;
-      border-color: #2a5a6a;
-      padding: 8px 6px;
-    }
-
-    .btn.view:hover {
-      background: #182a34;
-      border-color: #3a6a7a;
-    }
-
-    .btn.view.active {
-      background: #2a6a7a;
-      border-color: #4a9aba;
-    }
-
-    .btn.sequence {
-      background: #3a2a1a;
-      border-color: #6a4a2a;
-    }
-
-    .btn.sequence:hover {
-      background: #4a3a2a;
-      border-color: #7a5a3a;
-    }
-
-    .btn.stop-btn {
-      background: #4a1a1a;
-      border-color: #7a2a2a;
-    }
-
-    .btn.stop-btn:hover {
-      background: #5a2a2a;
-      border-color: #8a3a3a;
-    }
-
-    .btn.audit-btn {
-      background: #1a3a3a;
-      border-color: #2a6a6a;
-    }
-
-    .btn.audit-btn:hover {
-      background: #2a4a4a;
-      border-color: #3a7a7a;
-    }
-
-    .section-label {
-      font-size: 11px;
-      color: #666;
-      text-align: center;
-      padding: 4px 0 2px;
-    }
-
-    #custom-input {
-      display: flex;
-      gap: 8px;
-    }
-
-    #custom-input input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      background: #2a2a2a;
-      color: #eee;
-      font-size: 13px;
-    }
-
-    #custom-input input::placeholder {
-      color: #666;
-    }
-
-    #log {
-      font-family: monospace;
-      font-size: 11px;
-      background: #0a0a0a;
-      border-radius: 6px;
-      padding: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      line-height: 1.5;
-      flex: 1;
-      min-height: 100px;
-    }
-
-    .log-info {
-      color: #6c9;
-    }
-
-    .log-warn {
-      color: #fc6;
-    }
-
-    .log-error {
-      color: #f66;
-    }
-
+    #stage { position: relative; background: var(--stage); min-height: 0; }
+    #avatar { position: absolute; inset: 0; }
     #status {
-      font-size: 12px;
-      color: #888;
-      padding: 8px;
-      background: #0a0a0a;
-      border-radius: 6px;
-      text-align: center;
+      position: absolute; left: 16px; bottom: 16px;
+      padding: 6px 10px; border-radius: 8px;
+      background: var(--panel); color: var(--muted); font-size: 12px;
+      border: 1px solid var(--line);
+    }
+
+    aside {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      overflow-y: auto;
+      padding: 20px 16px 32px;
+    }
+    header h1 { font-size: 18px; letter-spacing: -0.01em; }
+    header p { color: var(--muted); margin-top: 4px; }
+
+    section { margin-top: 22px; }
+    h2 {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px;
+    }
+    h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 10px 0 6px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    button {
+      font: inherit; font-size: 13px;
+      color: var(--text); background: var(--chip);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 5px 11px; cursor: pointer;
+    }
+    button:hover { background: var(--chip-hover); }
+    button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    @media (max-width: 760px) {
+      body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
     }
   </style>
 </head>
-
 <body>
-  <div id="avatar-container"></div>
-  <div id="panel">
-    <nav style="display:flex;justify-content:space-between;align-items:center">
-      <h2 style="border:none;padding:0">MotionEngine Demo</h2>
-      <span style="display:flex;gap:12px">
-        <a href="./mirror.html" style="color:#6cf;font-size:12px;text-decoration:none">Face Mirror &rarr;</a>
-        <a href="./playground.html" style="color:#6cf;font-size:12px;text-decoration:none">LLM Playground &rarr;</a>
-      </span>
-    </nav>
-    <div id="status">Loading avatar...</div>
-    <button class="btn stop-btn" id="btn-stop">⏹ Stop</button>
-    <button class="btn audit-btn" id="btn-audit">🔍 Audit Avatar</button>
-
-    <!-- ============================================================ -->
-    <!-- CAMERA (TalkingHead framing — pick a plane, then test motions) -->
-    <!-- ============================================================ -->
-    <h2>Camera <span class="subtle">(framing — what's visible)</span></h2>
-    <div class="view-grid">
-      <button class="btn view" data-view="head">Head</button>
-      <button class="btn view" data-view="upper">Upper</button>
-      <button class="btn view" data-view="mid">Mid</button>
-      <button class="btn view active" data-view="full">Full</button>
-    </div>
-
-    <div class="legend">
-      <span><span class="dot" style="background:#7a5a2a"></span> ① FACS · facs.json</span>
-      <span><span class="dot" style="background:#444"></span> ② MotionEngine · motions.json</span>
-      <span><span class="dot" style="background:#2a4a6a"></span> ③ TH native (raw)</span>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- ① FACS — FACIAL (the canonical facial system, [emotion])      -->
-    <!-- ============================================================ -->
-    <h2>① FACS — Facial <span class="subtle">([emotion] · camera: head+)</span></h2>
-
-    <div class="section-label">Emotions — 7 core</div>
-    <div class="btn-grid">
-      <button class="btn facs" data-expr="happy">😊 happy</button>
-      <button class="btn facs" data-expr="sad">😢 sad</button>
-      <button class="btn facs" data-expr="angry">😠 angry</button>
-      <button class="btn facs" data-expr="scared">😨 scared</button>
-      <button class="btn facs" data-expr="surprised">😮 surprised</button>
-      <button class="btn facs" data-expr="disgusted">🤢 disgusted</button>
-      <button class="btn facs" data-expr="confused">😕 confused</button>
-      <button class="btn facs-reset" data-expr="__reset__">↺ Neutral (reset)</button>
-    </div>
-
-    <div class="section-label">Emotions — extended</div>
-    <div class="btn-grid">
-      <button class="btn facs" data-expr="love">love</button>
-      <button class="btn facs" data-expr="excited">excited</button>
-      <button class="btn facs" data-expr="amused">amused</button>
-      <button class="btn facs" data-expr="tender">tender</button>
-      <button class="btn facs" data-expr="proud">proud</button>
-      <button class="btn facs" data-expr="relieved">relieved</button>
-      <button class="btn facs" data-expr="shy">shy</button>
-      <button class="btn facs" data-expr="curious">curious</button>
-      <button class="btn facs" data-expr="skeptical">skeptical</button>
-      <button class="btn facs" data-expr="pensive">pensive</button>
-      <button class="btn facs" data-expr="nervous">nervous</button>
-      <button class="btn facs" data-expr="disappointed">disappointed</button>
-      <button class="btn facs" data-expr="contempt">contempt</button>
-      <button class="btn facs" data-expr="pleading">pleading</button>
-      <button class="btn facs" data-expr="sleepy">sleepy</button>
-      <button class="btn facs" data-expr="pain">pain</button>
-    </div>
-
-    <div class="section-label">Facial actions</div>
-    <div class="btn-grid">
-      <button class="btn facs" data-expr="raise_eyebrows">raise brows</button>
-      <button class="btn facs" data-expr="close_eyes">close eyes</button>
-      <button class="btn facs" data-expr="squint">squint</button>
-      <button class="btn facs" data-expr="wink">wink</button>
-      <button class="btn facs" data-expr="open_mouth">open mouth</button>
-      <button class="btn facs" data-expr="tongue_out">tongue out</button>
-      <button class="btn facs" data-expr="cheek_puff">cheek puff</button>
-      <button class="btn facs" data-expr="yawn">yawn</button>
-      <button class="btn facs" data-expr="laugh">laugh</button>
-      <button class="btn facs" data-expr="kiss">kiss</button>
-      <button class="btn facs" data-expr="eyeroll">eye roll</button>
-      <button class="btn facs" data-expr="side_glance">side glance</button>
-    </div>
-
-    <div class="section-label">Gaze / deixis</div>
-    <div class="btn-grid">
-      <button class="btn facs" data-expr="look_left">look left</button>
-      <button class="btn facs" data-expr="look_right">look right</button>
-      <button class="btn facs" data-expr="look_up">look up</button>
-      <button class="btn facs" data-expr="look_down">look down</button>
-    </div>
-
-    <!-- Full pipeline: [emotion] + ::gesture:: markers stripped like the chat bubble -->
-    <h2>Transcript <span class="subtle">(LLM pipeline)</span></h2>
-    <div id="custom-input">
-      <input type="text" id="transcript-text" placeholder="[happy] Hey there! ::wave::" />
-      <button class="btn" id="btn-transcript">Run</button>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- ② MOTIONENGINE — BODY (by camera plane, ::name::)             -->
-    <!-- ============================================================ -->
-    <h2>② MotionEngine — Body <span class="subtle">(::name:: · by camera)</span></h2>
-
-    <div class="section-label">👁 Head — visible in head+</div>
-    <div class="btn-grid">
-      <button class="btn" data-motion="nod_yes">Nod Yes</button>
-      <button class="btn" data-motion="shake_no">Shake No</button>
-      <button class="btn" data-motion="head_circles">Head Circles</button>
-    </div>
-
-    <div class="section-label">🙌 Hands — needs mid/upper</div>
-    <div class="btn-grid">
-      <button class="btn" data-motion="wave_right">✋ Wave</button>
-      <button class="btn" data-motion="wave_left">✋ Wave (L)</button>
-      <button class="btn" data-motion="thumbup_right">👍 Thumbs Up</button>
-      <button class="btn" data-motion="thumbdown_right">👎 Thumbs Down</button>
-      <button class="btn" data-motion="ok_wink">👌 OK + Wink</button>
-      <button class="btn" data-motion="point">☝️ Point</button>
-      <button class="btn" data-motion="shrug_confused">🤷 Shrug</button>
-      <button class="btn" data-motion="namaste_bow">🙏 Namaste</button>
-      <button class="btn" data-motion="hand_raise">🙋 Hand Raise</button>
-      <button class="btn" data-motion="applause">👏 Applause</button>
-    </div>
-
-    <div class="section-label">🧍 Full-body — needs zoom-out (full)</div>
-    <div class="btn-grid">
-      <button class="btn" data-motion="jump">Jump</button>
-      <button class="btn" data-motion="dance">Dance</button>
-      <button class="btn" data-motion="celebrate">Celebrate</button>
-      <button class="btn" data-motion="bow">Bow</button>
-      <button class="btn" data-motion="turn_around">Turn Around</button>
-    </div>
-
-    <div class="section-label">💤 Idle / FX — any framing</div>
-    <div class="btn-grid">
-      <button class="btn" data-motion="deep_breath">Deep Breath</button>
-      <button class="btn" data-motion="shiver">Shiver</button>
-      <button class="btn" data-motion="vibrate">Vibrate</button>
-      <button class="btn" data-motion="chew">Chew</button>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- ③ TALKINGHEAD NATIVE — raw primitives (reference / A-B)       -->
-    <!-- ============================================================ -->
-    <h2>③ TalkingHead native <span class="subtle">(raw primitives · reference)</span></h2>
-
-    <div class="section-label">Moods — head.setMood()</div>
-    <div class="btn-grid">
-      <button class="btn mood" data-mood="neutral">neutral</button>
-      <button class="btn mood" data-mood="happy">happy</button>
-      <button class="btn mood" data-mood="angry">angry</button>
-      <button class="btn mood" data-mood="sad">sad</button>
-      <button class="btn mood" data-mood="fear">fear</button>
-      <button class="btn mood" data-mood="disgust">disgust</button>
-      <button class="btn mood" data-mood="love">love</button>
-      <button class="btn mood" data-mood="sleep">sleep</button>
-    </div>
-
-    <div class="section-label">Gestures — head.playGesture()</div>
-    <div class="btn-grid">
-      <button class="btn th" data-gesture="handup">handup</button>
-      <button class="btn th" data-gesture="index">index</button>
-      <button class="btn th" data-gesture="ok">ok</button>
-      <button class="btn th" data-gesture="thumbup">thumbup</button>
-      <button class="btn th" data-gesture="thumbdown">thumbdown</button>
-      <button class="btn th" data-gesture="side">side</button>
-      <button class="btn th" data-gesture="shrug">shrug</button>
-      <button class="btn th" data-gesture="namaste">namaste</button>
-    </div>
-
-    <div class="section-label">Poses — head.playPose() · needs full</div>
-    <div class="btn-grid">
-      <button class="btn th" data-pose="side">side</button>
-      <button class="btn th" data-pose="hip">hip</button>
-      <button class="btn th" data-pose="turn">turn</button>
-      <button class="btn th" data-pose="bend">bend</button>
-      <button class="btn th" data-pose="back">back</button>
-      <button class="btn th" data-pose="straight">straight</button>
-      <button class="btn th" data-pose="wide">wide</button>
-      <button class="btn th" data-pose="oneknee">oneknee</button>
-      <button class="btn th" data-pose="kneel">kneel</button>
-      <button class="btn th" data-pose="sitting">sitting</button>
-    </div>
-
-    <div class="section-label">Emojis — animEmoji dispatch (120 total)</div>
-    <div class="btn-grid">
-      <button class="btn emoji" data-motion="😊">😊</button>
-      <button class="btn emoji" data-motion="😂">😂</button>
-      <button class="btn emoji" data-motion="😍">😍</button>
-      <button class="btn emoji" data-motion="😮">😮</button>
-      <button class="btn emoji" data-motion="😢">😢</button>
-      <button class="btn emoji" data-motion="😠">😠</button>
-      <button class="btn emoji" data-motion="🤔">🤔</button>
-      <button class="btn emoji" data-motion="😴">😴</button>
-      <button class="btn emoji" data-motion="🥳">🥳</button>
-      <button class="btn emoji" data-motion="😏">😏</button>
-      <button class="btn emoji" data-motion="😜">😜</button>
-      <button class="btn emoji" data-motion="🙄">🙄</button>
-    </div>
-
-    <h2>Custom Motion</h2>
-    <div id="custom-input">
-      <input type="text" id="motion-text" placeholder="wave_left, 😊, side, straight..." />
-      <button class="btn" id="btn-generate">Go</button>
-    </div>
-
-    <h2>Log</h2>
-    <div id="log"></div>
+  <div id="stage">
+    <div id="avatar"></div>
+    <div id="status">Loading avatar…</div>
   </div>
 
-  <script type="module" src="./demo.js"></script>
-</body>
+  <aside>
+    <header>
+      <h1>motion-engine</h1>
+      <p>Expressive face and body for TalkingHead avatars.</p>
+    </header>
 
+    <section>
+      <h2>Camera</h2>
+      <div class="chips" id="camera"></div>
+    </section>
+
+    <section>
+      <h2>Face</h2>
+      <h3>Expressions — held until replaced</h3>
+      <div class="chips" id="moods"></div>
+      <h3>Beats — play once</h3>
+      <div class="chips" id="beats"></div>
+    </section>
+
+    <section>
+      <h2>Body</h2>
+      <div class="chips" id="gestures"></div>
+    </section>
+  </aside>
+
+  <script type="module" src="./main.js"></script>
+</body>
 </html>
