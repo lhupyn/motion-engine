@@ -49,6 +49,11 @@ export class Face {
     return Object.keys(this.facs.expressions);
   }
 
+  /** The held (mood) expression the face is showing or fading into, or null. */
+  get current() {
+    return this._moods.find((m) => m.target === 1)?.name ?? null;
+  }
+
   /**
    * Resolve an expression to blendshape weights without playing it.
    * @param {string} name
@@ -79,7 +84,7 @@ export class Face {
       return true;
     }
     for (const m of this._moods) m.target = 0;
-    if (Object.keys(r.vs).length) this._moods.push({ vs: r.vs, level: 0, target: 1 });
+    if (Object.keys(r.vs).length) this._moods.push({ name, vs: r.vs, level: 0, target: 1 });
     return true;
   }
 

@@ -119,6 +119,7 @@
       "aus": {}
     },
     "happy": {
+      "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
       "facs": "EMFACS-7 happiness: AU6+AU12",
       "aus": {
         "AU6": 0.28,
@@ -126,6 +127,7 @@
       }
     },
     "sad": {
+      "description": "Sadness: sorrow, grief, bad news, missing someone.",
       "facs": "EMFACS-7 sadness: AU1+AU4+AU15",
       "aus": {
         "AU1": 0.42,
@@ -134,6 +136,7 @@
       }
     },
     "surprise": {
+      "description": "Surprise: unexpected news, astonishment, 'really?!'.",
       "facs": "EMFACS-7 surprise: AU1+AU2+AU5+AU26",
       "aus": {
         "AU1": 0.49,
@@ -142,6 +145,7 @@
       }
     },
     "fear": {
+      "description": "Fear: scared, alarmed, anxious about a threat.",
       "facs": "EMFACS-7 fear: AU1+AU2+AU4+AU5+AU7+AU20+AU26",
       "aus": {
         "AU1": 0.42,
@@ -153,6 +157,7 @@
       }
     },
     "angry": {
+      "description": "Anger: annoyed, indignant, outraged.",
       "facs": "EMFACS-7 anger: AU4+AU5+AU7+AU23",
       "aus": {
         "AU4": 0.63,
@@ -162,6 +167,7 @@
       }
     },
     "disgust": {
+      "description": "Disgust: gross, revolting, distaste.",
       "facs": "EMFACS-7 disgust: AU9+AU10+AU15+AU16",
       "aus": {
         "AU9": 0.56,
@@ -170,6 +176,7 @@
       }
     },
     "contempt": {
+      "description": "Contempt or smugness: one-sided smirk, superiority, sarcasm.",
       "facs": "EMFACS-7 contempt: R12+R14 (unilateral)",
       "aus": {
         "AU12_L": 0.42,
@@ -177,6 +184,7 @@
       }
     },
     "laugh": {
+      "description": "A brief laugh: something genuinely funny, a joke landing.",
       "facs": "extension: intensified happiness (AU6+AU12) + open jaw (AU26)",
       "kind": "beat",
       "aus": {
@@ -191,6 +199,7 @@
       }
     },
     "excited": {
+      "description": "Excitement: thrilled, can't wait, high-energy enthusiasm.",
       "facs": "extension: happiness + wide eyes (AU5) + jaw",
       "aus": {
         "AU5": 0.28,
@@ -199,6 +208,7 @@
       }
     },
     "amused": {
+      "description": "Amused: playful, teasing, light-hearted, mildly funny.",
       "facs": "extension: happiness + dimpler (AU14), softer smile",
       "aus": {
         "AU6": 0.28,
@@ -208,6 +218,7 @@
       }
     },
     "wistful": {
+      "description": "Wistful: bittersweet nostalgia, gentle longing.",
       "facs": "extension: sadness x happiness (AU1 + faint AU6/AU12)",
       "aus": {
         "AU1": 0.35,
@@ -216,6 +227,7 @@
       }
     },
     "tender": {
+      "description": "Tender warmth: caring, comforting, compassionate, gentle support.",
       "facs": "extension: happiness + inner-brow warmth (AU1)",
       "aus": {
         "AU1": 0.18,
@@ -224,6 +236,7 @@
       }
     },
     "love": {
+      "description": "Affection: adoration, deep fondness, loving.",
       "facs": "extension: happiness + AU1",
       "aus": {
         "AU1": 0.14,
@@ -232,6 +245,7 @@
       }
     },
     "proud": {
+      "description": "Pride: accomplishment, confidence, praising someone's achievement.",
       "facs": "extension: contained smile + slight AU7/AU1",
       "aus": {
         "AU1": 0.11,
@@ -240,6 +254,7 @@
       }
     },
     "relieved": {
+      "description": "Relief: a worry resolved, 'phew', reassurance.",
       "facs": "extension: gentle happiness + soft jaw",
       "aus": {
         "AU6": 0.21,
@@ -247,6 +262,7 @@
       }
     },
     "shy": {
+      "description": "Shy: bashful, embarrassed, flattered by a compliment.",
       "facs": "extension: unilateral smile + AU7 + AU1",
       "aus": {
         "AU1": 0.14,
@@ -255,6 +271,7 @@
       }
     },
     "curious": {
+      "description": "Curiosity: interested, intrigued, wanting to know more.",
       "facs": "extension: alert brow raise (AU1+AU2+AU5)",
       "aus": {
         "AU1": 0.28,
@@ -263,6 +280,7 @@
       }
     },
     "skeptical": {
+      "description": "Skepticism: doubt, disbelief, 'are you sure?'.",
       "facs": "extension: asymmetric brow (AU2_L raise + AU4_R lower) + AU7",
       "aus": {
         "AU2_L": 0.42,
@@ -271,6 +289,7 @@
       }
     },
     "confused": {
+      "description": "Confusion: puzzled, not understanding, lost.",
       "facs": "extension: asymmetric brow (AU4_L + AU2_R) + AU1",
       "aus": {
         "AU1": 0.14,
@@ -279,6 +298,7 @@
       }
     },
     "pensive": {
+      "description": "Thoughtful: considering, reflecting, weighing an answer.",
       "facs": "extension: mild brow lower + lid tighten (AU1+AU4+AU7)",
       "aus": {
         "AU1": 0.14,
@@ -287,6 +307,7 @@
       }
     },
     "nervous": {
+      "description": "Nervous: awkward, uneasy, apprehensive.",
       "facs": "extension: lip stretch/press (AU20+AU24) + AU7 + faint smile",
       "aus": {
         "AU7": 0.21,
@@ -296,6 +317,7 @@
       }
     },
     "disappointed": {
+      "description": "Disappointment: let down, mild regret, 'that's a shame'.",
       "facs": "extension: sadness-lite + chin raise (AU17)",
       "aus": {
         "AU1": 0.28,
@@ -305,12 +327,14 @@
       }
     },
     "sleepy": {
+      "description": "Sleepy or tired: drowsy, exhausted, bedtime.",
       "facs": "extension: drooping lids (AU43) + slight jaw",
       "aus": {
         "AU43": 0.35
       }
     },
     "pain": {
+      "description": "Physical pain: ouch, hurt, wincing.",
       "facs": "extension: FACS pain (AU4+AU6+AU7+AU9+AU10)",
       "aus": {
         "AU4": 0.49,
@@ -321,6 +345,7 @@
       }
     },
     "pleading": {
+      "description": "Pleading: begging, 'please', an earnest request.",
       "facs": "extension: raised inner brow + slight frown (AU1+AU2+AU15)",
       "aus": {
         "AU1": 0.49,
@@ -330,6 +355,7 @@
       }
     },
     "wink": {
+      "description": "A playful wink: a shared secret, a joke, flirting.",
       "facs": "AU46 wink (unilateral blink)",
       "kind": "beat",
       "aus": {
@@ -342,6 +368,7 @@
       }
     },
     "kiss": {
+      "description": "Blowing a kiss: affectionate goodbye, 'mwah'.",
       "facs": "AU18 lip pucker",
       "kind": "beat",
       "aus": {
@@ -354,6 +381,7 @@
       }
     },
     "tongue_out": {
+      "description": "Tongue out: cheeky teasing, silly playfulness.",
       "facs": "AU19 tongue show",
       "kind": "beat",
       "aus": {
@@ -378,6 +406,7 @@
       }
     },
     "raise_eyebrows": {
+      "description": "A quick eyebrow flash: emphasis, greeting, 'oh!', interest.",
       "facs": "AU1+AU2 brow flash",
       "kind": "beat",
       "aus": {
@@ -417,6 +446,7 @@
       }
     },
     "eyeroll": {
+      "description": "An eye roll: exasperation, mock annoyance, 'whatever'.",
       "facs": "gaze up (AU63)",
       "kind": "beat",
       "aus": {
@@ -429,6 +459,7 @@
       }
     },
     "yawn": {
+      "description": "A yawn: boredom or tiredness.",
       "facs": "AU26+AU43 (jaw open + eyes shut)",
       "kind": "beat",
       "aus": {
@@ -442,6 +473,7 @@
       }
     },
     "side_glance": {
+      "description": "A sideways glance: suspicion, conspiratorial teasing.",
       "facs": "gaze aside (AU62)",
       "kind": "beat",
       "aus": {

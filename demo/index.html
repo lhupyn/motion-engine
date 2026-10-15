@@ -23,6 +23,9 @@
       --chip-hover: #e6e5e0;
       --accent: #2f6f5e;
       --accent-text: #ffffff;
+      --ok: #2f6f5e;
+      --skip: #8a8780;
+      --error: #b3402e;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -36,6 +39,9 @@
         --chip-hover: #34342f;
         --accent: #6fc2a8;
         --accent-text: #10201b;
+        --ok: #6fc2a8;
+        --skip: #8f8e88;
+        --error: #e07a63;
       }
     }
 
@@ -86,6 +92,30 @@
     button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+    input[type=text], input[type=password] {
+      font: inherit; width: 100%; min-width: 0;
+      color: var(--text); background: var(--bg);
+      border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    }
+    input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .row + .row, .row + .chips, .chips + .row { margin-top: 8px; }
+    .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .note a { color: inherit; }
+
+    #log { list-style: none; padding: 0; margin-top: 12px; display: grid; gap: 8px; }
+    #log li {
+      border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+      font-size: 12px; background: var(--bg);
+    }
+    #log .line { font-size: 13px; color: var(--text); }
+    #log .who { color: var(--muted); }
+    #log .acts { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; }
+    #log .applied { color: var(--ok); }
+    #log .skipped { color: var(--skip); }
+    #log .error { color: var(--error); }
+    #log .meta { color: var(--muted); margin-top: 4px; }
+
     @media (max-width: 760px) {
       body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
       aside { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
@@ -103,6 +133,28 @@
       <h1>motion-engine</h1>
       <p>Expressive face and body for TalkingHead avatars.</p>
     </header>
+
+    <section>
+      <h2>Talk to it</h2>
+      <div class="row">
+        <input id="key" type="password" placeholder="OpenRouter API key" autocomplete="off" />
+        <button id="key-save">Use</button>
+      </div>
+      <p class="note" id="key-note">
+        Jev decides the reactions. Your key stays in this browser and is sent only to openrouter.ai.
+      </p>
+
+      <div class="row chips" id="speaker" role="group" aria-label="Who says it">
+        <button data-speaker="user" class="on">You say it</button>
+        <button data-speaker="avatar">The avatar says it</button>
+      </div>
+      <form class="row" id="say">
+        <input id="text" type="text" placeholder="Estoy triste, alégrame el día" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+      <div class="chips" id="phrases"></div>
+      <ol id="log" reversed></ol>
+    </section>
 
     <section>
       <h2>Camera</h2>
