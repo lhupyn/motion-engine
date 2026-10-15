@@ -14,6 +14,7 @@
  */
 
 import { OverlayManager } from './OverlayManager.js';
+import { TalkingHeadAdapter } from './TalkingHeadAdapter.js';
 import { FaceMirror } from './FaceMirror.js';
 import { extractBaseline, EMPATHIC_PREFIX, SKIP_KEYS } from './utils.js';
 import DEFAULT_FACS from './facs.json';
@@ -124,7 +125,8 @@ export class MotionEngine {
    * @param {number} [options.nativeDuration=3]       - Default duration for native gestures (s)
    */
   constructor(talkingHead, options = {}) {
-    this.head = talkingHead;
+    /** The only path to TalkingHead — see TalkingHeadAdapter. */
+    this.adapter = new TalkingHeadAdapter(talkingHead);
     this.opt = { ...DEFAULTS, ...options };
 
     /** Multi-track state machine */
@@ -136,7 +138,7 @@ export class MotionEngine {
 
     this._motions = {};
     this._motionAliases = {};
-    this._overlays = new OverlayManager(talkingHead);
+    this._overlays = new OverlayManager(this.adapter);
     /** @type {FaceMirror|null} */
     this._mirror = null;
 
@@ -188,9 +190,7 @@ export class MotionEngine {
    */
   registerMotions(motions) {
     let count = 0;
-    const gestureNames = this.head.gestureTemplates
-      ? Object.keys(this.head.gestureTemplates)
-      : [];
+    const gestureNames = this.adapter.gestureNames();
 
     // Motion aliases (short co-speech names → canonical motion). Merged across calls.
     if (motions._aliases) Object.assign(this._motionAliases, motions._aliases);
@@ -243,13 +243,13 @@ export class MotionEngine {
       this._motions[name] = entry;
 
       // Mood-track motions: inject into TH's animMoods so setMood() works natively
-      if (entry._track === 'mood' && this.head.animMoods) {
+      if (entry._track === 'mood' && this.adapter.supportsMoods()) {
         this._registerMood(name, entry);
       }
 
       // Register without metadata as animEmoji on TalkingHead
       const { _overlay, _description, _tags, _track, ...animEmoji } = entry;
-      this.head.animEmojis[name] = animEmoji;
+      this.adapter.registerAnim(name, animEmoji);
       count++;
     }
 
@@ -290,9 +290,9 @@ export class MotionEngine {
     let trackName = 'action';
     if (motion) {
       trackName = motion._track || 'action';
-    } else if (this.head.poseTemplates?.[name]) {
+    } else if (this.adapter.hasPose(name)) {
       trackName = 'pose';
-    } else if (this.head.animMoods?.[name]) {
+    } else if (this.adapter.hasMood(name)) {
       trackName = 'mood';
     }
 
@@ -415,10 +415,10 @@ export class MotionEngine {
   _hasMotion(name) {
     return !!(
       this._motions[name] ||
-      this.head.poseTemplates?.[name] ||
-      this.head.animMoods?.[name] ||
-      this.head.gestureTemplates?.[name] ||
-      this.head.animEmojis?.[name]
+      this.adapter.hasPose(name) ||
+      this.adapter.hasMood(name) ||
+      this.adapter.hasGesture(name) ||
+      this.adapter.hasAnim(name)
     );
   }
 
@@ -501,7 +501,7 @@ export class MotionEngine {
   resetExpression() {
     this._moodExpr = null;
     this._beats = [];
-    for (const mt of this._exprMorphs) this.head.setBaselineValue(mt, this._restBaseline(mt));
+    for (const mt of this._exprMorphs) this.adapter.setMorphBaseline(mt, this._restBaseline(mt));
     this._exprMorphs = new Set();
   }
 
@@ -539,12 +539,7 @@ export class MotionEngine {
    * @returns {number}
    */
   _restBaseline(mt) {
-    const head = this.head;
-    const has = (o) => o && Object.prototype.hasOwnProperty.call(o, mt);
-    if (has(head.mood?.baseline)) return head.mood.baseline[mt];
-    if (has(head.avatar?.baseline)) return head.avatar.baseline[mt];
-    if (has(head.mtBaselineExceptions)) return head.mtBaselineExceptions[mt];
-    return head.mtBaselineDefault ?? 0;
+    return this.adapter.restBaseline(mt);
   }
 
   /**
@@ -593,15 +588,15 @@ export class MotionEngine {
     const next = new Set();
     for (const [mt, w] of Object.entries(sum)) {
       const val = Math.min(1, this._restBaseline(mt) + w);
-      if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, val, 200);
-      else this.head.setBaselineValue(mt, val);
+      if (EYE_ANIM_RE.test(mt)) this.adapter.setMorphValue(mt, val, 200);
+      else this.adapter.setMorphBaseline(mt, val);
       next.add(mt);
     }
     // Release morphs no longer driven. Eye morphs release by letting their brief
     // setValue window lapse (idle resumes); the rest reset to their mood rest.
     for (const mt of this._exprMorphs) {
       if (next.has(mt)) continue;
-      if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this._restBaseline(mt));
+      if (!EYE_ANIM_RE.test(mt)) this.adapter.setMorphBaseline(mt, this._restBaseline(mt));
     }
     this._exprMorphs = next;
   }
@@ -666,8 +661,8 @@ export class MotionEngine {
   _routeName(name) {
     const motion = this._motions[name];
     const track = motion?._track
-      || (this.head.poseTemplates?.[name] ? 'pose'
-        : (this.head.animMoods?.[name] ? 'mood' : 'action'));
+      || (this.adapter.hasPose(name) ? 'pose'
+        : (this.adapter.hasMood(name) ? 'mood' : 'action'));
 
     if (track === 'mood') {
       if (this._turnMoodSet) return; // first mood of the turn wins
@@ -694,30 +689,24 @@ export class MotionEngine {
   freeze(enabled = true) {
     if (enabled) {
       this._previousMood = this.tracks.mood.name || 'neutral';
-      this._previousIdle = {
-        eye: this.head.opt.avatarIdleEyeContact,
-        head: this.head.opt.avatarIdleHeadMove,
-        spkEye: this.head.opt.avatarSpeakingEyeContact,
-        spkHead: this.head.opt.avatarSpeakingHeadMove
-      };
+      this._previousIdle = this.adapter.getIdleOptions();
 
-      this.head.animMoods['frozen'] = {
+      this.adapter.registerMood('frozen', {
         baseline: {},
         speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
         anims: []
-      };
-      this.head.setMood('frozen');
-      this.head.opt.avatarIdleEyeContact = 0;
-      this.head.opt.avatarIdleHeadMove = 0;
-      this.head.opt.avatarSpeakingEyeContact = 0;
-      this.head.opt.avatarSpeakingHeadMove = 0;
-      this.head.animQueue = [];
+      });
+      this.adapter.setMood('frozen');
+      this.adapter.setIdleOptions({
+        avatarIdleEyeContact: 0,
+        avatarIdleHeadMove: 0,
+        avatarSpeakingEyeContact: 0,
+        avatarSpeakingHeadMove: 0,
+      });
+      this.adapter.clearAnimQueue();
     } else if (this._previousIdle) {
-      this.head.setMood(this._previousMood || 'neutral');
-      this.head.opt.avatarIdleEyeContact = this._previousIdle.eye;
-      this.head.opt.avatarIdleHeadMove = this._previousIdle.head;
-      this.head.opt.avatarSpeakingEyeContact = this._previousIdle.spkEye;
-      this.head.opt.avatarSpeakingHeadMove = this._previousIdle.spkHead;
+      this.adapter.setMood(this._previousMood || 'neutral');
+      this.adapter.setIdleOptions(this._previousIdle);
     }
   }
 
@@ -731,9 +720,8 @@ export class MotionEngine {
    */
   _playPose(name, motion) {
     this.tracks.pose = { active: true, name, startTime: performance.now(), motion, isNative: !motion };
-    if (this.head.poseTemplates?.[name]) {
-      this.head.poseName = name;
-      this.head.setPoseFromTemplate(this.head.poseTemplates[name], this.opt.poseFadeIn);
+    if (this.adapter.hasPose(name)) {
+      this.adapter.playPoseTemplate(name, this.opt.poseFadeIn);
     }
   }
 
@@ -758,10 +746,10 @@ export class MotionEngine {
 
     // Delegate entirely to TalkingHead's native mood system
     try {
-      this.head.setMood(name);
+      this.adapter.setMood(name);
     } catch {
       // Mood not in animMoods — fall back to neutral
-      this.head.setMood('neutral');
+      this.adapter.setMood('neutral');
     }
   }
 
@@ -794,7 +782,7 @@ export class MotionEngine {
         }, ol.delay || 0);
       }
 
-      this.head.playGesture(name, Infinity, false, this.opt.gestureFadeIn);
+      this.adapter.playGesture(name, Infinity, false, this.opt.gestureFadeIn);
 
       try {
         await this._waitAction(totalMs);
@@ -803,7 +791,7 @@ export class MotionEngine {
             clearTimeout(this.tracks.action.overlayTimer);
             this.tracks.action.overlayTimer = null;
           }
-          this.head.stopGesture(this.opt.gestureFadeOut);
+          this.adapter.stopGesture(this.opt.gestureFadeOut);
           await this._waitAction(this.opt.stopSettleTime);
           this.tracks.action.active = false;
           this._emit('onEnd', name);
@@ -812,7 +800,7 @@ export class MotionEngine {
         if (e.name !== 'AbortError') throw e;
       }
 
-    } else if (this.head.gestureTemplates?.[name] || this.head.animEmojis?.[name]) {
+    } else if (this.adapter.hasGesture(name) || this.adapter.hasAnim(name)) {
       // Native gesture/emoji fallback
       this.tracks.action = {
         active: true, name, isNative: true,
@@ -820,7 +808,7 @@ export class MotionEngine {
         cancelFn: null, motion: null, overlayTimer: null,
       };
       const d = dur || this.opt.nativeDuration;
-      this.head.playGesture(name, d, false, this.opt.gestureFadeIn);
+      this.adapter.playGesture(name, d, false, this.opt.gestureFadeIn);
 
       try {
         await this._waitAction(d * 1000 + this.opt.gestureFadeIn);
@@ -899,11 +887,7 @@ export class MotionEngine {
     this._mirror = null;
 
     // Clean up empathic mood entry
-    if (this.head.animMoods) {
-      for (const key of Object.keys(this.head.animMoods)) {
-        if (key.startsWith(EMPATHIC_PREFIX)) delete this.head.animMoods[key];
-      }
-    }
+    this.adapter.removeMoodsWithPrefix(EMPATHIC_PREFIX);
 
     // Reset head pose
     this.setHeadPose(0, 0, 0);
@@ -945,13 +929,11 @@ export class MotionEngine {
    * @param {number} intensity - Attenuation factor (0-1)
    */
   playMoodAttenuated(name, intensity) {
-    const source = this.head.animMoods?.[name];
+    const source = this.adapter.getMood(name);
     if (!source) return;
 
     // Clean up previous empathic mood
-    for (const key of Object.keys(this.head.animMoods)) {
-      if (key.startsWith(EMPATHIC_PREFIX)) delete this.head.animMoods[key];
-    }
+    this.adapter.removeMoodsWithPrefix(EMPATHIC_PREFIX);
 
     // Create attenuated baseline
     const baseline = {};
@@ -962,14 +944,14 @@ export class MotionEngine {
     }
 
     const empathicName = `${EMPATHIC_PREFIX}${name}`;
-    const neutral = this.head.animMoods['neutral'];
-    this.head.animMoods[empathicName] = {
+    const neutral = this.adapter.getMood('neutral');
+    this.adapter.registerMood(empathicName, {
       baseline,
       speech: source.speech || { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
       anims: neutral?.anims ? [...neutral.anims] : [],
-    };
+    });
 
-    this.head.setMood(empathicName);
+    this.adapter.setMood(empathicName);
     this.tracks.mood = {
       active: true, name: empathicName,
       startTime: performance.now(), motion: null, isNative: false,
@@ -984,11 +966,7 @@ export class MotionEngine {
    * @param {number} roll  - Z rotation (tilt)
    */
   setHeadPose(pitch, yaw, roll) {
-    const mt = this.head.mtAvatar;
-    if (!mt) return;
-    if (mt.headRotateX) { mt.headRotateX.newvalue = pitch; mt.headRotateX.needsUpdate = true; }
-    if (mt.headRotateY) { mt.headRotateY.newvalue = yaw; mt.headRotateY.needsUpdate = true; }
-    if (mt.headRotateZ) { mt.headRotateZ.newvalue = roll; mt.headRotateZ.needsUpdate = true; }
+    this.adapter.setHeadRotation(pitch, yaw, roll);
   }
 
   // ===========================================================================
@@ -1029,14 +1007,14 @@ export class MotionEngine {
     const baseline = extractBaseline(entry.vs);
 
     // Copy idle animations from neutral mood (breathing, eyes, blink, etc.)
-    const neutral = this.head.animMoods?.['neutral'];
+    const neutral = this.adapter.getMood('neutral');
     const anims = neutral?.anims ? [...neutral.anims] : [];
 
-    this.head.animMoods[name] = {
+    this.adapter.registerMood(name, {
       baseline,
       speech: { deltaRate: 0, deltaPitch: 0, deltaVolume: 0 },
       anims,
-    };
+    });
   }
 
   // ===========================================================================
@@ -1056,7 +1034,7 @@ export class MotionEngine {
       clearTimeout(this.tracks.action.overlayTimer);
       this.tracks.action.overlayTimer = null;
     }
-    this.head.stopGesture(this.opt.stopFade);
+    this.adapter.stopGesture(this.opt.stopFade);
     this.tracks.action.active = false;
   }
 

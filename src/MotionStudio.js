@@ -57,29 +57,20 @@ export class MotionStudio {
    * @returns {{ morphTargets: string[], bones: string[] }}
    */
   getAvatarCapabilities() {
-    const head = this.engine.head;
+    const adapter = this.engine.adapter;
     const caps = { morphTargets: [], bones: [] };
 
     // Discover morph targets (filtered to whitelist)
-    if (head.mtAvatar) {
-      const allMTs = Object.keys(head.mtAvatar);
-      caps.morphTargets = allMTs.filter(mt =>
-        this._morphWhitelist.includes(mt) ||
-        mt.toLowerCase().includes('smile') ||
-        mt.toLowerCase().includes('blink')
-      );
-    }
+    caps.morphTargets = adapter.morphNames().filter(mt =>
+      this._morphWhitelist.includes(mt) ||
+      mt.toLowerCase().includes('smile') ||
+      mt.toLowerCase().includes('blink')
+    );
 
     // Discover bones (filtered to whitelist)
-    const bones = [];
-    const group = head.armature || head.group;
-    if (group && typeof group.traverse === 'function') {
-      group.traverse((obj) => {
-        if (obj.isBone && this._boneWhitelist.some(w => obj.name.includes(w))) {
-          bones.push(obj.name);
-        }
-      });
-    }
+    const bones = adapter.boneNames().filter(name =>
+      this._boneWhitelist.some(w => name.includes(w))
+    );
     caps.bones = [...new Set(bones)];
 
     return caps;

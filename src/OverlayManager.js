@@ -10,8 +10,11 @@
 const FADE_RAMP_MS = 300;
 
 export class OverlayManager {
-    constructor(head) {
-        this.head = head;
+    /**
+     * @param {import('./TalkingHeadAdapter.js').TalkingHeadAdapter} adapter
+     */
+    constructor(adapter) {
+        this.adapter = adapter;
         this.overlay = null;
         this._cache = [];
     }
@@ -50,7 +53,7 @@ export class OverlayManager {
         const fadeOut = Math.min((this.overlay.duration - elapsed) / FADE_RAMP_MS, 1);
         const envelope = fadeIn * fadeOut;
 
-        const props = this.head.poseDelta?.props;
+        const props = this.adapter.poseDeltaProps();
         if (!props) {
             if (!this._warned) {
                 console.warn("[OverlayManager] TalkingHead poseDelta.props not found. Ensure usePoseDelta:true is set.");
@@ -82,7 +85,7 @@ export class OverlayManager {
 
     clear() {
         if (!this.overlay) return;
-        const props = this.head.poseDelta?.props;
+        const props = this.adapter.poseDeltaProps();
         if (props) {
             for (let i = 0; i < this._cache.length; i++) {
                 const { isJump, posKey, quatKey } = this._cache[i];
