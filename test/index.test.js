@@ -34,7 +34,8 @@ describe('MotionEngine', () => {
     const head = fakeHead();
     const engine = new MotionEngine(head);
     expect(engine.body.names.length).toBeGreaterThan(0);
-    expect(Object.keys(head.animEmojis)).toEqual(engine.body.names);
+    expect(Object.keys(head.animEmojis)).toHaveLength(engine.body.names.length);
+    expect(head.gestureTemplates).toHaveProperty('palms_up');
   });
 
   it('hooks into the render loop: a frame drives the face', () => {

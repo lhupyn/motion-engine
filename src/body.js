@@ -3,7 +3,8 @@
 //   hands — arm gestures, through TalkingHead's gesture system
 // Each channel plays one gesture at a time; a new one interrupts the current
 // one on its channel. An optional overlay adds per-bone sine oscillations or a
-// jump arc through TalkingHead's pose deltas.
+// jump arc through TalkingHead's pose deltas. Hand gestures move the arms to
+// TalkingHead's built-in poses (handup, namaste…) or to the catalog's own `poses`.
 
 import GESTURES from './gestures.json' with { type: 'json' };
 
@@ -13,8 +14,8 @@ export class Body {
   /**
    * @param {TalkingHeadAdapter} adapter
    * @param {object} [options]
-   * @param {{head: object, hands: object}} [options.gestures]
-   * @param {number} [options.fadeIn=800]
+   * @param {{head: object, hands: object, poses?: object}} [options.gestures]
+   * @param {number} [options.fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
    * @param {number} [options.fadeOut=800]
    * @param {number} [options.cutFade=100] - Fade when interrupted
    * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
@@ -26,15 +27,17 @@ export class Body {
     this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
 
     const builtIn = new Set(adapter.gestureNames());
+    for (const [name, props] of Object.entries(gestures.poses || {})) {
+      if (builtIn.has(name)) {
+        console.warn(`[motion-engine] Pose "${name}" collides with a TalkingHead built-in; skipped.`);
+        continue;
+      }
+      adapter.registerPose(name, props);
+    }
     for (const channel of Object.keys(this.gestures)) {
       for (const [name, g] of Object.entries(gestures[channel] || {})) {
-        if (builtIn.has(name)) {
-          // A template named like a built-in gesture would play itself recursively.
-          console.warn(`[motion-engine] Gesture "${name}" collides with a TalkingHead built-in; skipped.`);
-          continue;
-        }
         this.gestures[channel][name] = g;
-        adapter.registerAnim(name, toTemplate(g));
+        adapter.registerAnim(name, toTemplate(g, fadeIn));
       }
     }
   }
@@ -81,7 +84,9 @@ class Channel {
   }
 
   async play(name, g) {
-    this.stop();
+    // A new hand gesture takes the arms over from the current one instead of
+    // dropping them to the stance first.
+    this.stop(this.kind === 'hands' ? g : null);
     this.current = name;
     const total = duration(g.dt);
     if (this.kind === 'hands') this.adapter.playGesture(name, Infinity, false, this.opt.fadeIn);
@@ -97,12 +102,14 @@ class Channel {
     return true;
   }
 
-  stop() {
+  /** @param {object} [next] - Hand gesture taking over; without one, a real stop */
+  stop(next = null) {
     if (!this.current) return;
     this._cancel?.();
     this._osc.clear();
-    if (this.kind === 'hands') this.adapter.stopGesture(this.opt.cutFade);
-    else this.adapter.stopAnim(this.current);
+    if (this.kind === 'head') this.adapter.stopAnim(this.current);
+    else if (next) this.adapter.handOver(framePoses(next), framesOf(next)[0]?.[3] ?? this.opt.fadeIn);
+    else this.adapter.stopGesture(this.opt.cutFade);
     this.current = null;
   }
 
@@ -174,15 +181,25 @@ class Oscillation {
   }
 }
 
-// JSON has no Infinity: null in a gesture frame means "hold".
-function toTemplate({ dt, rescale, vs }) {
+// A gesture frame is [pose, duration, mirror, transitionMs]. JSON has no
+// Infinity, so a null duration means "hold"; a missing transition gets fadeIn
+// (TalkingHead's own default is a slow 1 s).
+function toTemplate({ dt, rescale, vs }, fadeIn) {
   const t = { dt, vs: structuredClone(vs) };
   if (rescale) t.rescale = rescale;
   for (const frame of t.vs.gesture || []) {
-    if (Array.isArray(frame)) for (let i = 0; i < frame.length; i++) if (frame[i] === null) frame[i] = Infinity;
+    if (!Array.isArray(frame)) continue;
+    frame[1] ??= Infinity;
+    frame[2] ??= false;
+    frame[3] ??= fadeIn;
   }
   return t;
 }
+
+const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
+
+// The [pose, mirror] pairs a hand gesture moves the arms to.
+const framePoses = (g) => framesOf(g).map(([pose, , mirror]) => [pose, !!mirror]);
 
 // A [min, max] timing counts as its midpoint.
 function duration(dt) {

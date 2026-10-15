@@ -6,6 +6,15 @@
 // [appendix] documented extension dictionaries (README, Appendix D)
 // [internal] undocumented — re-check first on every upgrade
 
+// Marks the gesture templates registered here, so a second engine on the same
+// avatar can replace them instead of treating them as built-ins.
+const OWN = Symbol('motion-engine');
+
+// playGesture(name) applies the gesture template AND plays the animation of that
+// name, so a registered "shrug" would drag in TalkingHead's own shrug. Our
+// animations get a key of their own.
+const key = (name) => `motion-engine:${name}`;
+
 export class TalkingHeadAdapter {
   constructor(head) {
     this.head = head;
@@ -24,19 +33,24 @@ export class TalkingHeadAdapter {
     };
   }
 
-  /** [appendix] */
+  /** [appendix] Gesture templates that TalkingHead ships or the app added (not the poses registered here). */
   gestureNames() {
-    return Object.keys(this.head.gestureTemplates || {});
+    return Object.entries(this.head.gestureTemplates || {}).filter(([, t]) => !t[OWN]).map(([name]) => name);
   }
 
-  /** [appendix] Makes the template playable with playGesture(name). */
+  /** [appendix] An arm/hand pose (bone rotations) that gesture frames can use like a built-in. */
+  registerPose(name, props) {
+    this.head.gestureTemplates[name] = { ...props, [OWN]: true };
+  }
+
+  /** [appendix] Makes the template playable with playGesture(name) and playAnim(name). */
   registerAnim(name, template) {
-    this.head.animEmojis[name] = template;
+    this.head.animEmojis[key(name)] = template;
   }
 
-  /** [public] */
+  /** [public] Plays a registered animation through the gesture system, so stopGesture() ends it. */
   playGesture(name, dur, mirror, ms) {
-    this.head.playGesture(name, dur, mirror, ms);
+    this.head.playGesture(key(name), dur, mirror, ms);
   }
 
   /** [public] */
@@ -44,9 +58,30 @@ export class TalkingHeadAdapter {
     this.head.stopGesture(ms);
   }
 
+  /**
+   * [internal] Ends the current hand gesture for a new one: bones that the next
+   * poses move stay put and go straight to their new target; the rest return to
+   * the stance in ms. (A new playGesture() alone would leave them stuck.)
+   * @param {Array<[string, boolean]>} next - [pose, mirror] pairs
+   */
+  handOver(next, ms) {
+    const head = this.head;
+    if (head.gesture) {
+      const kept = new Set();
+      for (const [pose, mirror] of next) {
+        for (const prop of Object.keys(head.gestureTemplates[pose] || {})) {
+          const bone = prop.replace('.rotation', '.quaternion');
+          kept.add(mirror ? bone.replace(/^(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left')) : bone);
+        }
+      }
+      head.gesture = Object.fromEntries(Object.entries(head.gesture).filter(([bone]) => !kept.has(bone)));
+    }
+    head.stopGesture(ms);
+  }
+
   /** [internal] Play a registered animation alongside any gesture; untagged, so stopGesture() leaves it running. */
   playAnim(name) {
-    const anim = this.head.animFactory(this.head.animEmojis[name]);
+    const anim = this.head.animFactory(this.head.animEmojis[key(name)]);
     anim.motionEngine = name;
     this.head.animQueue.push(anim);
   }

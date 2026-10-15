@@ -83,7 +83,37 @@ describe('adapter verbs', () => {
     const a = new TalkingHeadAdapter(head);
     a.registerAnim('nod', { dt: [100] });
     expect(a.gestureNames()).toEqual(['handup', 'ok']);
-    expect(head.animEmojis.nod).toEqual({ dt: [100] });
+    expect(Object.values(head.animEmojis)).toEqual([{ dt: [100] }]);
+  });
+
+  it('keeps a registered animation apart from a gesture template of the same name', () => {
+    const head = makeHead();
+    const a = new TalkingHeadAdapter(head);
+    a.registerAnim('ok', { dt: [100] });
+    a.playGesture('ok', Infinity, false, 300);
+    const [played] = head.playGesture.mock.calls[0];
+    expect(played).not.toBe('ok');
+    expect(head.animEmojis[played]).toEqual({ dt: [100] });
+  });
+
+  it('registers poses as gesture templates, kept out of gestureNames() so they can be replaced', () => {
+    const head = makeHead();
+    const a = new TalkingHeadAdapter(head);
+    const pose = { 'LeftArm.rotation': { x: 1, y: 0, z: 0.5 } };
+    a.registerPose('palm_out', pose);
+    expect(Object.entries(head.gestureTemplates.palm_out)).toEqual(Object.entries(pose));
+    expect(a.gestureNames()).toEqual(['handup', 'ok']);
+  });
+
+  it('hands over: bones the next poses move stay, the rest go back to the stance', () => {
+    const head = makeHead();
+    head.gestureTemplates.handup = { 'LeftArm.rotation': { x: 1, y: 0, z: 1 }, 'LeftHand.rotation': { x: 0, y: 0, z: 0 } };
+    head.gesture = { 'LeftArm.quaternion': {}, 'RightArm.quaternion': {}, 'RightHand.quaternion': {} };
+    let released;
+    head.stopGesture.mockImplementation(() => { released = Object.keys(head.gesture); });
+    new TalkingHeadAdapter(head).handOver([['handup', true]], 300);
+    expect(released).toEqual(['LeftArm.quaternion']);
+    expect(head.stopGesture).toHaveBeenCalledWith(300);
   });
 
   it('runs a head animation untagged, so stopGesture() cannot remove it', () => {

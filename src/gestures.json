@@ -2,118 +2,222 @@
   "head": {
     "nod": {
       "description": "A head nod: agreeing, saying yes, confirming.",
-      "dt": [350,350,350,350],
-      "vs": {"headMove":[0],"headRotateX":[0.15,0.1,0.15,0],"headRotateZ":[0]}
+      "dt": [260,240,240,320],
+      "vs": {"headMove":[0],"headRotateX":[0.18,-0.03,0.13,0],"headRotateZ":[0]}
+    },
+
+    "nod_small": {
+      "description": "A small listening nod: \"mm-hm\", following along, acknowledging.",
+      "dt": [220,200,200,260],
+      "vs": {"headMove":[0],"headRotateX":[0.09,0,0.07,0]}
     },
 
     "shake": {
       "description": "A head shake: disagreeing, saying no, disbelief.",
-      "dt": [350,350,350,350,350],
-      "vs": {"headMove":[0],"headRotateY":[-0.08,0.08,-0.08,0.08,0],"headRotateZ":[0]}
+      "dt": [280,300,280,260,300],
+      "vs": {"headMove":[0],"headRotateY":[-0.16,0.16,-0.12,0.08,0],"headRotateZ":[0]}
+    },
+
+    "tilt": {
+      "description": "A head tilt: curious, sympathetic, listening closely.",
+      "dt": [450,1800,600],
+      "vs": {"headMove":[0],"headRotateZ":[-0.18,-0.18,0],"headRotateX":[0.04,0.04,0]}
     },
 
     "bow": {
       "description": "A small bow: thanking, apologizing, showing respect.",
-      "dt": [600,300,800,800],
-      "rescale": [0,0,1,0],
-      "vs": {"headMove":[0],"bodyRotateX":[0.2,0.25,0.25,0],"headRotateX":[0.15,0.2,0.2,0]}
+      "dt": [500,600,600],
+      "vs": {"headMove":[0],"bodyRotateX":[0.12,0.12,0],"headRotateX":[0.12,0.12,0]}
     }
   },
 
   "hands": {
-    "wave_right": {
-      "description": "Waving the right hand: hello or goodbye.",
-      "dt": [300,2500,500],
-      "rescale": [0,1,0],
-      "vs": {"gesture":[["handup",null,true],null]},
-      "overlay": {"bones":{"RightHand":{"freq":8,"amp":[0,0.12,0.12],"phase":0},"RightForeArm":{"freq":8,"amp":[0.04,0,0.08],"phase":1.5707963267948966}},"delay":400,"duration":2500}
-    },
-
-    "wave_left": {
-      "description": "Waving the left hand: hello or goodbye.",
-      "dt": [300,2500,500],
-      "rescale": [0,1,0],
-      "vs": {"gesture":[["handup",null,false],null]},
-      "overlay": {"bones":{"LeftHand":{"freq":8,"amp":[0,0.12,0.12],"phase":0},"LeftForeArm":{"freq":8,"amp":[0.04,0,0.08],"phase":1.5707963267948966}},"delay":400,"duration":2500}
-    },
-
-    "hand_raise": {
-      "description": "Raising the right hand: asking to speak, volunteering, \"me!\".",
-      "dt": [300,2000],
+    "open_palms": {
+      "description": "Open palms: explaining, offering an idea, \"here is the thing\".",
+      "dt": [100,2200],
       "rescale": [0,1],
-      "vs": {"gesture":[["handup",null,true],null]}
+      "vs": {"gesture":[["palms_up",null,false,600],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":7,"amp":[0,0.06,0],"phase":0},"LeftForeArm":{"freq":7,"amp":[0,-0.06,0],"phase":0}},"delay":700,"duration":1600}
     },
 
-    "hand_raise_left": {
-      "description": "Raising the left hand: asking to speak, volunteering, \"me!\".",
-      "dt": [300,2000],
+    "hand_on_heart": {
+      "description": "Hand on heart: thanks, sincerity, empathy, \"I mean it\".",
+      "dt": [100,2200],
       "rescale": [0,1],
-      "vs": {"gesture":[["handup",null],null]}
+      "vs": {"gesture":[["hand_on_chest",null,true,700],null]}
     },
 
-    "thumbs_up": {
-      "description": "Thumbs up: approval, well done, sounds good.",
-      "dt": [300,2000],
+    "think": {
+      "description": "Finger to cheek: thinking it over, \"let me see\", pondering.",
+      "dt": [100,2500],
       "rescale": [0,1],
-      "vs": {"gesture":[["thumbup",null],null]}
+      "vs": {"gesture":[["finger_on_cheek",null,true,700],null]}
     },
 
-    "thumbs_down": {
-      "description": "Thumbs down: disapproval, that is bad.",
-      "dt": [300,2000],
+    "wait": {
+      "description": "Palm forward: \"hold on\", \"wait a moment\", stop.",
+      "dt": [50,1800],
       "rescale": [0,1],
-      "vs": {"bodyRotateX":[0.15],"gesture":[["thumbdown",null],null]}
-    },
-
-    "ok_sign": {
-      "description": "OK sign: all good, perfect, understood.",
-      "dt": [300,2000],
-      "rescale": [0,1],
-      "vs": {"gesture":[["ok",null],null]}
+      "vs": {"gesture":[["palm_forward",null,true,400],null]}
     },
 
     "point": {
       "description": "Pointing forward: \"you\", \"that one\", directing attention.",
-      "dt": [300,2000,500],
-      "rescale": [0,1,0],
-      "vs": {"gesture":[["index",null,true],null]}
+      "dt": [100,1800],
+      "rescale": [0,1],
+      "vs": {"gesture":[["point_forward",null,true,450],null]}
+    },
+
+    "wave": {
+      "description": "A wave: hello or goodbye.",
+      "dt": [100,2400],
+      "rescale": [0,1],
+      "vs": {"gesture":[["hand_wave",null,true,500],null]},
+      "overlay": {"bones":{"RightHand":{"freq":14,"amp":[0,0.2,0.25],"phase":0},"RightForeArm":{"freq":14,"amp":[0.08,0,0.15],"phase":1.5707963267948966}},"delay":500,"duration":2000}
+    },
+
+    "hand_raise": {
+      "description": "Raising a hand: asking to speak, volunteering, \"me!\".",
+      "dt": [100,2000],
+      "rescale": [0,1],
+      "vs": {"gesture":[["hand_high",null,true,500],null]}
+    },
+
+    "thumbs_up": {
+      "description": "Thumbs up: approval, well done, sounds good.",
+      "dt": [100,1800],
+      "rescale": [0,1],
+      "vs": {"gesture":[["thumb_up",null,true,450],null]}
+    },
+
+    "thumbs_down": {
+      "description": "Thumbs down: disapproval, that is bad.",
+      "dt": [100,1800],
+      "rescale": [0,1],
+      "vs": {"gesture":[["thumb_down",null,true,450],null]}
+    },
+
+    "ok_sign": {
+      "description": "OK sign: all good, perfect, understood.",
+      "dt": [100,1800],
+      "rescale": [0,1],
+      "vs": {"gesture":[["ok",null,true,450],null]}
     },
 
     "shrug": {
       "description": "Shrugging with palms up: not knowing, \"who knows\", uncertainty.",
-      "dt": [1000,1500],
+      "dt": [100,1600],
       "rescale": [0,1],
-      "vs": {"gesture":[["shrug",null],null]}
+      "vs": {"gesture":[["palms_out",null,false,600],null]}
     },
 
     "namaste": {
       "description": "Hands pressed together: thank you, please, gratitude.",
-      "dt": [1500,300,1000],
-      "rescale": [0,1,0],
-      "vs": {"bodyRotateX":[0],"bodyRotateZ":[0.1],"gesture":[["namaste",null],null]}
+      "dt": [100,2000],
+      "rescale": [0,1],
+      "vs": {"gesture":[["namaste",null,false,800],null]}
     },
 
     "facepalm": {
       "description": "Facepalm: embarrassment, \"oh no\", a silly mistake.",
-      "dt": [600,1500,600],
-      "rescale": [0,1,0],
-      "vs": {"headRotateX":[0.15,0.15,0],"bodyRotateX":[0.1,0.1,0],"gesture":[["handup",null,true],null]}
+      "dt": [100,1800],
+      "rescale": [0,1],
+      "vs": {"gesture":[["hand_on_brow",null,true,600],null]}
     },
 
     "celebrate": {
       "description": "Raising an arm in celebration: victory, great news, \"yes!\".",
-      "dt": [300,800,800,500],
-      "rescale": [0,0.5,0.5,0],
-      "vs": {"gesture":[["handup",null,true],null]},
-      "overlay": {"bones":{"RightHand":{"freq":10,"amp":[0.08,0.12,0.08]},"Hips":{"freq":4,"amp":[0,0.03,0]}},"delay":400,"duration":2000}
+      "dt": [100,1900],
+      "rescale": [0,1],
+      "vs": {"handFistRight":[1,1],"gesture":[["hand_high",null,true,400],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":12,"amp":[0,0,0.12],"phase":0}},"delay":500,"duration":1400}
     },
 
     "applause": {
       "description": "Clapping: congratulating, applauding an achievement.",
-      "dt": [300,2000,500],
-      "rescale": [0,1,0],
-      "vs": {"gesture":[["namaste",null],null]},
-      "overlay": {"bones":{"RightHand":{"freq":12,"amp":[0.06,0.06,0],"phase":0},"LeftHand":{"freq":12,"amp":[0.06,0.06,0],"phase":3.14159265358979},"RightForeArm":{"freq":12,"amp":[0.03,0,0.03],"phase":0},"LeftForeArm":{"freq":12,"amp":[0.03,0,0.03],"phase":3.14159265358979}},"delay":300,"duration":2200}
+      "dt": [100,450,170,170,170,170,170,170,170,350],
+      "vs": {"gesture":[["namaste",null,false,450],["clap_open",null,false,140],["namaste",null,false,120],["clap_open",null,false,140],["namaste",null,false,120],["clap_open",null,false,140],["namaste",null,false,120],["clap_open",null,false,140],["namaste",null,false,120],null]}
+    },
+
+    "wave_left": {
+      "dt": [100,2400],
+      "rescale": [0,1],
+      "vs": {"gesture":[["hand_wave",null,false,500],null]},
+      "overlay": {"bones":{"LeftHand":{"freq":14,"amp":[0,0.2,0.25],"phase":0},"LeftForeArm":{"freq":14,"amp":[0.08,0,0.15],"phase":1.5707963267948966}},"delay":500,"duration":2000}
+    },
+
+    "hand_raise_left": {
+      "dt": [100,2000],
+      "rescale": [0,1],
+      "vs": {"gesture":[["hand_high",null,false,500],null]}
+    }
+  },
+
+  "poses": {
+    "palms_up": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.128,"y":0.615,"z":0.513}, "LeftForeArm.rotation":{"x":0.686,"y":-0.122,"z":2.166}, "LeftHand.rotation":{"x":-0.942,"y":-0.595,"z":-0.363},
+      "RightShoulder.rotation":{"x":1.599,"y":-0.084,"z":1.77}, "RightArm.rotation":{"x":1.128,"y":-0.615,"z":-0.513}, "RightForeArm.rotation":{"x":0.686,"y":0.122,"z":-2.166}, "RightHand.rotation":{"x":-0.942,"y":0.595,"z":0.363},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0},
+      "RightHandThumb1.rotation":{"x":0.745,"y":0.526,"z":-0.604}, "RightHandThumb2.rotation":{"x":-0.107,"y":0.01,"z":0.142}, "RightHandThumb3.rotation":{"x":0,"y":-0.001,"z":0}, "RightHandIndex1.rotation":{"x":-0.126,"y":0.035,"z":0.087}, "RightHandIndex2.rotation":{"x":0.255,"y":-0.007,"z":0.085}, "RightHandIndex3.rotation":{"x":0,"y":0,"z":0}, "RightHandMiddle1.rotation":{"x":-0.019,"y":0.128,"z":0.082}, "RightHandMiddle2.rotation":{"x":0.233,"y":-0.019,"z":0.074}, "RightHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "RightHandRing1.rotation":{"x":0.005,"y":0.241,"z":0.122}, "RightHandRing2.rotation":{"x":0.261,"y":-0.021,"z":0.076}, "RightHandRing3.rotation":{"x":0,"y":0,"z":0}, "RightHandPinky1.rotation":{"x":0.059,"y":0.336,"z":0.2}, "RightHandPinky2.rotation":{"x":0.153,"y":-0.019,"z":-0.001}, "RightHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "palms_out": {
+      "LeftShoulder.rotation":{"x":1.7,"y":0.14,"z":-1.5}, "LeftArm.rotation":{"x":1.381,"y":0.329,"z":0.25}, "LeftForeArm.rotation":{"x":0.728,"y":0.192,"z":2.466}, "LeftHand.rotation":{"x":-1.008,"y":-0.806,"z":0.007},
+      "RightShoulder.rotation":{"x":1.7,"y":-0.14,"z":1.5}, "RightArm.rotation":{"x":1.381,"y":-0.329,"z":-0.25}, "RightForeArm.rotation":{"x":0.728,"y":-0.192,"z":-2.466}, "RightHand.rotation":{"x":-1.008,"y":0.806,"z":-0.007},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0},
+      "RightHandThumb1.rotation":{"x":0.745,"y":0.526,"z":-0.604}, "RightHandThumb2.rotation":{"x":-0.107,"y":0.01,"z":0.142}, "RightHandThumb3.rotation":{"x":0,"y":-0.001,"z":0}, "RightHandIndex1.rotation":{"x":-0.126,"y":0.035,"z":0.087}, "RightHandIndex2.rotation":{"x":0.255,"y":-0.007,"z":0.085}, "RightHandIndex3.rotation":{"x":0,"y":0,"z":0}, "RightHandMiddle1.rotation":{"x":-0.019,"y":0.128,"z":0.082}, "RightHandMiddle2.rotation":{"x":0.233,"y":-0.019,"z":0.074}, "RightHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "RightHandRing1.rotation":{"x":0.005,"y":0.241,"z":0.122}, "RightHandRing2.rotation":{"x":0.261,"y":-0.021,"z":0.076}, "RightHandRing3.rotation":{"x":0,"y":0,"z":0}, "RightHandPinky1.rotation":{"x":0.059,"y":0.336,"z":0.2}, "RightHandPinky2.rotation":{"x":0.153,"y":-0.019,"z":-0.001}, "RightHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "hand_on_chest": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.081,"y":1.286,"z":0.452}, "LeftForeArm.rotation":{"x":0.461,"y":-0.01,"z":2.293}, "LeftHand.rotation":{"x":0.446,"y":-0.088,"z":-0.256},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "finger_on_cheek": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":0.833,"y":1.084,"z":0.818}, "LeftForeArm.rotation":{"x":-0.148,"y":-0.882,"z":2.443}, "LeftHand.rotation":{"x":-0.107,"y":-0.384,"z":0.002},
+      "LeftHandThumb1.rotation":{"x":0.579,"y":0.228,"z":0.363}, "LeftHandThumb2.rotation":{"x":-0.027,"y":-0.04,"z":-0.662}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":0,"y":-0.105,"z":0.225}, "LeftHandIndex2.rotation":{"x":0.256,"y":-0.103,"z":-0.213}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":1.453,"y":0.07,"z":0.021}, "LeftHandMiddle2.rotation":{"x":1.599,"y":0.062,"z":0.07}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":1.528,"y":-0.073,"z":0.052}, "LeftHandRing2.rotation":{"x":1.386,"y":0.044,"z":0.053}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":1.65,"y":-0.204,"z":0.031}, "LeftHandPinky2.rotation":{"x":1.302,"y":0.071,"z":0.085}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "palm_forward": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.628,"y":-0.209,"z":0.453}, "LeftForeArm.rotation":{"x":-0.988,"y":-0.045,"z":2.025}, "LeftHand.rotation":{"x":-1.063,"y":0.077,"z":0.27},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "point_forward": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.469,"y":0.062,"z":0.8}, "LeftForeArm.rotation":{"x":-0.824,"y":0.137,"z":1.856}, "LeftHand.rotation":{"x":0.202,"y":-0.256,"z":-0.54},
+      "LeftHandThumb1.rotation":{"x":0.579,"y":0.228,"z":0.363}, "LeftHandThumb2.rotation":{"x":-0.027,"y":-0.04,"z":-0.662}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":0,"y":-0.105,"z":0.225}, "LeftHandIndex2.rotation":{"x":0.256,"y":-0.103,"z":-0.213}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":1.453,"y":0.07,"z":0.021}, "LeftHandMiddle2.rotation":{"x":1.599,"y":0.062,"z":0.07}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":1.528,"y":-0.073,"z":0.052}, "LeftHandRing2.rotation":{"x":1.386,"y":0.044,"z":0.053}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":1.65,"y":-0.204,"z":0.031}, "LeftHandPinky2.rotation":{"x":1.302,"y":0.071,"z":0.085}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "hand_wave": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.394,"y":0.048,"z":1.016}, "LeftForeArm.rotation":{"x":-1.246,"y":-0.683,"z":1.58}, "LeftHand.rotation":{"x":-0.159,"y":0.03,"z":-0.119},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "hand_high": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.3,"y":-0.453,"z":1.381}, "LeftForeArm.rotation":{"x":-1.199,"y":-0.444,"z":1.608}, "LeftHand.rotation":{"x":-0.041,"y":-0.308,"z":-0.334},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "thumb_up": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.755,"y":0.1,"z":0.514}, "LeftForeArm.rotation":{"x":-0.754,"y":-0.139,"z":1.828}, "LeftHand.rotation":{"x":-0.098,"y":-0.688,"z":-0.676},
+      "LeftHandThumb1.rotation":{"x":0.208,"y":-0.189,"z":0.685}, "LeftHandThumb2.rotation":{"x":0.129,"y":-0.285,"z":-0.163}, "LeftHandThumb3.rotation":{"x":-0.047,"y":0.068,"z":0.401}, "LeftHandIndex1.rotation":{"x":1.412,"y":-0.102,"z":-0.152}, "LeftHandIndex2.rotation":{"x":1.903,"y":-0.16,"z":-0.114}, "LeftHandIndex3.rotation":{"x":0.535,"y":-0.017,"z":-0.062}, "LeftHandMiddle1.rotation":{"x":1.424,"y":-0.103,"z":-0.12}, "LeftHandMiddle2.rotation":{"x":1.919,"y":-0.162,"z":-0.114}, "LeftHandMiddle3.rotation":{"x":0.44,"y":-0.012,"z":-0.051}, "LeftHandRing1.rotation":{"x":1.619,"y":-0.127,"z":-0.053}, "LeftHandRing2.rotation":{"x":1.898,"y":-0.16,"z":-0.115}, "LeftHandRing3.rotation":{"x":0.262,"y":-0.004,"z":-0.031}, "LeftHandPinky1.rotation":{"x":1.661,"y":-0.131,"z":-0.016}, "LeftHandPinky2.rotation":{"x":1.715,"y":-0.067,"z":-0.13}, "LeftHandPinky3.rotation":{"x":0.627,"y":-0.023,"z":-0.071}
+    },
+
+    "thumb_down": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.478,"y":-0.256,"z":0.655}, "LeftForeArm.rotation":{"x":-1.556,"y":-0.336,"z":2.109}, "LeftHand.rotation":{"x":0.352,"y":0.813,"z":0.36},
+      "LeftHandThumb1.rotation":{"x":0.208,"y":-0.189,"z":0.685}, "LeftHandThumb2.rotation":{"x":0.129,"y":-0.285,"z":-0.163}, "LeftHandThumb3.rotation":{"x":-0.047,"y":0.068,"z":0.401}, "LeftHandIndex1.rotation":{"x":1.412,"y":-0.102,"z":-0.152}, "LeftHandIndex2.rotation":{"x":1.903,"y":-0.16,"z":-0.114}, "LeftHandIndex3.rotation":{"x":0.535,"y":-0.017,"z":-0.062}, "LeftHandMiddle1.rotation":{"x":1.424,"y":-0.103,"z":-0.12}, "LeftHandMiddle2.rotation":{"x":1.919,"y":-0.162,"z":-0.114}, "LeftHandMiddle3.rotation":{"x":0.44,"y":-0.012,"z":-0.051}, "LeftHandRing1.rotation":{"x":1.619,"y":-0.127,"z":-0.053}, "LeftHandRing2.rotation":{"x":1.898,"y":-0.16,"z":-0.115}, "LeftHandRing3.rotation":{"x":0.262,"y":-0.004,"z":-0.031}, "LeftHandPinky1.rotation":{"x":1.661,"y":-0.131,"z":-0.016}, "LeftHandPinky2.rotation":{"x":1.715,"y":-0.067,"z":-0.13}, "LeftHandPinky3.rotation":{"x":0.627,"y":-0.023,"z":-0.071}
+    },
+
+    "hand_on_brow": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.356,"y":0.283,"z":1.306}, "LeftForeArm.rotation":{"x":-1.921,"y":-0.57,"z":1.5}, "LeftHand.rotation":{"x":0.235,"y":2.645,"z":-0.114},
+      "LeftHandThumb1.rotation":{"x":0.745,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":-0.126,"y":-0.035,"z":-0.087}, "LeftHandIndex2.rotation":{"x":0.255,"y":0.007,"z":-0.085}, "LeftHandIndex3.rotation":{"x":0,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.019,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.233,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.005,"y":-0.241,"z":-0.122}, "LeftHandRing2.rotation":{"x":0.261,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.059,"y":-0.336,"z":-0.2}, "LeftHandPinky2.rotation":{"x":0.153,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0,"y":0,"z":0}
+    },
+
+    "clap_open": {
+      "LeftShoulder.rotation":{"x":1.711,"y":-0.002,"z":-1.625}, "LeftArm.rotation":{"x":0.871,"y":0.259,"z":0.691}, "LeftForeArm.rotation":{"x":0.156,"y":-0.066,"z":1.829}, "LeftHand.rotation":{"x":-0.6,"y":-0.206,"z":0.185},
+      "RightShoulder.rotation":{"x":1.711,"y":0.002,"z":1.625}, "RightArm.rotation":{"x":0.871,"y":-0.259,"z":-0.691}, "RightForeArm.rotation":{"x":0.156,"y":0.066,"z":-1.829}, "RightHand.rotation":{"x":-0.6,"y":0.206,"z":-0.185},
+      "LeftHandThumb1.rotation":{"x":0.404,"y":-0.05,"z":0.537}, "LeftHandThumb2.rotation":{"x":-0.02,"y":0.004,"z":-0.154}, "LeftHandThumb3.rotation":{"x":-0.049,"y":0.002,"z":-0.019}, "LeftHandIndex1.rotation":{"x":-0.113,"y":-0.001,"z":0.014}, "LeftHandIndex2.rotation":{"x":0.003,"y":0,"z":0}, "LeftHandIndex3.rotation":{"x":0.002,"y":0,"z":0}, "LeftHandMiddle1.rotation":{"x":-0.113,"y":-0.001,"z":0.014}, "LeftHandMiddle2.rotation":{"x":0.004,"y":0,"z":0}, "LeftHandMiddle3.rotation":{"x":0.002,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":-0.113,"y":-0.001,"z":0.014}, "LeftHandRing2.rotation":{"x":0.003,"y":0,"z":0}, "LeftHandRing3.rotation":{"x":0.002,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":-0.122,"y":-0.001,"z":-0.057}, "LeftHandPinky2.rotation":{"x":0.012,"y":0.001,"z":0.07}, "LeftHandPinky3.rotation":{"x":0.002,"y":0,"z":0},
+      "RightHandThumb1.rotation":{"x":0.404,"y":0.05,"z":-0.537}, "RightHandThumb2.rotation":{"x":-0.02,"y":-0.004,"z":0.154}, "RightHandThumb3.rotation":{"x":-0.049,"y":-0.002,"z":0.019}, "RightHandIndex1.rotation":{"x":-0.113,"y":0.001,"z":-0.014}, "RightHandIndex2.rotation":{"x":0.003,"y":0,"z":0}, "RightHandIndex3.rotation":{"x":0.002,"y":0,"z":0}, "RightHandMiddle1.rotation":{"x":-0.113,"y":0.001,"z":-0.014}, "RightHandMiddle2.rotation":{"x":0.004,"y":0,"z":0}, "RightHandMiddle3.rotation":{"x":0.002,"y":0,"z":0}, "RightHandRing1.rotation":{"x":-0.113,"y":0.001,"z":-0.014}, "RightHandRing2.rotation":{"x":0.003,"y":0,"z":0}, "RightHandRing3.rotation":{"x":0.002,"y":0,"z":0}, "RightHandPinky1.rotation":{"x":-0.122,"y":0.001,"z":0.057}, "RightHandPinky2.rotation":{"x":0.012,"y":-0.001,"z":-0.07}, "RightHandPinky3.rotation":{"x":0.002,"y":0,"z":0}
     }
   }
 }
