@@ -1,29 +1,20 @@
 {
   "name": "motion-engine",
-  "version": "0.4.1",
-  "description": "Multi-track motion engine plugin for TalkingHead 3D avatars",
+  "version": "1.0.0",
+  "description": "Expressive face and body for TalkingHead avatars, driven by a decision model instead of tags in the LLM output",
   "type": "module",
-  "main": "src/MotionEngine.js",
+  "main": "src/index.js",
   "exports": {
-    ".": "./src/MotionEngine.js",
-    "./studio": "./src/MotionStudio.js",
-    "./overlay": "./src/OverlayManager.js",
-    "./motions": "./src/motions.json",
-    "./motions-th": "./src/motions_th.json",
-    "./mirror": "./src/FaceMirror.js"
+    ".": "./src/index.js",
+    "./facs.json": "./src/facs.json",
+    "./gestures.json": "./src/gestures.json"
   },
-  "peerDependencies": {
-    "@mediapipe/tasks-vision": ">=0.10.0"
-  },
-  "peerDependenciesMeta": {
-    "@mediapipe/tasks-vision": {
-      "optional": true
-    }
-  },
+  "files": [
+    "src"
+  ],
   "scripts": {
     "demo": "vite --open",
     "build": "vite build",
-    "deploy": "npm run build && npx gh-pages -d dist",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -31,16 +22,16 @@
     "talkinghead",
     "avatar",
     "3d",
-    "motion",
+    "facs",
+    "expression",
+    "gesture",
     "animation",
-    "gesture"
+    "llm"
   ],
   "license": "MIT",
   "devDependencies": {
-    "@mediapipe/tasks-vision": "^0.10.32",
-    "gh-pages": "^6.0.0",
     "talkinghead": "github:met4citizen/TalkingHead",
-    "vite": "^6.0.0",
-    "vitest": "^3.0.0"
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
   }
 }

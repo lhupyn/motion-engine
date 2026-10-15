@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
 
 export default defineConfig({
   root: 'demo',
@@ -7,21 +6,8 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'demo/index.html'),
-        playground: resolve(__dirname, 'demo/playground.html'),
-        mirror: resolve(__dirname, 'demo/mirror.html'),
-      },
-      external: ['three', 'talkinghead'],
-    },
+    rollupOptions: { external: ['three', 'talkinghead'] },
   },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-    },
-  },
-  optimizeDeps: {
-    include: ['@mediapipe/tasks-vision'],
-  },
+  // TalkingHead loads its lip-sync modules relative to itself; prebundling breaks those paths.
+  optimizeDeps: { exclude: ['talkinghead'] },
 });

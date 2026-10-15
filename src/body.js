@@ -1,0 +1,185 @@
+// Two channels play at once, so the avatar can nod while it gestures:
+//   head  — head and torso (nod, shake, bow), run as plain animations
+//   hands — arm gestures, through TalkingHead's gesture system
+// Each channel plays one gesture at a time; a new one interrupts the current
+// one on its channel. An optional overlay adds per-bone sine oscillations on
+// top. Hand gestures move the arms to TalkingHead's built-in poses (handup,
+// namaste…) or to the catalog's own `poses`.
+
+import GESTURES from './gestures.json' with { type: 'json' };
+
+const RAMP = 300;
+
+export class Body {
+  /**
+   * @param {TalkingHeadAdapter} adapter
+   * @param {object} [options]
+   * @param {{head: object, hands: object, poses?: object}} [options.gestures]
+   * @param {number} [options.fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
+   * @param {number} [options.fadeOut=800]
+   * @param {number} [options.cutFade=100] - Arms back to the stance when a hand gesture is stopped early
+   * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
+   */
+  constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
+    const opt = { fadeIn, fadeOut, cutFade, settle };
+    this.adapter = adapter;
+    this.gestures = { head: {}, hands: {} };
+    this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
+
+    const builtIn = new Set(adapter.gestureNames());
+    for (const [name, props] of Object.entries(gestures.poses || {})) {
+      if (builtIn.has(name)) {
+        console.warn(`[motion-engine] Pose "${name}" collides with a TalkingHead built-in; skipped.`);
+        continue;
+      }
+      adapter.registerPose(name, props);
+    }
+    for (const channel of Object.keys(this.gestures)) {
+      for (const [name, g] of Object.entries(gestures[channel] || {})) {
+        const t = toTemplate(g, fadeIn);
+        this.gestures[channel][name] = g;
+        this._channels[channel].frames[name] = framesOf(t);
+        adapter.registerAnim(name, t);
+      }
+    }
+  }
+
+  get names() {
+    return [...Object.keys(this.gestures.head), ...Object.keys(this.gestures.hands)];
+  }
+
+  /** What each channel is playing: { head, hands }, null when idle. */
+  get current() {
+    return { head: this._channels.head.current, hands: this._channels.hands.current };
+  }
+
+  channelOf(name) {
+    return Object.keys(this.gestures).find((c) => this.gestures[c][name]) ?? null;
+  }
+
+  /** Interrupts the current gesture on its channel. Resolves true when done, false if interrupted or unknown. */
+  play(name) {
+    const channel = this.channelOf(name);
+    if (!channel) return Promise.resolve(false);
+    return this._channels[channel].play(name, this.gestures[channel][name]);
+  }
+
+  /** @param {'head'|'hands'} [channel] - Both when omitted */
+  stop(channel) {
+    for (const c of channel ? [channel] : Object.keys(this._channels)) this._channels[c].stop();
+  }
+
+  update(dt) {
+    this._channels.head.update(dt);
+    this._channels.hands.update(dt);
+  }
+}
+
+class Channel {
+  constructor(adapter, kind, opt) {
+    this.adapter = adapter;
+    this.kind = kind;
+    this.opt = opt;
+    this.current = null;
+    this.frames = {};
+    this._cancel = null;
+    this._osc = new Oscillation(adapter);
+  }
+
+  async play(name, g) {
+    // A new hand gesture takes the arms over from the current one instead of
+    // dropping them to the stance first.
+    this.stop(this.frames[name]);
+    this.current = name;
+    const total = duration(g.dt);
+    if (this.kind === 'hands') this.adapter.playGesture(name);
+    else this.adapter.playAnim(name);
+    if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
+
+    if (!(await this._wait(total))) return false;
+    if (this.kind === 'hands') {
+      this.adapter.stopGesture(this.opt.fadeOut);
+      if (!(await this._wait(this.opt.settle))) return false;
+    }
+    this.current = null;
+    return true;
+  }
+
+  /** @param {Array} [next] - Frames of the hand gesture taking over; without them, a real stop */
+  stop(next = null) {
+    // An overlay can outlast its gesture.
+    this._osc.clear();
+    if (!this.current) return;
+    this._cancel?.();
+    if (this.kind === 'head') this.adapter.stopAnim(this.current);
+    else if (next) this.adapter.handOver(next.map(([pose, , mirror]) => [pose, mirror]), next[0]?.[3] ?? this.opt.fadeIn);
+    else this.adapter.stopGesture(this.opt.cutFade);
+    this.current = null;
+  }
+
+  update(dt) {
+    this._osc.update(dt);
+  }
+
+  _wait(ms) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => { this._cancel = null; resolve(true); }, ms);
+      this._cancel = () => { clearTimeout(timer); this._cancel = null; resolve(false); };
+    });
+  }
+}
+
+class Oscillation {
+  constructor(adapter) {
+    this.adapter = adapter;
+    this._run = null;
+  }
+
+  start(bones, length, delay) {
+    this.clear();
+    this._run = { t: -delay, length, bones: Object.entries(bones) };
+  }
+
+  update(dt) {
+    const run = this._run;
+    if (!run) return;
+    run.t += dt;
+    if (run.t < 0) return;
+    if (run.t > run.length) { this.clear(); return; }
+
+    const sec = run.t / 1000;
+    const env = Math.min(run.t / RAMP, 1) * Math.min((run.length - run.t) / RAMP, 1);
+    for (const [bone, osc] of run.bones) {
+      const s = Math.sin(sec * osc.freq) * env;
+      const z = Math.sin(sec * osc.freq + (osc.phase || 0)) * env;
+      this.adapter.setBoneOffset(bone, s * (osc.amp[0] || 0), s * (osc.amp[1] || 0), z * (osc.amp[2] || 0));
+    }
+  }
+
+  clear() {
+    const run = this._run;
+    this._run = null;
+    if (run) for (const [bone] of run.bones) this.adapter.setBoneOffset(bone, 0, 0, 0);
+  }
+}
+
+// A gesture frame is [pose, duration, mirror, transitionMs]. JSON has no
+// Infinity, so a null duration means "hold"; a missing transition gets fadeIn
+// (TalkingHead's own default is a slow 1 s).
+function toTemplate({ dt, rescale, vs }, fadeIn) {
+  const t = { dt, vs: structuredClone(vs) };
+  if (rescale) t.rescale = rescale;
+  for (const frame of framesOf(t)) {
+    frame[1] ??= Infinity;
+    frame[2] ??= false;
+    frame[3] ??= fadeIn;
+  }
+  return t;
+}
+
+const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
+
+// A [min, max] timing counts as its midpoint.
+function duration(dt) {
+  return (Array.isArray(dt) ? dt : [dt]).reduce((ms, d) => ms + (Array.isArray(d) ? (d[0] + d[1]) / 2 : d), 0);
+}
