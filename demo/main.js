@@ -1,5 +1,5 @@
 import { TalkingHead } from 'talkinghead';
-import { MotionEngine } from '../src/index.js';
+import { MotionEngine, llm } from '../src/index.js';
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
@@ -94,21 +94,42 @@ const store = {
 
 let speaker = 'user';
 let connected = false;
+let classifier = store.get('classifier') === 'llm' ? 'llm' : 'jev';
 
-function connect(key) {
+const decider = () => (classifier === 'llm' ? $('model').value.trim() || $('model').placeholder : 'Jev');
+
+function connect() {
+  const key = $('key').value.trim();
   connected = !!key;
-  if (key) engine.useJev({ apiKey: key });
-  $('key-note').textContent = key
-    ? 'Connected. Your key stays in this browser and is sent only to openrouter.ai.'
-    : 'Jev decides the reactions. Your key stays in this browser and is sent only to openrouter.ai.';
+  if (key && classifier === 'llm') engine.classify = llm({ apiKey: key, model: decider() });
+  else if (key) engine.useJev({ apiKey: key });
+  $('key-note').textContent = `${key ? `Connected: ${decider()} decides.` : `${decider()} decides the reactions.`} Your key stays in this browser and is sent only to openrouter.ai.`;
+}
+
+function pickClassifier(name) {
+  classifier = name;
+  select($('classifier'), $('classifier').querySelector(`[data-classifier=${name}]`));
+  $('model').hidden = name !== 'llm';
 }
 
 $('key').value = store.get('openrouter-key') || '';
-connect($('key').value.trim());
+$('model').value = store.get('llm-model') || '';
+pickClassifier(classifier);
+connect();
 $('key-save').onclick = () => {
-  const key = $('key').value.trim();
-  store.set('openrouter-key', key);
-  connect(key);
+  store.set('openrouter-key', $('key').value.trim());
+  connect();
+};
+$('classifier').onclick = (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  pickClassifier(b.dataset.classifier);
+  store.set('classifier', classifier);
+  connect();
+};
+$('model').onchange = () => {
+  store.set('llm-model', $('model').value.trim());
+  connect();
 };
 
 function renderPhrases() {
@@ -136,7 +157,7 @@ $('say').onsubmit = (e) => {
 // streamed word by word, like a voice model's transcript.
 async function say(text) {
   if (!connected) {
-    status('Add an OpenRouter key to let Jev decide');
+    status(`Add an OpenRouter key to let ${decider()} decide`);
     $('key').focus();
     return;
   }
@@ -166,7 +187,7 @@ engine.onDecision = (d) => {
   const note = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; acts.append(s); };
   if (d.error) note('error', d.error);
   else if (d.skipped) note('skipped', `Not asked: ${d.skipped}`);
-  else if (!d.actions.length) note('skipped', 'No reaction (Jev chose none)');
+  else if (!d.actions.length) note('skipped', 'No reaction (none chosen)');
   for (const a of d.actions) {
     const what = `${a.channel} → ${label(a.name)} ${Math.round(a.confidence * 100)}%`;
     note(a.applied ? 'applied' : 'skipped', a.applied ? `✓ ${what}` : `✗ ${what} · ${a.reason}`);

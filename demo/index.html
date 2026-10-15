@@ -142,6 +142,13 @@
         <input id="key" type="password" placeholder="OpenRouter API key" autocomplete="off" />
         <button id="key-save">Use</button>
       </div>
+      <div class="row">
+        <div class="chips" id="classifier" role="group" aria-label="Who decides">
+          <button data-classifier="jev" class="on">Jev</button>
+          <button data-classifier="llm">LLM</button>
+        </div>
+        <input id="model" type="text" placeholder="openai/gpt-4o-mini" aria-label="LLM model on OpenRouter" autocomplete="off" hidden />
+      </div>
       <p class="note" id="key-note">
         Jev decides the reactions. Your key stays in this browser and is sent only to openrouter.ai.
       </p>

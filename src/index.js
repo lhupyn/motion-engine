@@ -4,6 +4,7 @@ import { Body } from './body.js';
 import { Director } from './director.js';
 import { Segmenter } from './segmenter.js';
 import { jev } from './jev.js';
+import { llm } from './llm.js';
 
 // Not every provider sends a final fragment, so silence also ends the avatar's turn.
 const SILENCE_ENDS_TURN = 3000;
@@ -164,4 +165,4 @@ export class MotionEngine {
   }
 }
 
-export { jev };
+export { jev, llm };

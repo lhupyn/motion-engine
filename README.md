@@ -82,6 +82,7 @@ Measured in the demo with `typesafe/jev-1.14`: about **0.4–0.7 s** and **~$0.0
 | --- | --- | --- |
 | Segmenter | `src/segmenter.js` | Buffers streamed fragments and releases whole sentences. If a provider's final fragment repeats the whole turn, only the unheard part is used. Segments with fewer than two letters, or made only of filler (`"mm"`, `"uh, um"`), are dropped; `"No."`, `"Sí."` or `"Oh!"` are kept. `。！？` close a sentence too. An unfinished sentence is released after a pause (`pause`, 800 ms). |
 | Jev client | `src/jev.js` | One `fetch` per sentence. Sends the line, the speaker and the previous line as state, and three `choice` questions — expression, head, hands — built from the catalogs. For the person's lines it adds a yes/no question: is the transcript intelligible? |
+| LLM client | `src/llm.js` | Optional, instead of Jev: the same questions to any OpenAI-compatible chat model, as a prompt plus a JSON schema of the options. Confidences come from the answer's token probabilities. |
 | Director | `src/director.js` | Applies the rules below and reports every choice, applied or not, with the reason. |
 | Face | `src/face.js` | FACS compositor. Resolves AU recipes to ARKit blendshapes, cross-fades held expressions (*moods*), plays one-shot *beats* with an in/hold/out envelope. Writes to the mood baseline so lip-sync visemes still play over the expression; gaze and blink go through TalkingHead's system slot so they outrank its idle eye animation. |
 | Body | `src/body.js` | Two channels that combine: **head** (nod, shake, tilt, bow… — plain animations) and **hands** (open palms, hand on heart, wave… — arm poses through TalkingHead's gesture system). One gesture per channel; a new one interrupts the current one on its channel. Optional per-bone sine oscillation overlays. |
@@ -250,9 +251,36 @@ engine.feed(fullReply, { speaker: 'avatar', final: true });
 | `provider: 'openrouter'` (default) | Browser or server | OpenRouter's endpoint accepts requests from any origin, so a public page can use the **visitor's own key**. Default model `~typesafe/jev-latest`. |
 | `provider: 'typesafe'` | Server only | TypeSafe's API only accepts browser requests from its own console. Default model `jev-latest`. |
 | `url` | Anywhere | Send requests to your own proxy instead, which holds the key. |
-| `classify` | Anywhere | Replace Jev with any function of the same signature (below). |
+| `classify: llm({ … })` | Browser or server | Any OpenAI-compatible chat model instead of Jev, through OpenRouter or a local server ([below](#any-chat-model-llm)). |
+| `classify` | Anywhere | Replace Jev with any function of the same signature ([below](#custom-classifier)). |
 
 **Never ship a key in a bundle.** Bundlers inline build-time env vars (Vite inlines every `VITE_*`) into the public JavaScript. Either let the visitor bring their own key, or put a proxy in front. The demo stores the visitor's key in `localStorage` and sends it only to openrouter.ai.
+
+### Any chat model: `llm()`
+
+```js
+import { MotionEngine, llm } from 'motion-engine';
+
+new MotionEngine(head, { classify: llm({ apiKey, model: 'openai/gpt-4o-mini' }) });
+```
+
+`llm()` asks the same questions to any OpenAI-compatible chat-completions endpoint, with a JSON schema that only allows each question's options. By default it goes to OpenRouter, with the same key as Jev.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `apiKey` | — | Not needed by a local server. |
+| `model` | `'openai/gpt-4o-mini'` | Must support JSON-schema output, and logprobs for real confidences. |
+| `url` | OpenRouter's `/api/v1/chat/completions` | Any chat-completions endpoint, e.g. Ollama's `http://localhost:11434/v1/chat/completions` or LM Studio's `http://localhost:1234/v1/chat/completions`. |
+| `logprobs` | `true` | Ask for token probabilities. On OpenRouter, requests only go to providers that support every parameter sent, so a model with no provider that returns logprobs fails; set `false` for it. |
+| `assumeConfidence` | `0.8` | Confidence of every choice when no logprobs come back. |
+
+**Confidence.** With logprobs, a choice's confidence is the probability the model gave the tokens that spell it, and a yes/no answer becomes the probability of "yes". Without logprobs there's nothing to measure: every choice gets `assumeConfidence` (0.8 passes the default thresholds) and every yes/no answer is 0 or 1, so `minConfidence` and `minClarity` stop filtering.
+
+In a small live test (3 lines, `openai/gpt-4o-mini`), logprobs came back and worked, but most answers sat at ~100% confidence, so the thresholds rarely filtered. The same lines with Jev ranged 40–99%. The model also leaned to copying the person's emotion (*sad* for a loss) where Jev chose the empathic *tender*. It took 1.0–2.1 s and ~$0.0002 per sentence, against Jev's 0.5–0.75 s and ~$0.00008.
+
+**Cost and speed.** The prompt carries every option's description, about 1,000 input tokens per sentence, and the model's price applies. The demo switches between Jev and an LLM on the same key, and its log shows each call's latency, tokens and cost, so both can be compared on the same phrases. Use a model without reasoning: thinking tokens add latency and cost to every sentence.
+
+**Local servers** (Ollama, LM Studio) run with no key. A web page can only reach them if the server allows the page's origin: set `OLLAMA_ORIGINS` for Ollama, or enable CORS in LM Studio's server settings. If the server returns no logprobs, `assumeConfidence` applies.
 
 ### Custom classifier
 
@@ -310,7 +338,7 @@ new MotionEngine(head, {
 | Option | Default | Description |
 | --- | --- | --- |
 | `jev` | — | Jev connection, see below. Without `jev` or `classify`, `feed()` does nothing. |
-| `classify` | — | Replaces Jev; same signature as the function `jev()` returns. |
+| `classify` | — | Replaces Jev, e.g. with `llm()`; same signature as the function `jev()` returns. |
 | `pause` | `800` | Classify an unfinished sentence after this many ms without new fragments. |
 | `director`, `face`, `body` | — | Options for each layer, below. |
 
@@ -498,7 +526,6 @@ The built demo loads three.js and TalkingHead from a CDN via its import map. Dur
 
 Planned, not built yet:
 
-- **`llm()` classifier adapter** — any OpenAI-compatible chat model with JSON-schema output: hundreds of models through OpenRouter, or local ones through Ollama or LM Studio. The trade-off: slower and costlier than Jev, and its confidences are less reliable (taken from logprobs when the model offers them).
 - **Blend the top two expressions** by the probabilities Jev already returns (no extra tokens).
 - **An intensity question** — one score question, so expressions and head movements can play softer or stronger.
 - **Pose authoring tool** — an FK solver that fits the catalog's poses to a new avatar.
