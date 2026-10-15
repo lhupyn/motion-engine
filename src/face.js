@@ -1,6 +1,8 @@
 // FACS compositor: expressions are Action Unit recipes (facs.json) resolved to
 // ARKit blendshapes and added on top of the avatar's mood baseline each frame.
 // Moods hold and cross-fade; beats play once with an in/hold/out envelope.
+// Within a beat, an AU with an `offset` rises that much later and falls that
+// much earlier than the rest (the tongue comes out after the lips part).
 
 import FACS from './facs.json' with { type: 'json' };
 
@@ -34,7 +36,7 @@ export class Face {
     return this._moods.find((m) => m.target === 1)?.name ?? null;
   }
 
-  /** @returns {{name:string, kind:'mood'|'beat', vs:Object<string,number>, envelope:?object}|null} */
+  /** @returns {{name:string, kind:'mood'|'beat', vs:Object<string,number>, envelope:?object, offsets:Object<string,number>}|null} */
   resolve(name) {
     const recipe = this.facs.expressions[name];
     if (!recipe) return null;
@@ -43,6 +45,7 @@ export class Face {
       kind: recipe.kind || 'mood',
       vs: this._ausToVs(recipe.aus || {}),
       envelope: recipe.envelope || null,
+      offsets: this._offsets(recipe.offset || {}),
     };
   }
 
@@ -52,7 +55,10 @@ export class Face {
     if (!r) return false;
     const morphs = Object.entries(r.vs);
     if (r.kind === 'beat') {
-      if (morphs.length) this._beats.push({ morphs, t: 0, ...BEAT_ENVELOPE, ...r.envelope });
+      const env = { ...BEAT_ENVELOPE, ...r.envelope };
+      // An offset can use up the morph's hold, never its ramps.
+      const staged = morphs.map(([mt, w]) => [mt, w, Math.min(r.offsets[mt] || 0, env.hold / 2)]);
+      if (morphs.length) this._beats.push({ morphs: staged, t: 0, ...env });
       return true;
     }
     for (const m of this._moods) m.target = 0;
@@ -87,10 +93,7 @@ export class Face {
     this._beats = this._beats.filter((b) => {
       b.t += dt;
       if (b.t >= b.in + b.hold + b.out) return false;
-      const k = b.t < b.in ? b.t / b.in
-        : b.t < b.in + b.hold ? 1
-        : 1 - (b.t - b.in - b.hold) / b.out;
-      add(b.morphs, k);
+      for (const [mt, w, offset] of b.morphs) sum.set(mt, (sum.get(mt) || 0) + w * beatLevel(b, offset));
       return true;
     });
 
@@ -104,6 +107,16 @@ export class Face {
     for (const mt of this._driven) if (!driven.has(mt)) this.adapter.releaseMorph(mt);
     this._spare = this._driven;
     this._driven = driven;
+  }
+
+  // A morph shared by AUs with different offsets follows the latest one, so a
+  // staged AU never shows before what it waits for.
+  _offsets(offset) {
+    const out = {};
+    for (const [au, ms] of Object.entries(offset)) {
+      for (const mt of Object.keys(this._ausToVs({ [au]: 1 }))) out[mt] = Math.max(out[mt] || 0, ms);
+    }
+    return out;
   }
 
   // A trailing _L/_R makes an AU unilateral.
@@ -120,4 +133,14 @@ export class Face {
     }
     return vs;
   }
+}
+
+// The envelope at the beat's time, with the morph's ramps moved inwards by `offset`.
+function beatLevel(b, offset) {
+  const t = b.t - offset;
+  const end = b.in + b.hold + b.out - 2 * offset;
+  if (t < 0 || t >= end) return 0;
+  if (t < b.in) return t / b.in;
+  if (t < end - b.out) return 1;
+  return (end - t) / b.out;
 }

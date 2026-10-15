@@ -326,6 +326,7 @@ Values below are illustrative.
 | `kind` | `'mood'` (default) holds until replaced and cross-fades; `'beat'` plays once on top. |
 | `aus` | AU → final level. A trailing `_L` / `_R` makes it one-sided (`AU12_L`). Each AU adds level × `au_map` weight to its blendshapes; the sum is added to the avatar's rest level and capped at 1. |
 | `envelope` | Beats only: `{ in, hold, out }` in ms. |
+| `offset` | Beats only: `{ AU: ms }`. That AU starts rising `ms` later and finishes falling `ms` earlier than the rest, so it plays nested inside them (`tongue_out`: the tongue comes out after the lips part and goes back before they close). Its ramps keep their length; the time comes out of its hold, so `ms` is capped at half of `hold`. A blendshape shared by AUs with different offsets follows the largest. |
 
 Keep an entry named `neutral`: the director relaxes to it.
 

@@ -21,6 +21,8 @@ const TEST_FACS = {
     AU12: { mouthSmileLeft: 1, mouthSmileRight: 1 },
     AU6: { cheekSquintLeft: 1, cheekSquintRight: 1 },
     AU61: { eyeLookOutLeft: 1, eyeLookInRight: 1 },
+    AU19: { tongueOut: 1 },
+    AU25: { mouthLowerDownLeft: 0.5 },
   },
   expressions: {
     neutral: { aus: {} },
@@ -29,6 +31,7 @@ const TEST_FACS = {
     cheeky: { aus: { AU6: 0.4 } },
     overlap: { aus: { AU12: 0.8, AU6: 0.8 } },
     glance: { kind: 'beat', aus: { AU61: 0.7 }, envelope: { in: 100, hold: 200, out: 100 } },
+    tongue: { kind: 'beat', aus: { AU19: 0.8, AU25: 0.6 }, envelope: { in: 150, hold: 700, out: 300 }, offset: { AU19: 150 } },
   },
 };
 
@@ -104,6 +107,33 @@ describe('Face', () => {
       run(face, 150);
       expect(adapter.system.eyeLookOutLeft).toBeGreaterThan(0);
       expect(adapter.baseline.eyeLookOutLeft).toBeUndefined();
+    });
+
+    it('an offset AU comes out after the others and goes back before them', () => {
+      face.play('tongue');
+      const frames = [];
+      for (let t = 16; t < 1200; t += 16) {
+        face.update(16);
+        frames.push({ t, tongue: adapter.baseline.tongueOut ?? 0, lips: adapter.baseline.mouthLowerDownLeft ?? 0 });
+      }
+      expect(frames.filter((f) => f.t < 150).every((f) => f.tongue === 0 && f.lips > 0)).toBe(true);
+      expect(frames.find((f) => f.t === 304)).toMatchObject({ tongue: 0.8, lips: 0.3 });
+      const tongueGone = frames.find((f) => f.t > 304 && f.tongue === 0).t;
+      const lipsGone = frames.find((f) => f.t > 304 && f.lips === 0).t;
+      expect(tongueGone).toBeLessThan(1000 + 16);
+      expect(lipsGone - tongueGone).toBeGreaterThanOrEqual(140);
+    });
+
+    it('an offset never takes more than half the hold', () => {
+      const f = new Face(adapter, { facs: { ...TEST_FACS, expressions: {
+        blip: { kind: 'beat', aus: { AU19: 1, AU25: 1 }, envelope: { in: 100, hold: 200, out: 100 }, offset: { AU19: 5000 } },
+      } } });
+      f.play('blip');
+      let peak = 0;
+      for (let t = 0; t < 300; t += 16) { f.update(16); peak = Math.max(peak, adapter.baseline.tongueOut ?? 0); }
+      expect(peak).toBeGreaterThan(0.9); // offset clamped to 100: up by 200 ms, down by 300
+      expect(adapter.baseline.tongueOut).toBe(0);
+      expect(adapter.baseline.mouthLowerDownLeft).toBeGreaterThan(0);
     });
 
     it('play on top of a mood and then disappear', () => {
