@@ -39,16 +39,17 @@ const select = (row, b) => row.querySelectorAll('button').forEach((x) => {
   x.setAttribute('aria-pressed', x === b);
 });
 
-// Entries without a description are never offered to the decision model.
-function chips(id, names, onPick, { exclusive = false, manual = () => false } = {}) {
+// `manual` names the director's question; options it doesn't offer the decision model are dashed.
+const offered = engine.director.questions('avatar');
+
+function chips(id, names, onPick, { exclusive = false, manual = null } = {}) {
   const row = $(id);
   for (const name of names) {
     const b = button(label(name), () => {
       if (exclusive) select(row, b);
       status(onPick(name));
     });
-    if (exclusive) b.setAttribute('aria-pressed', false);
-    if (manual(name)) {
+    if (manual && !(name in offered[manual].criteria)) {
       b.classList.add('manual');
       b.title = 'Manual only: the decision model never picks it';
     }
@@ -62,8 +63,6 @@ chips('camera', ['head', 'upper', 'mid', 'full'], (view) => {
 }, { exclusive: true });
 select($('camera'), $('camera').children[1]);
 
-const expressions = engine.face.facs.expressions;
-const faceManual = (name) => !expressions[name].description;
 const kindOf = (name) => engine.face.resolve(name).kind;
 const isGaze = (name) => Object.keys(engine.face.resolve(name).vs).every((mt) => /^eyeLook/.test(mt));
 const beats = engine.face.names.filter((n) => kindOf(n) === 'beat');
@@ -74,16 +73,15 @@ const playFace = (prefix) => (name) => {
 };
 
 // Not exclusive: the face also changes through decisions and the relax.
-chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { manual: faceManual });
-chips('beats', beats.filter((n) => !isGaze(n)), playFace('Face beat'), { manual: faceManual });
-chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: faceManual });
+chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { manual: 'expression' });
+chips('beats', beats.filter((n) => !isGaze(n)), playFace('Face beat'), { manual: 'expression' });
+chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: 'expression' });
 
 for (const [channel, row, title] of [['head', 'head-gestures', 'Head'], ['hands', 'hand-gestures', 'Hands']]) {
-  const catalog = engine.body.gestures[channel];
-  chips(row, Object.keys(catalog), (name) => {
+  chips(row, Object.keys(engine.body.gestures[channel]), (name) => {
     engine.body.play(name).then((done) => done && status('Ready'));
     return `${title}: ${label(name)}`;
-  }, { manual: (name) => !catalog[name].description });
+  }, { manual: channel });
 }
 
 const PHRASES = {
@@ -123,7 +121,6 @@ const store = {
 };
 
 let speaker = 'user';
-let connected = false;
 
 const KEYS_URL = 'openrouter.ai/keys';
 const REJECTED = 'This key was rejected — check it at openrouter.ai/keys';
@@ -158,22 +155,21 @@ function keyNote(text, { error = false, ms = 0 } = {}) {
   if (ms) keyNoteTimer = setTimeout(() => keyNote(), ms);
 }
 
+const errorCode = (error) => /System One (\d+)/.exec(error)?.[1];
+
 function explain(error) {
-  const code = /System One (\d+)/.exec(error)?.[1];
+  const code = errorCode(error);
   if (code === '401') return 'OpenRouter rejected this key — check it at openrouter.ai/keys';
   if (code === '402') return 'Your OpenRouter account is out of credit';
   if (code === '429') return 'Too many requests — wait a moment';
   return `Couldn't reach the decision model${code ? ` (${code})` : ''}`;
 }
 
-function connect(key) {
-  connected = !!key;
-  engine.useClassifier(key ? systemOne({ apiKey: key }) : null);
-}
+const connect = (key) => engine.useClassifier(key ? systemOne({ apiKey: key }) : null);
 
 $('key').value = store.get('openrouter-key') || '';
 connect($('key').value.trim());
-if (connected && store.get('openrouter-key-rejected')) keyNote(REJECTED, { error: true });
+if (engine.classify && store.get('openrouter-key-rejected')) keyNote(REJECTED, { error: true });
 $('key-save').onclick = () => {
   const key = $('key').value.trim();
   store.set('openrouter-key', key);
@@ -186,7 +182,8 @@ $('key-save').onclick = () => {
 function renderPhrases() {
   const { en, es } = PHRASES[speaker];
   const hint = Object.assign(document.createElement('p'), { className: 'note phrase-label', textContent: 'Works in any language:' });
-  $('phrases').replaceChildren(...en.map((p) => button(p, () => say(p))), hint, ...es.map((p) => button(p, () => say(p))));
+  const phrase = (p) => button(p, () => say(p));
+  $('phrases').replaceChildren(...en.map(phrase), hint, ...es.map(phrase));
 }
 
 $('speaker').onclick = (e) => {
@@ -206,13 +203,12 @@ $('say').onsubmit = (e) => {
   $('text').value = '';
 };
 
-let stream = 0;
-let streaming = false;
+let stream = null;
 
 // The person's line arrives whole, like a chat message; the avatar's is
 // streamed word by word, like a voice model's transcript.
 async function say(text) {
-  if (!connected) {
+  if (!engine.classify) {
     feedback('Add an OpenRouter key above to let Jev decide.');
     $('key').focus();
     return;
@@ -223,15 +219,14 @@ async function say(text) {
     return;
   }
   // A new line ends the one still streaming, so the two don't merge into one sentence.
-  if (streaming) engine.feed('', { speaker: 'avatar', final: true });
-  const id = ++stream;
-  streaming = true;
+  if (stream) engine.feed('', { speaker: 'avatar', final: true });
+  const id = stream = {};
   for (const w of text.split(/(?<=\s)/)) {
     engine.feed(w, { speaker: 'avatar' });
     await new Promise((r) => setTimeout(r, 260));
     if (id !== stream) return;
   }
-  streaming = false;
+  stream = null;
   engine.feed(text, { speaker: 'avatar', final: true });
 }
 
@@ -246,12 +241,14 @@ engine.onDecision = (d) => {
 
   const acts = document.createElement('div');
   acts.className = 'acts';
-  const note = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; acts.append(s); return s; };
-  if (d.error) {
-    const s = note('error', '');
-    s.replaceChildren(...rich(explain(d.error)));
-    s.title = d.error;
-  }
+  const message = d.error && explain(d.error);
+  const note = (cls, text) => {
+    const s = Object.assign(document.createElement('span'), { className: cls });
+    s.replaceChildren(...rich(text));
+    acts.append(s);
+    return s;
+  };
+  if (d.error) note('error', message).title = d.error;
   else if (d.skipped) note('skipped', `Not asked: ${d.skipped}`);
   else if (!d.actions.length) note('skipped', 'No reaction (Jev chose none)');
   for (const a of d.actions) {
@@ -259,8 +256,8 @@ engine.onDecision = (d) => {
     note(a.applied ? 'applied' : 'skipped', a.applied ? `✓ ${what}` : `✗ ${what} · ${a.reason}`);
   }
   li.append(acts);
-  feedback(d.error ? explain(d.error) : '', { error: !!d.error });
-  if (d.error?.startsWith('System One 401')) {
+  feedback(message || '', { error: !!d.error });
+  if (d.error && errorCode(d.error) === '401') {
     store.set('openrouter-key-rejected', '1');
     keyNote(REJECTED, { error: true });
   } else if (d.answers && store.get('openrouter-key-rejected')) {
