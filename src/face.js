@@ -8,14 +8,36 @@ import FACS from './facs.json' with { type: 'json' };
 
 const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
+/**
+ * @typedef {object} Expression
+ * @property {string} [description] - When to use it; without one the classifier never picks it
+ * @property {string} [facs] - Provenance note, unused at runtime
+ * @property {'mood'|'beat'} [kind='mood'] - A mood holds until replaced; a beat plays once on top
+ * @property {Record<string, number>} [aus] - AU → level; a trailing _L/_R makes it one-sided
+ * @property {{in?: number, hold?: number, out?: number}} [envelope] - Beats only, ms
+ * @property {Record<string, number>} [offset] - Beats only: AU → ms it starts later and ends earlier
+ */
+
+/**
+ * @typedef {object} FacsCatalog
+ * @property {Record<string, Record<string, number>>} au_map - AU → ARKit blendshape weights
+ * @property {Record<string, Expression>} expressions
+ * @property {Record<string, {max: number, beatMax?: number, note?: string}>} [au_limits]
+ * @property {{aus: Record<string, number>, note?: string}[]} [avoid]
+ */
+
+/**
+ * @typedef {object} FaceOptions
+ * @property {FacsCatalog} [facs] - Default: the bundled facs.json
+ * @property {number} [fade=400] - Mood cross-fade, ms
+ */
+
 export class Face {
   /**
-   * @param {TalkingHeadAdapter} adapter
-   * @param {object} [options]
-   * @param {object} [options.facs] - { au_map, expressions, au_limits?, avoid? }
-   * @param {number} [options.fade=400] - Mood cross-fade (ms)
+   * @param {import('./adapter.js').TalkingHeadAdapter} adapter
+   * @param {FaceOptions} [options]
    */
-  constructor(adapter, { facs = FACS, fade = 400 } = {}) {
+  constructor(adapter, { facs = /** @type {FacsCatalog} */ (FACS), fade = 400 } = {}) {
     this.adapter = adapter;
     this.facs = facs;
     // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
@@ -29,16 +51,23 @@ export class Face {
     this._spare = new Set();
   }
 
+  /** @returns {string[]} */
   get names() {
     return Object.keys(this.facs.expressions);
   }
 
-  /** The held expression shown or fading in, or null. */
+  /**
+   * The held expression shown or fading in, or null.
+   * @returns {string|null}
+   */
   get current() {
     return this._moods.find((m) => m.target === 1)?.name ?? null;
   }
 
-  /** @returns {{name:string, kind:'mood'|'beat', vs:Object<string,number>, envelope:?object, offsets:Object<string,number>}|null} */
+  /**
+   * @param {string} name
+   * @returns {{name: string, kind: 'mood'|'beat', vs: Record<string, number>, envelope: ?object, offsets: Record<string, number>}|null}
+   */
   resolve(name) {
     const recipe = this.facs.expressions[name];
     if (!recipe) return null;
@@ -51,7 +80,11 @@ export class Face {
     };
   }
 
-  /** A mood replaces the held expression (neutral just fades it out); a beat plays once on top. */
+  /**
+   * A mood replaces the held expression (neutral just fades it out); a beat plays once on top.
+   * @param {string} name
+   * @returns {boolean} false if the name isn't in the catalog
+   */
   play(name) {
     const r = this.resolve(name);
     if (!r) return false;
@@ -75,6 +108,7 @@ export class Face {
     this._driven.clear();
   }
 
+  /** @param {number} dt - ms since the last frame */
   update(dt) {
     if (!this._moods.length && !this._beats.length && !this._driven.size) return;
 
@@ -148,6 +182,7 @@ function beatLevel(b, offset) {
 }
 
 /**
+ * @param {FacsCatalog} facs
  * Recipes that break the catalog's per-avatar calibration: an AU above its
  * `au_limits` level, or a combination from `avoid`.
  * @returns {string[]} One message per problem
@@ -170,8 +205,9 @@ export function auViolations({ au_map: map, au_limits: limits = {}, avoid = [], 
     const level = auLevels(e.aus || {});
     const beat = e.kind === 'beat';
     for (const [au, lim] of Object.entries(limits)) {
-      const max = beat ? lim.beatMax ?? lim.max : lim.max;
-      if ((level[au] || 0) > max) out.push(`${name}: ${au} ${level[au]} is above ${max}${beat ? ' for a beat' : ''}${why(lim.note)}`);
+      const max = beat ? (lim.beatMax ?? lim.max) : lim.max;
+      if ((level[au] || 0) > max)
+        out.push(`${name}: ${au} ${level[au]} is above ${max}${beat ? ' for a beat' : ''}${why(lim.note)}`);
     }
     for (const rule of avoid) {
       if (Object.entries(rule.aus).every(([au, max]) => (level[au] || 0) > max)) {
@@ -193,6 +229,7 @@ function auLevels(aus) {
   }
   // Rounded, so 0.1 + 0.2 isn't "above" a 0.3 limit.
   const level = {};
-  for (const [au, w] of [...Object.entries(left), ...Object.entries(right)]) level[au] = Math.max(level[au] || 0, Math.round(w * 1000) / 1000);
+  for (const [au, w] of [...Object.entries(left), ...Object.entries(right)])
+    level[au] = Math.max(level[au] || 0, Math.round(w * 1000) / 1000);
   return level;
 }

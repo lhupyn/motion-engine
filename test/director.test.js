@@ -13,11 +13,19 @@ function fakes() {
       },
     },
     current: null,
-    resolve(name) { const e = this.facs.expressions[name]; return e ? { name, kind: e.kind || 'mood' } : null; },
-    play: vi.fn(function (name) { if (this.resolve(name).kind === 'mood') this.current = name; }),
+    resolve(name) {
+      const e = this.facs.expressions[name];
+      return e ? { name, kind: e.kind || 'mood' } : null;
+    },
+    play: vi.fn(function (name) {
+      if (this.resolve(name).kind === 'mood') this.current = name;
+    }),
   };
   const body = {
-    gestures: { head: { nod: { description: 'Agree' } }, hands: { wave: { description: 'Greet' }, clap: { description: 'Applaud' } } },
+    gestures: {
+      head: { nod: { description: 'Agree' } },
+      hands: { wave: { description: 'Greet' }, clap: { description: 'Applaud' } },
+    },
     current: { head: null, hands: null },
     play: vi.fn(),
   };
@@ -44,12 +52,12 @@ describe('Director', () => {
       expect(q.expression.criteria.happy).toBe('Glad');
     });
 
-    it('asks the person\'s lines whether they are intelligible; the avatar\'s are not asked', () => {
+    it("asks the person's lines whether they are intelligible; the avatar's are not asked", () => {
       expect(d.questions('user').clear).toMatchObject({ type: 'noul' });
       expect(d.questions('avatar').clear).toBeUndefined();
     });
 
-    it('frames the person\'s lines as a reaction, not a copy', () => {
+    it("frames the person's lines as a reaction, not a copy", () => {
       expect(d.questions('user').expression.instructions).toMatch(/reaction/);
       expect(d.questions('avatar').expression.instructions).toMatch(/while saying/);
     });
@@ -72,7 +80,9 @@ describe('Director', () => {
     });
 
     it('none means no action at all', () => {
-      expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual([]);
+      expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual(
+        [],
+      );
     });
 
     it('ignores low confidence', () => {

@@ -108,10 +108,15 @@ describe('adapter verbs', () => {
 
   it('hands over: bones the next poses move stay, the rest go back to the stance', () => {
     const head = makeHead();
-    head.gestureTemplates.handup = { 'LeftArm.rotation': { x: 1, y: 0, z: 1 }, 'LeftHand.rotation': { x: 0, y: 0, z: 0 } };
+    head.gestureTemplates.handup = {
+      'LeftArm.rotation': { x: 1, y: 0, z: 1 },
+      'LeftHand.rotation': { x: 0, y: 0, z: 0 },
+    };
     head.gesture = { 'LeftArm.quaternion': {}, 'RightArm.quaternion': {}, 'RightHand.quaternion': {} };
     let released;
-    head.stopGesture.mockImplementation(() => { released = Object.keys(head.gesture); });
+    head.stopGesture.mockImplementation(() => {
+      released = Object.keys(head.gesture);
+    });
     new TalkingHeadAdapter(head).handOver([['handup', true]], 300);
     expect(released).toEqual(['LeftArm.quaternion']);
     expect(head.stopGesture).toHaveBeenCalledWith(300);
@@ -131,9 +136,9 @@ describe('adapter verbs', () => {
   it('resolves rest baseline with setMood() precedence', () => {
     const a = new TalkingHeadAdapter(makeHead());
     expect(a.restBaseline('mouthSmileLeft')).toBe(0.2); // active mood
-    expect(a.restBaseline('browInnerUp')).toBe(0.1);    // avatar baseline
-    expect(a.restBaseline('eyeBlinkLeft')).toBe(0);     // exception
-    expect(a.restBaseline('jawOpen')).toBe(0);          // default
+    expect(a.restBaseline('browInnerUp')).toBe(0.1); // avatar baseline
+    expect(a.restBaseline('eyeBlinkLeft')).toBe(0); // exception
+    expect(a.restBaseline('jawOpen')).toBe(0); // default
   });
 
   it('shows expression morphs above rest: gaze and blink in the system slot, the rest as baseline', () => {

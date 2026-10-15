@@ -7,7 +7,11 @@ describe('System One client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('posts state and questions to OpenRouter with the key', async () => {
-    const fetch = ok({ answers: { mood: { choice: 'happy', confidence: 0.8 } }, model: 'typesafe/jev-1.14', usage: { cost: 0.00002 } });
+    const fetch = ok({
+      answers: { mood: { choice: 'happy', confidence: 0.8 } },
+      model: 'typesafe/jev-1.14',
+      usage: { cost: 0.00002 },
+    });
     vi.stubGlobal('fetch', fetch);
     const q = { mood: ask.choice('Mood?', { happy: 'Glad', none: 'No change' }) };
     const r = await systemOne({ apiKey: 'sk-test' })({ speaker: 'avatar', text: 'Yay' }, q);
@@ -20,7 +24,11 @@ describe('System One client', () => {
       state: { speaker: 'avatar', text: 'Yay' },
       questions: { mood: { type: 'choice', instructions: 'Mood?', criteria: { happy: 'Glad', none: 'No change' } } },
     });
-    expect(r).toMatchObject({ answers: { mood: { choice: 'happy' } }, model: 'typesafe/jev-1.14', usage: { cost: 0.00002 } });
+    expect(r).toMatchObject({
+      answers: { mood: { choice: 'happy' } },
+      model: 'typesafe/jev-1.14',
+      usage: { cost: 0.00002 },
+    });
     expect(typeof r.ms).toBe('number');
   });
 
@@ -48,10 +56,22 @@ describe('System One client', () => {
   });
 
   it('reports API errors from either provider', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'No auth' } }) })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'No auth' } }) })),
+    );
     await expect(systemOne({ apiKey: 'bad' })('hi', {})).rejects.toThrow('System One 401: No auth');
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ detail: { message: 'Must supply an API key!' } }) })));
-    await expect(systemOne({ apiKey: '', provider: 'typesafe' })('hi', {})).rejects.toThrow('System One 403: Must supply an API key!');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 403,
+        json: async () => ({ detail: { message: 'Must supply an API key!' } }),
+      })),
+    );
+    await expect(systemOne({ apiKey: '', provider: 'typesafe' })('hi', {})).rejects.toThrow(
+      'System One 403: Must supply an API key!',
+    );
   });
 
   it('rejects an unknown provider', () => {
@@ -59,6 +79,10 @@ describe('System One client', () => {
   });
 
   it('builds yes/no questions', () => {
-    expect(ask.noul('Clear?', 'yes', 'no')).toEqual({ type: 'noul', instructions: 'Clear?', criteria: { true: 'yes', false: 'no' } });
+    expect(ask.noul('Clear?', 'yes', 'no')).toEqual({
+      type: 'noul',
+      instructions: 'Clear?',
+      criteria: { true: 'yes', false: 'no' },
+    });
   });
 });

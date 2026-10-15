@@ -6,6 +6,47 @@
 // visitor's own key. TypeSafe's API only accepts its own console, so use it
 // from a server.
 
+/**
+ * The line to classify.
+ * @typedef {object} State
+ * @property {'avatar'|'user'} speaker
+ * @property {string} text
+ * @property {{speaker: 'avatar'|'user', text: string}} [previous] - The line before; omitted on the first
+ */
+
+/** @typedef {{type: 'choice', instructions: string, criteria: Record<string, string>}} ChoiceQuestion - criteria: option → when to pick it */
+/** @typedef {{type: 'noul', instructions: string, criteria: {true: string, false: string}}} NoulQuestion - A yes/no question */
+
+/**
+ * Keyed by what the director reads back: expression, head, hands, and clear for the person's lines.
+ * @typedef {Record<string, ChoiceQuestion | NoulQuestion>} Questions
+ */
+
+/**
+ * @typedef {object} Answers
+ * @property {{choice: string, confidence?: number}} [expression]
+ * @property {{choice: string, confidence?: number}} [head]
+ * @property {{choice: string, confidence?: number}} [hands]
+ * @property {{noul: number}} [clear] - 0–1, how likely the line is intelligible
+ */
+
+/**
+ * @typedef {object} ClassifyResult
+ * @property {Answers} answers
+ * @property {string|null} [model]
+ * @property {object|null} [usage] - As the provider returns it, e.g. { input_tokens, cost }
+ * @property {number} [ms]
+ */
+
+/**
+ * Anything that answers the questions about a line. Reject with an AbortError when `signal` aborts.
+ * @callback Classify
+ * @param {State} state
+ * @param {Questions} questions
+ * @param {{signal?: AbortSignal}} [options]
+ * @returns {Promise<ClassifyResult>}
+ */
+
 const PROVIDERS = {
   openrouter: { url: 'https://openrouter.ai/api/v1/systemone', model: '~typesafe/jev-latest' },
   typesafe: { url: 'https://api.typesafe.ai/v1/systemone', model: 'jev-latest' },
@@ -13,12 +54,11 @@ const PROVIDERS = {
 
 /**
  * @param {object} options
- * @param {string} options.apiKey
+ * @param {string} [options.apiKey] - Not needed by a server without auth
  * @param {'openrouter'|'typesafe'} [options.provider='openrouter']
- * @param {string} [options.model]
- * @param {string} [options.url] - e.g. your own proxy
- * @returns {(state: object|string, questions: object, opts?: {signal?: AbortSignal}) =>
- *   Promise<{answers: object, model: ?string, usage: ?object, ms: number}>}
+ * @param {string} [options.model] - Default: Jev on the provider
+ * @param {string} [options.url] - e.g. your own proxy or a self-hosted decision model
+ * @returns {Classify}
  */
 export function systemOne({ apiKey, provider = 'openrouter', model, url }) {
   const p = PROVIDERS[provider];
@@ -51,8 +91,21 @@ export function systemOne({ apiKey, provider = 'openrouter', model, url }) {
 }
 
 export const ask = {
-  /** @param {Object<string,string>} options - Option name → what it means */
+  /**
+   * @param {string} instructions
+   * @param {Record<string, string>} options - Option name → what it means
+   * @returns {ChoiceQuestion}
+   */
   choice: (instructions, options) => ({ type: 'choice', instructions, criteria: options }),
-  noul: (instructions, whenTrue, whenFalse) =>
-    ({ type: 'noul', instructions, criteria: { true: whenTrue, false: whenFalse } }),
+  /**
+   * @param {string} instructions
+   * @param {string} whenTrue
+   * @param {string} whenFalse
+   * @returns {NoulQuestion}
+   */
+  noul: (instructions, whenTrue, whenFalse) => ({
+    type: 'noul',
+    instructions,
+    criteria: { true: whenTrue, false: whenFalse },
+  }),
 };

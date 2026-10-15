@@ -3,7 +3,9 @@ import { MotionEngine, systemOne } from '../src/index.js';
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
-const status = (text) => { $('status').textContent = text; };
+const status = (text) => {
+  $('status').textContent = text;
+};
 
 const head = new TalkingHead($('avatar'), {
   cameraView: 'upper',
@@ -34,10 +36,11 @@ function button(text, onclick) {
   return Object.assign(document.createElement('button'), { textContent: text, onclick });
 }
 
-const select = (row, b) => row.querySelectorAll('button').forEach((x) => {
-  x.classList.toggle('on', x === b);
-  x.setAttribute('aria-pressed', x === b);
-});
+const select = (row, b) =>
+  row.querySelectorAll('button').forEach((x) => {
+    x.classList.toggle('on', x === b);
+    x.setAttribute('aria-pressed', x === b);
+  });
 
 // `manual` names the director's question; options it doesn't offer the decision model are dashed.
 const offered = engine.director.questions('avatar');
@@ -57,10 +60,15 @@ function chips(id, names, onPick, { exclusive = false, manual = null } = {}) {
   }
 }
 
-chips('camera', ['head', 'upper', 'mid', 'full'], (view) => {
-  head.setView(view);
-  return `Camera: ${view}`;
-}, { exclusive: true });
+chips(
+  'camera',
+  ['head', 'upper', 'mid', 'full'],
+  (view) => {
+    head.setView(view);
+    return `Camera: ${view}`;
+  },
+  { exclusive: true },
+);
 select($('camera'), $('camera').children[1]);
 
 const kindOf = (name) => engine.face.resolve(name).kind;
@@ -73,15 +81,33 @@ const playFace = (prefix) => (name) => {
 };
 
 // Not exclusive: the face also changes through decisions and the relax.
-chips('moods', engine.face.names.filter((n) => kindOf(n) === 'mood'), playFace('Face'), { manual: 'expression' });
-chips('beats', beats.filter((n) => !isGaze(n)), playFace('Face beat'), { manual: 'expression' });
+chips(
+  'moods',
+  engine.face.names.filter((n) => kindOf(n) === 'mood'),
+  playFace('Face'),
+  { manual: 'expression' },
+);
+chips(
+  'beats',
+  beats.filter((n) => !isGaze(n)),
+  playFace('Face beat'),
+  { manual: 'expression' },
+);
 chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: 'expression' });
 
-for (const [channel, row, title] of [['head', 'head-gestures', 'Head'], ['hands', 'hand-gestures', 'Hands']]) {
-  chips(row, Object.keys(engine.body.gestures[channel]), (name) => {
-    engine.body.play(name).then((done) => done && status('Ready'));
-    return `${title}: ${label(name)}`;
-  }, { manual: channel });
+for (const [channel, row, title] of [
+  ['head', 'head-gestures', 'Head'],
+  ['hands', 'hand-gestures', 'Hands'],
+]) {
+  chips(
+    row,
+    Object.keys(engine.body.gestures[channel]),
+    (name) => {
+      engine.body.play(name).then((done) => done && status('Ready'));
+      return `${title}: ${label(name)}`;
+    },
+    { manual: channel },
+  );
 }
 
 const PHRASES = {
@@ -116,8 +142,20 @@ const PHRASES = {
 };
 
 const store = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* private mode */ } },
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      v ? localStorage.setItem(k, v) : localStorage.removeItem(k);
+    } catch {
+      /* private mode */
+    }
+  },
 };
 
 let speaker = 'user';
@@ -129,7 +167,12 @@ const REJECTED = 'This key was rejected — check it at openrouter.ai/keys';
 function rich(text) {
   const [before, ...after] = text.split(KEYS_URL);
   if (!after.length) return [text];
-  const a = Object.assign(document.createElement('a'), { href: `https://${KEYS_URL}`, target: '_blank', rel: 'noopener', textContent: KEYS_URL });
+  const a = Object.assign(document.createElement('a'), {
+    href: `https://${KEYS_URL}`,
+    target: '_blank',
+    rel: 'noopener',
+    textContent: KEYS_URL,
+  });
   return [before, a, after.join(KEYS_URL)];
 }
 
@@ -181,7 +224,10 @@ $('key-save').onclick = () => {
 
 function renderPhrases() {
   const { en, es } = PHRASES[speaker];
-  const hint = Object.assign(document.createElement('p'), { className: 'note phrase-label', textContent: 'Works in any language:' });
+  const hint = Object.assign(document.createElement('p'), {
+    className: 'note phrase-label',
+    textContent: 'Works in any language:',
+  });
   const phrase = (p) => button(p, () => say(p));
   $('phrases').replaceChildren(...en.map(phrase), hint, ...es.map(phrase));
 }
@@ -220,7 +266,7 @@ async function say(text) {
   }
   // A new line ends the one still streaming, so the two don't merge into one sentence.
   if (stream) engine.feed('', { speaker: 'avatar', final: true });
-  const id = stream = {};
+  const id = (stream = {});
   for (const w of text.split(/(?<=\s)/)) {
     engine.feed(w, { speaker: 'avatar' });
     await new Promise((r) => setTimeout(r, 260));

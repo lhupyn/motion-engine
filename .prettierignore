@@ -1,0 +1,11 @@
+dist/
+types/
+images/
+.shots/
+.claude/
+package-lock.json
+README.md
+# Hand-formatted catalog data
+src/*.json
+# Hand-formatted page: compact CSS and import map
+demo/index.html

@@ -8,25 +8,48 @@ import { systemOne } from './systemone.js';
 // Not every provider sends a final fragment, so silence also ends the avatar's turn.
 const SILENCE_ENDS_TURN = 3000;
 
+/** @typedef {import('./systemone.js').Classify} Classify */
+
+/**
+ * @typedef {object} Options
+ * @property {Classify|null} [classify] - Decides the reactions, e.g. systemOne({ apiKey }); without it feed() does nothing
+ * @property {import('./face.js').FaceOptions} [face]
+ * @property {import('./body.js').BodyOptions} [body]
+ * @property {import('./director.js').DirectorOptions} [director] - Thresholds and timings
+ * @property {number} [pause=800] - Classify unfinished text after this many ms without fragments
+ */
+
+/**
+ * One per sentence, passed to onDecision.
+ * @typedef {object} Decision
+ * @property {'avatar'|'user'} speaker
+ * @property {string} text
+ * @property {import('./director.js').Action[]} actions
+ * @property {import('./systemone.js').Answers} [answers] - The classifier's raw answers
+ * @property {string|null} [model]
+ * @property {object|null} [usage] - As the provider returns it, e.g. { input_tokens, cost }
+ * @property {number} [ms]
+ * @property {string} [skipped] - Why the line wasn't sent, or why its answer was dropped
+ * @property {string} [error] - The request failed
+ */
+
 export class MotionEngine {
   /**
    * @param {object} head - TalkingHead instance, after showAvatar()
-   * @param {object} [options]
-   * @param {function} [options.classify] - Decides the reactions, e.g. systemOne({ apiKey })
-   * @param {object} [options.face]
-   * @param {object} [options.body]
-   * @param {object} [options.director] - Thresholds and timings
-   * @param {number} [options.pause=800] - Classify unfinished text after this many ms without fragments
+   * @param {Options} [options]
    */
   constructor(head, { classify = null, face, body, director, pause = 800, ...rest } = {}) {
-    if ('jev' in rest) throw new Error('motion-engine 2: the jev option was removed — pass classify: systemOne({ apiKey })');
+    if ('jev' in rest)
+      throw new Error('motion-engine 2: the jev option was removed — pass classify: systemOne({ apiKey })');
     this.adapter = new TalkingHeadAdapter(head);
     this.face = new Face(this.adapter, face);
     this.body = new Body(this.adapter, body);
     this.director = new Director(this.face, this.body, director);
     this.director.busy = () => this._avatarSpeaking;
+    /** @type {Classify|null} */
     this.classify = classify;
     this.pause = pause;
+    /** @type {((decision: Decision) => void) | null} */
     this.onDecision = null;
 
     this._segments = { avatar: new Segmenter(), user: new Segmenter() };
@@ -45,7 +68,10 @@ export class MotionEngine {
     });
   }
 
-  /** Set or replace the classifier, e.g. once the visitor provides a key. */
+  /**
+   * Set or replace the classifier, e.g. once the visitor provides a key.
+   * @param {Classify|null} classify
+   */
   useClassifier(classify) {
     this.classify = classify;
   }

@@ -33,7 +33,12 @@ export class TalkingHeadAdapter {
    */
   onFrame(fn) {
     const prev = this.head.opt.update;
-    const update = prev ? (dt) => { prev(dt); fn(dt); } : fn;
+    const update = prev
+      ? (dt) => {
+          prev(dt);
+          fn(dt);
+        }
+      : fn;
     this.head.opt.update = update;
     return () => {
       if (this.head.opt.update === update) this.head.opt.update = prev;
@@ -42,7 +47,9 @@ export class TalkingHeadAdapter {
 
   /** [appendix] Gesture templates that TalkingHead ships or the app added (not the poses registered here). */
   gestureNames() {
-    return Object.entries(this.head.gestureTemplates || {}).filter(([, t]) => !t[OWN]).map(([name]) => name);
+    return Object.entries(this.head.gestureTemplates || {})
+      .filter(([, t]) => !t[OWN])
+      .map(([name]) => name);
   }
 
   /** [appendix] An arm/hand pose (bone rotations) that gesture frames can use like a built-in. */

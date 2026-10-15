@@ -10,19 +10,50 @@ import GESTURES from './gestures.json' with { type: 'json' };
 
 const RAMP = 300;
 
+/**
+ * A TalkingHead animation template, plus an optional oscillation overlay.
+ * @typedef {object} Gesture
+ * @property {string} [description] - When to use it; without one the classifier never picks it
+ * @property {number | Array<number | [number, number]>} dt - Frame timings, ms; [min, max] is a range
+ * @property {number[]} [rescale]
+ * @property {Record<string, any[]>} vs - Values per frame; hands use vs.gesture: [pose, duration, mirror, transitionMs]
+ * @property {{bones?: Record<string, {freq: number, amp: number[], phase?: number}>, delay?: number, duration?: number}} [overlay]
+ */
+
+/**
+ * @typedef {object} GestureCatalog
+ * @property {Record<string, Gesture>} head
+ * @property {Record<string, Gesture>} hands
+ * @property {Record<string, Record<string, {x: number, y: number, z: number}>>} [poses] - Arm poses: bone rotations in radians
+ */
+
+/**
+ * @typedef {object} BodyOptions
+ * @property {GestureCatalog} [gestures] - Default: the bundled gestures.json
+ * @property {number} [fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
+ * @property {number} [fadeOut=800]
+ * @property {number} [cutFade=100] - Arms back to the stance when a hand gesture is stopped early
+ * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
+ */
+
 export class Body {
   /**
-   * @param {TalkingHeadAdapter} adapter
-   * @param {object} [options]
-   * @param {{head: object, hands: object, poses?: object}} [options.gestures]
-   * @param {number} [options.fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
-   * @param {number} [options.fadeOut=800]
-   * @param {number} [options.cutFade=100] - Arms back to the stance when a hand gesture is stopped early
-   * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
+   * @param {import('./adapter.js').TalkingHeadAdapter} adapter
+   * @param {BodyOptions} [options]
    */
-  constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
+  constructor(
+    adapter,
+    {
+      gestures = /** @type {GestureCatalog} */ (GESTURES),
+      fadeIn = 800,
+      fadeOut = 800,
+      cutFade = 100,
+      settle = 1000,
+    } = {},
+  ) {
     const opt = { fadeIn, fadeOut, cutFade, settle };
     this.adapter = adapter;
+    /** @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */
     this.gestures = { head: {}, hands: {} };
     this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
 
@@ -44,20 +75,32 @@ export class Body {
     }
   }
 
+  /** @returns {string[]} */
   get names() {
     return [...Object.keys(this.gestures.head), ...Object.keys(this.gestures.hands)];
   }
 
-  /** What each channel is playing: { head, hands }, null when idle. */
+  /**
+   * What each channel is playing: { head, hands }, null when idle.
+   * @returns {{head: string|null, hands: string|null}}
+   */
   get current() {
     return { head: this._channels.head.current, hands: this._channels.hands.current };
   }
 
+  /**
+   * @param {string} name
+   * @returns {'head'|'hands'|null}
+   */
   channelOf(name) {
     return Object.keys(this.gestures).find((c) => this.gestures[c][name]) ?? null;
   }
 
-  /** Interrupts the current gesture on its channel. Resolves true when done, false if interrupted or unknown. */
+  /**
+   * Interrupts the current gesture on its channel.
+   * @param {string} name
+   * @returns {Promise<boolean>} true when done, false if interrupted or unknown
+   */
   play(name) {
     const channel = this.channelOf(name);
     if (!channel) return Promise.resolve(false);
@@ -69,6 +112,7 @@ export class Body {
     for (const c of channel ? [channel] : Object.keys(this._channels)) this._channels[c].stop();
   }
 
+  /** @param {number} dt - ms since the last frame */
   update(dt) {
     this._channels.head.update(dt);
     this._channels.hands.update(dt);
@@ -112,7 +156,11 @@ class Channel {
     if (!this.current) return;
     this._cancel?.();
     if (this.kind === 'head') this.adapter.stopAnim(this.current);
-    else if (next) this.adapter.handOver(next.map(([pose, , mirror]) => [pose, mirror]), next[0]?.[3] ?? this.opt.fadeIn);
+    else if (next)
+      this.adapter.handOver(
+        next.map(([pose, , mirror]) => [pose, mirror]),
+        next[0]?.[3] ?? this.opt.fadeIn,
+      );
     else this.adapter.stopGesture(this.opt.cutFade);
     this.current = null;
   }
@@ -123,8 +171,15 @@ class Channel {
 
   _wait(ms) {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => { this._cancel = null; resolve(true); }, ms);
-      this._cancel = () => { clearTimeout(timer); this._cancel = null; resolve(false); };
+      const timer = setTimeout(() => {
+        this._cancel = null;
+        resolve(true);
+      }, ms);
+      this._cancel = () => {
+        clearTimeout(timer);
+        this._cancel = null;
+        resolve(false);
+      };
     });
   }
 }
@@ -145,7 +200,10 @@ class Oscillation {
     if (!run) return;
     run.t += dt;
     if (run.t < 0) return;
-    if (run.t > run.length) { this.clear(); return; }
+    if (run.t > run.length) {
+      this.clear();
+      return;
+    }
 
     const sec = run.t / 1000;
     const env = Math.min(run.t / RAMP, 1) * Math.min((run.length - run.t) / RAMP, 1);

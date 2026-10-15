@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Face } from '../src/face.js';
 import { TalkingHeadAdapter } from '../src/adapter.js';
-import FACS from '../src/facs.json';
 
 /** The real adapter over a stand-in avatar that records every morph write; `rest` is its mood baseline. */
 function fakeAdapter(rest = {}) {
@@ -9,8 +8,12 @@ function fakeAdapter(rest = {}) {
   const system = {};
   const adapter = new TalkingHeadAdapter({
     mood: { baseline: rest },
-    setBaselineValue: (mt, v) => { baseline[mt] = v; },
-    setValue: (mt, v) => { system[mt] = v; },
+    setBaselineValue: (mt, v) => {
+      baseline[mt] = v;
+    },
+    setValue: (mt, v) => {
+      system[mt] = v;
+    },
   });
   return Object.assign(adapter, { baseline, system });
 }
@@ -31,11 +34,18 @@ const TEST_FACS = {
     cheeky: { aus: { AU6: 0.4 } },
     overlap: { aus: { AU12: 0.8, AU6: 0.8 } },
     glance: { kind: 'beat', aus: { AU61: 0.7 }, envelope: { in: 100, hold: 200, out: 100 } },
-    tongue: { kind: 'beat', aus: { AU19: 0.8, AU25: 0.6 }, envelope: { in: 150, hold: 700, out: 300 }, offset: { AU19: 150 } },
+    tongue: {
+      kind: 'beat',
+      aus: { AU19: 0.8, AU25: 0.6 },
+      envelope: { in: 150, hold: 700, out: 300 },
+      offset: { AU19: 150 },
+    },
   },
 };
 
-const run = (face, ms, step = 16) => { for (let t = 0; t < ms; t += step) face.update(step); };
+const run = (face, ms, step = 16) => {
+  for (let t = 0; t < ms; t += step) face.update(step);
+};
 
 describe('Face', () => {
   let adapter, face;
@@ -79,11 +89,11 @@ describe('Face', () => {
       run(face, 600);
       face.play('smirk');
       run(face, 200); // halfway
-      expect(adapter.baseline.mouthSmileRight).toBeGreaterThan(0);   // grin still fading out
+      expect(adapter.baseline.mouthSmileRight).toBeGreaterThan(0); // grin still fading out
       expect(adapter.baseline.mouthSmileRight).toBeLessThan(0.8);
       run(face, 400);
-      expect(adapter.baseline.mouthSmileRight).toBe(0);              // released to rest
-      expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.7);      // 0.1 rest + 0.6 smirk
+      expect(adapter.baseline.mouthSmileRight).toBe(0); // released to rest
+      expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.7); // 0.1 rest + 0.6 smirk
     });
 
     it('neutral fades the held expression out and releases its morphs', () => {
@@ -125,12 +135,25 @@ describe('Face', () => {
     });
 
     it('an offset never takes more than half the hold', () => {
-      const f = new Face(adapter, { facs: { ...TEST_FACS, expressions: {
-        blip: { kind: 'beat', aus: { AU19: 1, AU25: 1 }, envelope: { in: 100, hold: 200, out: 100 }, offset: { AU19: 5000 } },
-      } } });
+      const f = new Face(adapter, {
+        facs: {
+          ...TEST_FACS,
+          expressions: {
+            blip: {
+              kind: 'beat',
+              aus: { AU19: 1, AU25: 1 },
+              envelope: { in: 100, hold: 200, out: 100 },
+              offset: { AU19: 5000 },
+            },
+          },
+        },
+      });
       f.play('blip');
       let peak = 0;
-      for (let t = 0; t < 300; t += 16) { f.update(16); peak = Math.max(peak, adapter.baseline.tongueOut ?? 0); }
+      for (let t = 0; t < 300; t += 16) {
+        f.update(16);
+        peak = Math.max(peak, adapter.baseline.tongueOut ?? 0);
+      }
       expect(peak).toBeGreaterThan(0.9); // offset clamped to 100: up by 200 ms, down by 300
       expect(adapter.baseline.tongueOut).toBe(0);
       expect(adapter.baseline.mouthLowerDownLeft).toBeGreaterThan(0);
@@ -146,7 +169,9 @@ describe('Face', () => {
   });
 
   it('a partial envelope keeps the default for what it leaves out', () => {
-    const f = new Face(adapter, { facs: { ...TEST_FACS, expressions: { blip: { kind: 'beat', aus: { AU6: 0.5 }, envelope: { hold: 100 } } } } });
+    const f = new Face(adapter, {
+      facs: { ...TEST_FACS, expressions: { blip: { kind: 'beat', aus: { AU6: 0.5 }, envelope: { hold: 100 } } } },
+    });
     f.play('blip');
     run(f, 1200);
     expect(f._beats).toHaveLength(0);

@@ -6,7 +6,9 @@ import { createRequire } from 'node:module';
 
 // TalkingHead's built-in arm poses, read from its source.
 const th = readFileSync(createRequire(import.meta.url).resolve('talkinghead/modules/talkinghead.mjs'), 'utf8');
-const BUILT_IN = [...th.slice(th.indexOf('this.gestureTemplates = {'), th.indexOf('this.poseDelta = {')).matchAll(/^\s+'(\w+)': \{/gm)].map((m) => m[1]);
+const BUILT_IN = [
+  ...th.slice(th.indexOf('this.gestureTemplates = {'), th.indexOf('this.poseDelta = {')).matchAll(/^\s+'(\w+)': \{/gm),
+].map((m) => m[1]);
 
 function fakeAdapter() {
   return {
@@ -14,14 +16,20 @@ function fakeAdapter() {
     poses: {},
     offsets: {},
     gestureNames: () => ['handup', 'ok'],
-    registerAnim(name, t) { this.anims[name] = t; },
-    registerPose(name, p) { this.poses[name] = p; },
+    registerAnim(name, t) {
+      this.anims[name] = t;
+    },
+    registerPose(name, p) {
+      this.poses[name] = p;
+    },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
     handOver: vi.fn(),
     playAnim: vi.fn(),
     stopAnim: vi.fn(),
-    setBoneOffset(bone, x, y, z) { this.offsets[bone] = { x, y, z }; },
+    setBoneOffset(bone, x, y, z) {
+      this.offsets[bone] = { x, y, z };
+    },
   };
 }
 
@@ -69,7 +77,9 @@ describe('Body', () => {
 
     it('keeps a transition set in the frame', () => {
       const a = fakeAdapter();
-      new Body(a, { gestures: { head: {}, hands: { quick: { dt: [100], vs: { gesture: [['ok', null, false, 300]] } } } } });
+      new Body(a, {
+        gestures: { head: {}, hands: { quick: { dt: [100], vs: { gesture: [['ok', null, false, 300]] } } } },
+      });
       expect(a.anims.quick.vs.gesture).toEqual([['ok', Infinity, false, 300]]);
     });
   });
@@ -125,13 +135,24 @@ describe('Body', () => {
 
     it('hands over the poses the next gesture moves to, with its first transition', () => {
       const a = fakeAdapter();
-      const b = new Body(a, { gestures: { head: {}, hands: {
-        one: { dt: [100, 500], vs: { gesture: [['handup', null, true], null] } },
-        two: { dt: [100, 500], vs: { gesture: [['namaste', null, false, 400], ['ok', null, true], null] } },
-      } } });
+      const b = new Body(a, {
+        gestures: {
+          head: {},
+          hands: {
+            one: { dt: [100, 500], vs: { gesture: [['handup', null, true], null] } },
+            two: { dt: [100, 500], vs: { gesture: [['namaste', null, false, 400], ['ok', null, true], null] } },
+          },
+        },
+      });
       b.play('one');
       b.play('two');
-      expect(a.handOver).toHaveBeenCalledWith([['namaste', false], ['ok', true]], 400);
+      expect(a.handOver).toHaveBeenCalledWith(
+        [
+          ['namaste', false],
+          ['ok', true],
+        ],
+        400,
+      );
       b.stop();
     });
   });
@@ -192,7 +213,18 @@ describe('Body', () => {
     });
 
     it('stop() also clears an overlay that outlasts its gesture', async () => {
-      const b = new Body(adapter, { gestures: { head: { sway: { dt: [200], vs: {}, overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, duration: 2000 } } }, hands: {} } });
+      const b = new Body(adapter, {
+        gestures: {
+          head: {
+            sway: {
+              dt: [200],
+              vs: {},
+              overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, duration: 2000 },
+            },
+          },
+          hands: {},
+        },
+      });
       b.play('sway');
       await vi.advanceTimersByTimeAsync(200);
       for (let i = 0; i < 20; i++) b.update(16);
@@ -208,7 +240,10 @@ describe('Body', () => {
     for (const channel of ['head', 'hands']) {
       for (const [name, g] of Object.entries(GESTURES[channel])) {
         expect(g.dt, name).toBeDefined();
-        expect(Object.keys(g.vs).filter((k) => FACE.test(k)), name).toEqual([]);
+        expect(
+          Object.keys(g.vs).filter((k) => FACE.test(k)),
+          name,
+        ).toEqual([]);
       }
     }
   });

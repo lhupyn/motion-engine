@@ -105,21 +105,33 @@ describe('MotionEngine', () => {
     it('sends the previous line as context', async () => {
       engine.feed('First line. Second line. ');
       await flush();
-      expect(classify.mock.calls[1][0]).toEqual({ speaker: 'avatar', text: 'Second line.', previous: { speaker: 'avatar', text: 'First line.' } });
+      expect(classify.mock.calls[1][0]).toEqual({
+        speaker: 'avatar',
+        text: 'Second line.',
+        previous: { speaker: 'avatar', text: 'First line.' },
+      });
     });
 
-    it("says who said the previous line", async () => {
+    it('says who said the previous line', async () => {
       engine.feed('I got the job.', { speaker: 'user', final: true });
       engine.feed('Wait, really? ');
       await flush();
-      expect(classify.mock.calls[1][0]).toEqual({ speaker: 'avatar', text: 'Wait, really?', previous: { speaker: 'user', text: 'I got the job.' } });
+      expect(classify.mock.calls[1][0]).toEqual({
+        speaker: 'avatar',
+        text: 'Wait, really?',
+        previous: { speaker: 'user', text: 'I got the job.' },
+      });
     });
 
     it('a final with no text field ends the turn instead of throwing', async () => {
       engine.feed('well I guess');
       expect(() => engine.feed(undefined, { final: true })).not.toThrow();
       await flush();
-      expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
+      expect(classify).toHaveBeenCalledWith(
+        { speaker: 'avatar', text: 'well I guess' },
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it('silence forgets the heard text, so a later final is still deduped', async () => {
@@ -136,7 +148,10 @@ describe('MotionEngine', () => {
       await flush();
       expect(engine.face.current).toBe('happy');
       expect(decisions[0]).toMatchObject({
-        speaker: 'avatar', text: 'Great news!', model: 'jev-test', ms: 120,
+        speaker: 'avatar',
+        text: 'Great news!',
+        model: 'jev-test',
+        ms: 120,
         actions: [{ channel: 'face', name: 'happy', applied: true }],
       });
     });
@@ -146,7 +161,11 @@ describe('MotionEngine', () => {
       await flush();
       expect(classify).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(800);
-      expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
+      expect(classify).toHaveBeenCalledWith(
+        { speaker: 'avatar', text: 'well I guess' },
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it('does not ask about the person while the avatar is speaking (too late)', async () => {
@@ -177,7 +196,12 @@ describe('MotionEngine', () => {
     it('an older answer arriving late does not override a newer one', async () => {
       let releaseFirst;
       classify
-        .mockImplementationOnce(() => new Promise((r) => { releaseFirst = () => r(answer('sad')); }))
+        .mockImplementationOnce(
+          () =>
+            new Promise((r) => {
+              releaseFirst = () => r(answer('sad'));
+            }),
+        )
         .mockImplementationOnce(async () => answer('happy'));
       engine.feed('Bad news. Good news! ');
       await flush();
@@ -196,9 +220,12 @@ describe('MotionEngine', () => {
     });
 
     it('interrupt() aborts pending calls and drops buffered text', async () => {
-      classify.mockImplementation((_, __, { signal }) => new Promise((_, reject) => {
-        signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
-      }));
+      classify.mockImplementation(
+        (_, __, { signal }) =>
+          new Promise((_, reject) => {
+            signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+          }),
+      );
       engine.feed('One sentence. And a half');
       await flush();
       engine.interrupt();
@@ -211,7 +238,11 @@ describe('MotionEngine', () => {
       engine.feed('well I guess');
       engine.feed('', { final: true });
       await flush();
-      expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
+      expect(classify).toHaveBeenCalledWith(
+        { speaker: 'avatar', text: 'well I guess' },
+        expect.anything(),
+        expect.anything(),
+      );
       engine.feed('Okay go on.', { speaker: 'user', final: true });
       await flush();
       expect(decisions.at(-1)).toMatchObject({ speaker: 'user' });
@@ -229,10 +260,15 @@ describe('MotionEngine', () => {
     describe('interrupt', () => {
       const pending = () => {
         const calls = [];
-        classify.mockImplementation((state, _, { signal }) => new Promise((resolve, reject) => {
-          calls.push({ state, resolve });
-          signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
-        }));
+        classify.mockImplementation(
+          (state, _, { signal }) =>
+            new Promise((resolve, reject) => {
+              calls.push({ state, resolve });
+              signal.addEventListener('abort', () =>
+                reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+              );
+            }),
+        );
         return calls;
       };
 
@@ -254,7 +290,11 @@ describe('MotionEngine', () => {
         engine.feed('well I guess', { speaker: 'user' });
         engine.interrupt();
         await vi.advanceTimersByTimeAsync(800);
-        expect(classify).toHaveBeenCalledWith({ speaker: 'user', text: 'well I guess' }, expect.anything(), expect.anything());
+        expect(classify).toHaveBeenCalledWith(
+          { speaker: 'user', text: 'well I guess' },
+          expect.anything(),
+          expect.anything(),
+        );
       });
 
       it('ends the avatar turn', async () => {
@@ -317,7 +357,12 @@ describe('MotionEngine', () => {
 
       it('drops an answer from a classifier that ignores the abort signal', async () => {
         let release;
-        classify.mockImplementationOnce(() => new Promise((r) => { release = () => r(answer('sad')); }));
+        classify.mockImplementationOnce(
+          () =>
+            new Promise((r) => {
+              release = () => r(answer('sad'));
+            }),
+        );
         engine.feed('Bad news. ');
         await flush();
         engine.interrupt();
@@ -347,7 +392,10 @@ describe('MotionEngine', () => {
         await flush();
         expect(e.face.current).toBe('happy');
         let signal;
-        classify.mockImplementationOnce((_, __, opts) => { signal = opts.signal; return new Promise(() => {}); });
+        classify.mockImplementationOnce((_, __, opts) => {
+          signal = opts.signal;
+          return new Promise(() => {});
+        });
         e.feed('One more. ');
         e.feed('well I guess', { speaker: 'user' });
         e.dispose();
