@@ -1,18 +1,9 @@
-/**
- * Jev client — asks TypeSafe's Jev decision model typed questions over HTTP.
- *
- * Jev returns decisions, not text: for each question, the chosen option with
- * its confidence and the probability of every option. Questions are answered
- * in parallel, so asking several costs about the same latency as asking one.
- *
- * Providers (same System One API, different host and key):
- *   - openrouter — callable from the browser (CORS open), so a page can use
- *                  the visitor's own key.
- *   - typesafe   — TypeSafe's own API. Server-side only: it does not accept
- *                  requests from other websites.
- *
- * @module jev
- */
+// Client for Jev, TypeSafe's decision model. It answers typed questions
+// (choice, yes/no) with a confidence instead of writing text.
+//
+// OpenRouter accepts requests from any website, so a page can use the
+// visitor's own key. TypeSafe's API only accepts its own console, so use it
+// from a server.
 
 const PROVIDERS = {
   openrouter: { url: 'https://openrouter.ai/api/v1/systemone', model: '~typesafe/jev-latest' },
@@ -20,22 +11,13 @@ const PROVIDERS = {
 };
 
 /**
- * @typedef {object} JevResult
- * @property {Object<string, object>} answers - Per question: { choice, confidence, probabilities } | { noul } | { score, … }
- * @property {?string} model - Exact model version that answered
- * @property {?{input_tokens:number, cost:number}} usage
- * @property {number} ms - Round-trip time
- */
-
-/**
- * Create a classify function bound to a provider and key.
- *
  * @param {object} options
  * @param {string} options.apiKey
  * @param {'openrouter'|'typesafe'} [options.provider='openrouter']
- * @param {string} [options.model]   - Defaults to the provider's latest Jev
- * @param {string} [options.url]     - Override the endpoint (e.g. your own proxy)
- * @returns {function(object|string, object, {signal?:AbortSignal}=): Promise<JevResult>}
+ * @param {string} [options.model]
+ * @param {string} [options.url] - e.g. your own proxy
+ * @returns {(state: object|string, questions: object, opts?: {signal?: AbortSignal}) =>
+ *   Promise<{answers: object, model: ?string, usage: ?object, ms: number}>}
  */
 export function jev({ apiKey, provider = 'openrouter', model, url }) {
   const p = PROVIDERS[provider];
@@ -65,11 +47,9 @@ export function jev({ apiKey, provider = 'openrouter', model, url }) {
   };
 }
 
-/** Jev question builders, in the API's raw JSON shape. */
 export const ask = {
-  /** Pick one option; `options` maps each option name to what it means. */
+  /** @param {Object<string,string>} options - Option name → what it means */
   choice: (instructions, options) => ({ type: 'choice', instructions, criteria: options }),
-  /** Probability that a statement is true. */
   noul: (instructions, whenTrue, whenFalse) =>
     ({ type: 'noul', instructions, criteria: { true: whenTrue, false: whenFalse } }),
 };

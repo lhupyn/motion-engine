@@ -1,45 +1,33 @@
-/**
- * Body — gesture playback with bone oscillations.
- *
- * Gestures (gestures.json) are TalkingHead animation templates, registered on
- * the avatar and played through its native gesture system. One gesture plays
- * at a time; a new one interrupts the current one.
- *
- * A gesture may add an `overlay`: per-bone sine oscillations (a waving hand, a
- * clapping forearm) or a jump arc, layered on top of the animation through
- * TalkingHead's pose deltas.
- *
- * @module body
- */
+// Gestures are TalkingHead animation templates (gestures.json), played one at a
+// time. An optional overlay adds per-bone sine oscillations or a jump arc
+// through TalkingHead's pose deltas.
 
 import GESTURES from './gestures.json';
 
-/** Oscillation fade in/out ramp (ms). */
 const RAMP = 300;
 
 export class Body {
   /**
-   * @param {import('./adapter.js').TalkingHeadAdapter} adapter
+   * @param {TalkingHeadAdapter} adapter
    * @param {object} [options]
-   * @param {object} [options.gestures]       - Gesture catalog; defaults to gestures.json
-   * @param {number} [options.fadeIn=800]     - Blend into a gesture (ms)
-   * @param {number} [options.fadeOut=800]    - Blend out at the end (ms)
-   * @param {number} [options.cutFade=100]    - Blend out when interrupted (ms)
-   * @param {number} [options.settle=1000]    - Wait after fading out before the gesture counts as done (ms)
+   * @param {object} [options.gestures]
+   * @param {number} [options.fadeIn=800]
+   * @param {number} [options.fadeOut=800]
+   * @param {number} [options.cutFade=100] - Fade when interrupted
+   * @param {number} [options.settle=1000] - Wait after fading out before the gesture counts as done
    */
   constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
     this.adapter = adapter;
     this.opt = { fadeIn, fadeOut, cutFade, settle };
     this.gestures = {};
     this._osc = new Oscillation(adapter);
-    /** @type {?string} */
     this._current = null;
     this._cancel = null;
 
     const builtIn = new Set(adapter.gestureNames());
     for (const [name, g] of Object.entries(gestures)) {
       if (builtIn.has(name)) {
-        // A template named like a built-in gesture would call itself.
+        // A template named like a built-in gesture would play itself recursively.
         console.warn(`[motion-engine] Gesture "${name}" collides with a TalkingHead built-in; skipped.`);
         continue;
       }
@@ -48,21 +36,15 @@ export class Body {
     }
   }
 
-  /** Names of every registered gesture. */
   get names() {
     return Object.keys(this.gestures);
   }
 
-  /** The gesture playing now, or null. */
   get current() {
     return this._current;
   }
 
-  /**
-   * Play a gesture, interrupting the current one.
-   * @param {string} name
-   * @returns {Promise<boolean>} true when it finishes, false if interrupted or unknown
-   */
+  /** Interrupts the current gesture. Resolves true when done, false if interrupted or unknown. */
   async play(name) {
     const g = this.gestures[name];
     if (!g) return false;
@@ -80,7 +62,6 @@ export class Body {
     return true;
   }
 
-  /** Cut the current gesture short. */
   stop() {
     if (!this._current) return;
     this._cancel?.();
@@ -89,15 +70,10 @@ export class Body {
     this._current = null;
   }
 
-  /**
-   * Advance bone oscillations.
-   * @param {number} dt - Frame delta (ms)
-   */
   update(dt) {
     this._osc.update(dt);
   }
 
-  /** Cancellable wait: resolves true after `ms`, or false if stop() comes first. */
   _wait(ms) {
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this._cancel = null; resolve(true); }, ms);
@@ -106,21 +82,12 @@ export class Body {
   }
 }
 
-/**
- * Per-bone sine oscillations (and a jump arc), written to TalkingHead's pose
- * deltas with a fade ramp at both ends.
- */
 class Oscillation {
   constructor(adapter) {
     this.adapter = adapter;
     this._run = null;
   }
 
-  /**
-   * @param {Object<string, {freq:number, amp:number[], phase?:number, custom?:string}>} bones
-   * @param {number} length - Duration (ms)
-   * @param {number} delay  - Start delay (ms)
-   */
   start(bones, length, delay) {
     this.clear();
     this._run = {
@@ -171,7 +138,7 @@ class Oscillation {
   }
 }
 
-/** Catalog entry → TalkingHead animation template. JSON has no Infinity: null in a gesture frame means "hold". */
+// JSON has no Infinity: null in a gesture frame means "hold".
 function toTemplate({ dt, rescale, vs }) {
   const t = { dt, vs: structuredClone(vs) };
   if (rescale) t.rescale = rescale;
@@ -181,7 +148,7 @@ function toTemplate({ dt, rescale, vs }) {
   return t;
 }
 
-/** Total length of a dt list (ms); a [min, max] entry counts as its midpoint. */
+// A [min, max] timing counts as its midpoint.
 function duration(dt) {
   return (Array.isArray(dt) ? dt : [dt]).reduce((ms, d) => ms + (Array.isArray(d) ? (d[0] + d[1]) / 2 : d), 0);
 }

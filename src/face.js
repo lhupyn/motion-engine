@@ -1,64 +1,42 @@
-/**
- * Face — FACS expression compositor.
- *
- * Expressions are recipes of weighted Action Units (facs.json), resolved to
- * ARKit blendshapes and composited additively on top of the avatar's mood
- * baseline every frame:
- *
- *   - mood  expressions hold until replaced; switching cross-fades the old one
- *           out while the new one fades in.
- *   - beat  expressions (laugh, wink, a glance…) play once on top, with a
- *           bloom → hold → fade envelope.
- *
- * Gaze and blink morphs go through the system slot, so they win over
- * TalkingHead's idle eye animation; everything else is written as baseline,
- * so lip-sync visemes still play over the expression while speaking.
- *
- * @module face
- */
+// FACS compositor: expressions are Action Unit recipes (facs.json) resolved to
+// ARKit blendshapes and added on top of the avatar's mood baseline each frame.
+// Moods hold and cross-fade; beats play once with an in/hold/out envelope.
 
 import FACS from './facs.json';
 
-/** Morphs owned by TalkingHead's idle eye animation (gaze + blink). */
+// Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
+// baseline; they must go through the system slot. Everything else is written as
+// baseline so lip-sync visemes still play over the expression.
 const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
 
-/** Fallback envelope for a beat without one (ms). */
 const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
 export class Face {
   /**
-   * @param {import('./adapter.js').TalkingHeadAdapter} adapter
+   * @param {TalkingHeadAdapter} adapter
    * @param {object} [options]
-   * @param {object} [options.facs]      - FACS data ({ au_map, expressions }); defaults to facs.json
-   * @param {number} [options.fade=400]  - Mood cross-fade time (ms)
+   * @param {object} [options.facs] - { au_map, expressions }
+   * @param {number} [options.fade=400] - Mood cross-fade (ms)
    */
   constructor(adapter, { facs = FACS, fade = 400 } = {}) {
     this.adapter = adapter;
     this.facs = facs;
     this.fade = fade;
-    /** Mood layers: the active one fading in, previous ones fading out. */
     this._moods = [];
-    /** Active beats: { vs, t, in, hold, out }. */
     this._beats = [];
-    /** Morphs written last frame, so released ones return to rest. */
     this._driven = new Set();
   }
 
-  /** Names of every expression in the catalog. */
   get names() {
     return Object.keys(this.facs.expressions);
   }
 
-  /** The held (mood) expression the face is showing or fading into, or null. */
+  /** The held expression shown or fading in, or null. */
   get current() {
     return this._moods.find((m) => m.target === 1)?.name ?? null;
   }
 
-  /**
-   * Resolve an expression to blendshape weights without playing it.
-   * @param {string} name
-   * @returns {{name:string, kind:'mood'|'beat', vs:Object<string,number>, envelope:?object}|null}
-   */
+  /** @returns {{name:string, kind:'mood'|'beat', vs:Object<string,number>, envelope:?object}|null} */
   resolve(name) {
     const recipe = this.facs.expressions[name];
     if (!recipe) return null;
@@ -70,12 +48,7 @@ export class Face {
     };
   }
 
-  /**
-   * Play an expression: a mood replaces the held expression (an empty recipe,
-   * like neutral, just fades it out); a beat plays once on top.
-   * @param {string} name
-   * @returns {boolean} false if the name is not in the catalog
-   */
+  /** A mood replaces the held expression (neutral just fades it out); a beat plays once on top. */
   play(name) {
     const r = this.resolve(name);
     if (!r) return false;
@@ -88,7 +61,6 @@ export class Face {
     return true;
   }
 
-  /** Drop every expression at once and return the face to rest. */
   reset() {
     this._moods = [];
     this._beats = [];
@@ -96,10 +68,6 @@ export class Face {
     this._driven.clear();
   }
 
-  /**
-   * Advance fades and envelopes, then write the summed expression.
-   * @param {number} dt - Frame delta (ms)
-   */
   update(dt) {
     if (!this._moods.length && !this._beats.length && !this._driven.size) return;
 
@@ -138,12 +106,11 @@ export class Face {
     this._driven = driven;
   }
 
-  /** Return a morph to rest. Eye morphs just lapse back to idle animation. */
   _release(mt) {
     if (!EYE_ANIM_RE.test(mt)) this.adapter.setMorphBaseline(mt, this.adapter.restBaseline(mt));
   }
 
-  /** Weighted Action Units → blendshape weights (additive, clamped to 1). */
+  // A trailing _L/_R makes an AU unilateral.
   _ausToVs(aus) {
     const vs = {};
     for (const [au, weight] of Object.entries(aus)) {

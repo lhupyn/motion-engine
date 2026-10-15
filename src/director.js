@@ -1,23 +1,5 @@
-/**
- * Director — asks Jev what a line means for the avatar, and decides what
- * actually plays.
- *
- * Jev gets the line, who said it and the previous line, and answers in one
- * call: which expression, which gesture (both may be "none") and, for the
- * person's lines, whether the transcript is intelligible at all. The menu is
- * built from the catalogs: every expression or gesture with a `description`
- * is offered, described in its own words.
- *
- * Jev decides; the director keeps it believable:
- *   - low-confidence answers are ignored (doing nothing beats a wrong face)
- *   - a held expression already showing is not restarted
- *   - one gesture at a time, with a cooldown so the avatar doesn't fidget
- *   - garbled transcripts of the person get no reaction at all
- *   - once the avatar is quiet and no new expression has come for a while,
- *     the face relaxes to neutral
- *
- * @module director
- */
+// Asks Jev what a line means for the avatar, then decides what actually plays.
+// Only catalog entries with a description are offered to Jev.
 
 import { ask } from './jev.js';
 
@@ -41,36 +23,17 @@ const DEFAULTS = {
   relaxAfter: 6000,
 };
 
-/**
- * @typedef {object} Action
- * @property {'face'|'body'} channel
- * @property {string} name
- * @property {number} confidence
- * @property {boolean} applied
- * @property {string} [reason] - Why it was not applied
- */
-
 export class Director {
-  /**
-   * @param {import('./face.js').Face} face
-   * @param {import('./body.js').Body} body
-   * @param {object} [options] - Thresholds and timings (see DEFAULTS)
-   */
   constructor(face, body, options = {}) {
     this.face = face;
     this.body = body;
     this.opt = { ...DEFAULTS, ...options, minConfidence: { ...DEFAULTS.minConfidence, ...options.minConfidence } };
+    this.busy = () => false;
     this._lastGesture = -Infinity;
     this._relaxTimer = null;
-    /** Whether the avatar is mid-line; set by the engine. Relaxing waits for it. */
-    this.busy = () => false;
     this._questions = {};
   }
 
-  /**
-   * The questions for a line, by speaker. Built once from the catalogs.
-   * @param {'avatar'|'user'} speaker
-   */
   questions(speaker) {
     if (!this._questions[speaker]) {
       const text = INSTRUCTIONS[speaker];
@@ -91,10 +54,8 @@ export class Director {
   }
 
   /**
-   * Turn Jev's answers into actions and play the ones that pass the rules.
-   * @param {object} answers - Jev answers for questions(speaker)
-   * @param {'avatar'|'user'} speaker
-   * @returns {Action[]}
+   * Play what passes the rules and report every choice with the reason it was skipped.
+   * @returns {{channel:'face'|'body', name:string, confidence:number, applied:boolean, reason?:string}[]}
    */
   apply(answers, speaker) {
     const actions = [];
@@ -135,11 +96,7 @@ export class Director {
     return actions;
   }
 
-  /**
-   * (Re)start the wait before relaxing to neutral. Call whenever something
-   * happens; the face relaxes `relaxAfter` ms after the last call, and not
-   * while the avatar is mid-line.
-   */
+  /** Relax to neutral `relaxAfter` ms after the last call, never while the avatar is mid-line. */
   scheduleRelax() {
     clearTimeout(this._relaxTimer);
     this._relaxTimer = setTimeout(() => {
@@ -148,13 +105,11 @@ export class Director {
     }, this.opt.relaxAfter);
   }
 
-  /** Cancel pending timers. */
   dispose() {
     clearTimeout(this._relaxTimer);
   }
 }
 
-/** Catalog entries with a description → Jev choice options, plus "none". */
 function menu(catalog, noneMeaning) {
   const options = {};
   for (const [name, item] of Object.entries(catalog)) {

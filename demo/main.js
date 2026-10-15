@@ -18,12 +18,11 @@ try {
 }
 
 const engine = new MotionEngine(head);
-window.engine = engine; // for the console
+window.engine = engine;
 
 const status = (text) => { $('status').textContent = text; };
 status('Ready');
 
-/** Fill a chip row; `onPick` returns a status line. Marks the picked chip when `exclusive`. */
 function chips(id, names, onPick, { exclusive = false } = {}) {
   const row = $(id);
   for (const name of names) {
@@ -59,30 +58,26 @@ chips('gestures', engine.body.names, (name) => {
   return `Body: ${label(name)}`;
 });
 
-// ---------------------------------------------------------------------------
-// Talk to it — Jev decides the reactions
-// ---------------------------------------------------------------------------
-
 const PHRASES = {
   user: [
-    'Estoy triste, alégrame el día',
-    '¡Me han dado el trabajo!',
-    'Hoy he tenido un día horrible.',
-    '¿Me cuentas un chiste?',
     'I just adopted a puppy!',
     'My grandma passed away last week.',
     'Can you help me with something?',
     'eh mm the uh asdf',
+    'Estoy triste, alégrame el día',
+    '¡Me han dado el trabajo!',
+    'Hoy he tenido un día horrible.',
+    '¿Me cuentas un chiste?',
   ],
   avatar: [
-    '¡Qué buena noticia, me alegro muchísimo por ti!',
-    'Vaya, lo siento mucho. Aquí estoy para lo que necesites.',
-    'Mmm, déjame pensarlo un momento.',
-    '¡Ja, ja, esa sí que es buena!',
     "Hello! It's so nice to see you again.",
     "No, I don't think that's a good idea.",
     'Wait, really? I had no idea!',
     'Please, promise me you will rest tonight.',
+    '¡Qué buena noticia, me alegro muchísimo por ti!',
+    'Vaya, lo siento mucho. Aquí estoy para lo que necesites.',
+    'Mmm, déjame pensarlo un momento.',
+    '¡Ja, ja, esa sí que es buena!',
   ],
 };
 
@@ -138,10 +133,8 @@ $('say').onsubmit = (e) => {
   $('text').value = '';
 };
 
-/**
- * The person's line arrives whole, like a chat message. The avatar's line is
- * streamed word by word at speaking pace, like a voice model's transcript.
- */
+// The person's line arrives whole, like a chat message; the avatar's is
+// streamed word by word, like a voice model's transcript.
 async function say(text) {
   if (!connected) {
     status('Add an OpenRouter key to let Jev decide');
