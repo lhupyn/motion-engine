@@ -59,6 +59,8 @@ Plain ES modules, no build step. From a CDN with an import map:
 
 Or with a bundler: `npm i github:lhupyn/motion-engine` (not on npm yet). The catalogs load as JSON modules, which need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. TalkingHead is not a dependency; bring your own (1.7).
 
+**Avatar:** TalkingHead's [requirements](https://github.com/met4citizen/TalkingHead#appendix-a-create-your-own-3d-avatar): a Mixamo-compatible rig with the 52 ARKit and 15 Oculus viseme blend shapes. The bundled poses and expression levels are fitted to the demo avatar; another avatar may need them retuned ([catalogs](#appendix-b-catalogs)).
+
 ```js
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine, systemOne } from 'motion-engine';
