@@ -321,6 +321,8 @@ Values below are illustrative.
 | Field | Meaning |
 | --- | --- |
 | `au_map` | FACS Action Unit → ARKit blendshapes with weights. Calibrated per avatar model. |
+| `au_limits` | Optional, per avatar: `{ AU: { max, beatMax?, note } }`. The highest level of that AU that still reads natural on this avatar in a held mood (`beatMax` for beats, default `max`). A one-sided AU counts on its side (`AU12` + `AU12_L`). |
+| `avoid` | Optional, per avatar: `[{ aus: { AU: level, … }, note }]`. Combinations that read wrong together, e.g. narrowed eyes with a broad smile. No recipe may be above every listed level at once. |
 | `expressions.<name>.description` | When to use it. Without it, the classifier never picks it. |
 | `facs` | Provenance note (which AU combination, which source). Not used at runtime. |
 | `kind` | `'mood'` (default) holds until replaced and cross-fades; `'beat'` plays once on top. |
@@ -329,6 +331,8 @@ Values below are illustrative.
 | `offset` | Beats only: `{ AU: ms }`. That AU starts rising `ms` later and finishes falling `ms` earlier than the rest, so it plays nested inside them (`tongue_out`: the tongue comes out after the lips part and goes back before they close). Its ramps keep their length; the time comes out of its hold, so `ms` is capped at half of `hold`. A blendshape shared by AUs with different offsets follows the largest. |
 
 Keep an entry named `neutral`: the director relaxes to it.
+
+`au_limits` and `avoid` are a review aid, not a clamp. `test/facs.test.js` fails if a bundled recipe breaks them, and a custom catalog that breaks its own limits plays as written, with a console warning per recipe. Both are calibrated per avatar.
 
 ### `gestures.json`
 

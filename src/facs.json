@@ -1,5 +1,5 @@
 {
-  "_doc": "FACS expression data. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU25 parts the lips with mouthUpperUp+mouthLowerDown instead of jawOpen). expressions: name -> AU recipe. Recipe AU weights are the FINAL levels (one fixed intensity per expression): final morph = recipeWeight * au_map weight, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). kind 'mood' (default) holds until replaced; kind 'beat' plays once with its envelope {in, hold, out} ms. Moods never use jawOpen (AU26), which fights the lip-sync visemes; AU25 stands in where a canonical combination has AU26. The 7 core recipes use the canonical EMFACS-7 AU combinations; the rest are documented blends of the same primitives.",
+  "_doc": "FACS expression data. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU25 parts the lips with mouthUpperUp+mouthLowerDown instead of jawOpen). expressions: name -> AU recipe. Recipe AU weights are the FINAL levels (one fixed intensity per expression): final morph = recipeWeight * au_map weight, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). kind 'mood' (default) holds until replaced; kind 'beat' plays once with its envelope {in, hold, out} ms. Moods never use jawOpen (AU26), which fights the lip-sync visemes; AU25 stands in where a canonical combination has AU26. The 7 core recipes use the canonical EMFACS-7 AU combinations; the rest are documented blends of the same primitives. au_limits (per avatar, from visual review): AU -> {max, beatMax?, note}, the highest level that still reads natural on this avatar in a held mood (beatMax for beats, default max). avoid: [{aus: {AU: level, ...}, note}], combinations that read wrong together: no recipe may exceed every listed level at once. Levels count a unilateral AU on its side (AU12 + AU12_L). test/facs.test.js enforces both; nothing is clamped at runtime.",
   "_sources": {
     "emfacs": "Emotional FACS (Ekman & Friesen 1983) — canonical AU combinations for the basic emotions. https://www.paulekman.com/facial-action-coding-system/",
     "au_to_arkit": "ARKit<->FACS mapping convention (each ARKit blendshape ~ one FACS AU). https://melindaozel.com/arkit-to-facs-cheat-sheet/ ; clinical blendshape<->AU mapping https://www.sciencedirect.com/science/article/pii/S2451958826001995 ; interactive ARKit-52<->AU guide https://arkit.miniface.org/faces",
@@ -116,6 +116,8 @@
       "cheekPuff": 1
     }
   },
+  "au_limits": {},
+  "avoid": [],
   "expressions": {
     "neutral": {
       "facs": "rest",

@@ -12,12 +12,14 @@ export class Face {
   /**
    * @param {TalkingHeadAdapter} adapter
    * @param {object} [options]
-   * @param {object} [options.facs] - { au_map, expressions }
+   * @param {object} [options.facs] - { au_map, expressions, au_limits?, avoid? }
    * @param {number} [options.fade=400] - Mood cross-fade (ms)
    */
   constructor(adapter, { facs = FACS, fade = 400 } = {}) {
     this.adapter = adapter;
     this.facs = facs;
+    // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
+    for (const v of auViolations(facs)) console.warn(`[motion-engine] ${v}`);
     this.fade = fade;
     this._moods = [];
     this._beats = [];
@@ -143,4 +145,54 @@ function beatLevel(b, offset) {
   if (t < b.in) return t / b.in;
   if (t < end - b.out) return 1;
   return (end - t) / b.out;
+}
+
+/**
+ * Recipes that break the catalog's per-avatar calibration: an AU above its
+ * `au_limits` level, or a combination from `avoid`.
+ * @returns {string[]} One message per problem
+ */
+export function auViolations({ au_map: map, au_limits: limits = {}, avoid = [], expressions }) {
+  const out = [];
+  for (const [au, lim] of Object.entries(limits)) {
+    if (!map[au]) out.push(`au_limits: unknown AU "${au}"`);
+    if (typeof lim.max !== 'number') out.push(`au_limits: ${au} needs a numeric max`);
+  }
+  for (const rule of avoid) {
+    const aus = Object.keys(rule.aus || {});
+    if (aus.length < 2) out.push(`avoid: a rule needs at least two AUs (${aus.join(', ') || 'none'})`);
+    for (const au of aus) if (!map[au]) out.push(`avoid: unknown AU "${au}"`);
+  }
+  if (out.length) return out;
+
+  const why = (note) => (note ? ` — ${note}` : '');
+  for (const [name, e] of Object.entries(expressions)) {
+    const level = auLevels(e.aus || {});
+    const beat = e.kind === 'beat';
+    for (const [au, lim] of Object.entries(limits)) {
+      const max = beat ? lim.beatMax ?? lim.max : lim.max;
+      if ((level[au] || 0) > max) out.push(`${name}: ${au} ${level[au]} is above ${max}${beat ? ' for a beat' : ''}${why(lim.note)}`);
+    }
+    for (const rule of avoid) {
+      if (Object.entries(rule.aus).every(([au, max]) => (level[au] || 0) > max)) {
+        out.push(`${name}: ${Object.keys(rule.aus).join(' + ')} together${why(rule.note)}`);
+      }
+    }
+  }
+  return out;
+}
+
+// Each AU at its stronger side's level: AU12 + AU12_L on the left, AU12 + AU12_R on the right.
+function auLevels(aus) {
+  const left = {};
+  const right = {};
+  for (const [key, w] of Object.entries(aus)) {
+    const au = key.replace(/_[LR]$/, '');
+    if (!key.endsWith('_R')) left[au] = (left[au] || 0) + w;
+    if (!key.endsWith('_L')) right[au] = (right[au] || 0) + w;
+  }
+  // Rounded, so 0.1 + 0.2 isn't "above" a 0.3 limit.
+  const level = {};
+  for (const [au, w] of [...Object.entries(left), ...Object.entries(right)]) level[au] = Math.max(level[au] || 0, Math.round(w * 1000) / 1000);
+  return level;
 }
