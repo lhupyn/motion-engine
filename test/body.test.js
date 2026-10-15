@@ -191,6 +191,17 @@ describe('Body', () => {
       expect(adapter.props['RightHand.quaternion']).toEqual({ x: 0, y: 0, z: 0 });
     });
 
+    it('stop() also clears an overlay that outlasts its gesture', async () => {
+      const b = new Body(adapter, { gestures: { head: { sway: { dt: [200], vs: {}, overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, duration: 2000 } } }, hands: {} } });
+      b.play('sway');
+      await vi.advanceTimersByTimeAsync(200);
+      for (let i = 0; i < 20; i++) b.update(16);
+      expect(b.current.head).toBeNull();
+      expect(Math.abs(adapter.props['RightHand.quaternion'].y)).toBeGreaterThan(0);
+      b.stop();
+      expect(adapter.props['RightHand.quaternion']).toEqual({ x: 0, y: 0, z: 0 });
+    });
+
     it('jump lifts the hips in an arc and lands', () => {
       body.play('jump');
       for (let i = 0; i < 16; i++) body.update(16);

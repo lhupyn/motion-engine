@@ -77,7 +77,7 @@ export class Director {
       const kind = this.face.resolve(a.name)?.kind;
       if (unclear) a.reason = 'unclear transcript';
       else if (!kind) a.reason = 'not in catalog';
-      else if (a.confidence < this.opt.minConfidence.expression) a.reason = 'low confidence';
+      else if (!(a.confidence >= this.opt.minConfidence.expression)) a.reason = 'low confidence';
       else if (kind === 'mood' && this.face.current === a.name) a.reason = 'already showing';
       else {
         this.face.play(a.name);
@@ -93,7 +93,7 @@ export class Director {
       const now = performance.now();
       if (unclear) a.reason = 'unclear transcript';
       else if (!this.body.gestures[channel][a.name]) a.reason = 'not in catalog';
-      else if (a.confidence < this.opt.minConfidence[channel]) a.reason = 'low confidence';
+      else if (!(a.confidence >= this.opt.minConfidence[channel])) a.reason = 'low confidence';
       else if (this.body.current[channel]) a.reason = 'already moving';
       else if (now - this._lastGesture[channel] < this.opt.cooldown[channel]) a.reason = 'cooldown';
       else {

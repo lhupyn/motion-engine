@@ -104,9 +104,10 @@ class Channel {
 
   /** @param {object} [next] - Hand gesture taking over; without one, a real stop */
   stop(next = null) {
+    // An overlay can outlast its gesture.
+    this._osc.clear();
     if (!this.current) return;
     this._cancel?.();
-    this._osc.clear();
     if (this.kind === 'head') this.adapter.stopAnim(this.current);
     else if (next) this.adapter.handOver(framePoses(next), framesOf(next)[0]?.[3] ?? this.opt.fadeIn);
     else this.adapter.stopGesture(this.opt.cutFade);

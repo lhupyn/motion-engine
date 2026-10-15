@@ -80,7 +80,7 @@ Measured in the demo with `typesafe/jev-1.14`: about **0.4–0.7 s** and **~$0.0
 
 | Layer | File | What it does |
 | --- | --- | --- |
-| Segmenter | `src/segmenter.js` | Buffers streamed fragments and releases whole sentences. If a provider's final fragment repeats the whole turn, only the unheard part is used. Segments shorter than 4 characters (`"eh."`, `"mm"`) are dropped. An unfinished sentence is released after a pause (`pause`, 800 ms). |
+| Segmenter | `src/segmenter.js` | Buffers streamed fragments and releases whole sentences. If a provider's final fragment repeats the whole turn, only the unheard part is used. Segments with fewer than two letters, or made only of filler (`"mm"`, `"uh, um"`), are dropped; `"No."`, `"Sí."` or `"Oh!"` are kept. `。！？` close a sentence too. An unfinished sentence is released after a pause (`pause`, 800 ms). |
 | Jev client | `src/jev.js` | One `fetch` per sentence. Sends the line, the speaker and the previous line as state, and three `choice` questions — expression, head, hands — built from the catalogs. For the person's lines it adds a yes/no question: is the transcript intelligible? |
 | Director | `src/director.js` | Applies the rules below and reports every choice, applied or not, with the reason. |
 | Face | `src/face.js` | FACS compositor. Resolves AU recipes to ARKit blendshapes, cross-fades held expressions (*moods*), plays one-shot *beats* with an in/hold/out envelope. Writes to the mood baseline so lip-sync visemes still play over the expression; gaze and blink go through TalkingHead's system slot so they outrank its idle eye animation. |
@@ -116,7 +116,7 @@ The same text needs a different reaction depending on who says it. *"My grandma 
 - Avatar lines are the main input. The person's lines are optional — **if you don't feed them, nothing is called and nothing is billed.** The same goes for the whole engine: no `feed()`, no requests.
 - Short filler (`"mm"`, `"eh."`) is dropped before any call.
 - `final: true` marks the last fragment of a turn. It may repeat the whole turn, or be empty (`feed('', { final: true })` just ends the turn). Not every provider sends one, so 3 s without avatar fragments also ends the avatar's turn.
-- `engine.interrupt()` handles barge-in on the avatar's side only: it aborts the avatar's in-flight calls, drops its buffered text and, if it was speaking, stops its gestures. Reactions to the person's lines and listening gestures keep going, so it's safe to call whenever the person starts talking.
+- `engine.interrupt()` handles barge-in on the avatar's side only: it aborts the avatar's in-flight calls, drops its buffered text and, if it was speaking, stops its gestures and ignores the rest of the cut-off turn — late fragments and the final transcript that some providers still send — until that final, 3 s of silence, or the person's next final line. Reactions to the person's lines and listening gestures keep going, and interrupting a quiet avatar cuts nothing, so it's safe to call whenever the person starts talking.
 
 ---
 
@@ -198,7 +198,7 @@ engine.body.stop();               // both channels, or stop('head') / stop('hand
 | Method | What it does |
 | --- | --- |
 | `feed(text, { speaker, final })` | Feed transcript text, see [Speaker turns](#speaker-turns). |
-| `interrupt()` | Barge-in: drop the avatar's pending text and calls. |
+| `interrupt()` | Barge-in: drop the avatar's pending text and calls, and ignore the rest of the cut-off turn. |
 | `useJev(options)` | Set or replace the Jev connection later (the demo uses it when the visitor pastes a key). |
 | `dispose()` | Unhook from TalkingHead's render loop, abort calls, clear timers, stop the body and reset the face. `feed()` does nothing afterwards. |
 
@@ -265,7 +265,7 @@ new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ an
 **`state`** — the line to classify:
 
 ```js
-{ speaker: 'avatar' | 'user', text: 'Wait, really?', previous_line: 'I got the job.' } // previous_line omitted on the first line
+{ speaker: 'avatar' | 'user', text: 'Wait, really?', previous: { speaker: 'user', text: 'I got the job.' } } // previous omitted on the first line
 ```
 
 **`questions`** — keyed by what the director reads back. `clear` is only asked for the person's lines.
@@ -285,7 +285,7 @@ new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ an
 
 | Key | Shape | Meaning |
 | --- | --- | --- |
-| `answers.expression`, `answers.head`, `answers.hands` | `{ choice, confidence }` | `choice` is one of the `criteria` keys; `'none'` or a missing key plays nothing. `confidence` is 0–1 and compared with `minConfidence`. |
+| `answers.expression`, `answers.head`, `answers.hands` | `{ choice, confidence }` | `choice` is one of the `criteria` keys; `'none'` or a missing key plays nothing. `confidence` is 0–1 and compared with `minConfidence`; a missing confidence counts as below it. |
 | `answers.clear` | `{ noul }` | 0–1, how likely the line is intelligible. Compared with `minClarity`; if missing, the line counts as clear. |
 
 `model`, `usage` and `ms` are passed through to `onDecision` untouched. Honor `signal`: when the engine aborts a call, reject with an `AbortError` and nothing is reported. Any other rejection is reported as `onDecision({ error })`. An answer that resolves after its call was aborted (by `interrupt()` or `dispose()`) is dropped anyway, so a classifier that ignores the signal only wastes the request.

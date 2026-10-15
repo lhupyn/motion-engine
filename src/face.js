@@ -53,7 +53,7 @@ export class Face {
     const r = this.resolve(name);
     if (!r) return false;
     if (r.kind === 'beat') {
-      if (Object.keys(r.vs).length) this._beats.push({ vs: r.vs, t: 0, ...(r.envelope || BEAT_ENVELOPE) });
+      if (Object.keys(r.vs).length) this._beats.push({ vs: r.vs, t: 0, ...BEAT_ENVELOPE, ...r.envelope });
       return true;
     }
     for (const m of this._moods) m.target = 0;

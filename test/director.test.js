@@ -65,6 +65,12 @@ describe('Director', () => {
       expect(actions.every((a) => a.applied)).toBe(true);
     });
 
+    it('a missing confidence fails the threshold', () => {
+      const [a, g] = d.apply({ expression: { choice: 'happy' }, hands: { choice: 'wave', confidence: NaN } }, 'avatar');
+      expect(a).toMatchObject({ applied: false, reason: 'low confidence' });
+      expect(g).toMatchObject({ applied: false, reason: 'low confidence' });
+    });
+
     it('none means no action at all', () => {
       expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual([]);
     });

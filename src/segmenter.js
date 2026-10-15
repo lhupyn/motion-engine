@@ -2,15 +2,32 @@
 // Fragments are buffered and released one sentence at a time.
 
 // Fragments split at word boundaries, so punctuation at the end of what has
-// arrived already closes the sentence.
-const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)/;
+// arrived already closes the sentence. CJK puts no space after it.
+const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)|[。！？]+[」』”’）]*/;
+
+// Hesitation sounds, not reactions ("oh" is one).
+const FILLER = /^(m+|h+m+|u+h+|u+m+|e+h+|a+h+|e+r+)$/;
 
 const norm = (s) => s.replace(/\s+/g, ' ');
 
+// What the streamed fragments and the final text of the same turn share; they
+// can differ in spacing, punctuation and casing.
+const key = (s) => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, '');
+
+// Index in s just past its first n key characters.
+function cutAt(s, n) {
+  let i = 0;
+  let k = 0;
+  for (const ch of s) {
+    if (k >= n) break;
+    k += key(ch).length;
+    i += ch.length;
+  }
+  return i;
+}
+
 export class Segmenter {
-  /** @param {{minChars?: number}} [options] - Shorter segments ("eh.", "mm") are dropped */
-  constructor({ minChars = 4 } = {}) {
-    this.minChars = minChars;
+  constructor() {
     this.reset();
   }
 
@@ -30,9 +47,12 @@ export class Segmenter {
    */
   push(text, final = false) {
     if (final) {
-      const all = norm(text).trim();
-      const heard = norm(this._heard).trim();
-      if (heard && all.startsWith(heard)) text = all.slice(heard.length);
+      const heard = key(this._heard);
+      if (heard && key(text).startsWith(heard)) {
+        // The unreleased sentence is taken from the final, which is the cleaner transcript.
+        text = text.slice(cutAt(text, heard.length - key(this._buffer).length));
+        this._buffer = '';
+      }
     }
     this._heard += text;
     this._buffer += text;
@@ -58,7 +78,11 @@ export class Segmenter {
     return out;
   }
 
+  // Drops what has under two letters or is only filler ("Mm.", "Uh, um…").
   _clean(segments) {
-    return segments.map((s) => norm(s).trim()).filter((s) => s.length >= this.minChars);
+    return segments.map((s) => norm(s).trim()).filter((s) => {
+      const words = s.toLowerCase().match(/\p{L}+/gu) || [];
+      return words.join('').length >= 2 && !words.every((w) => FILLER.test(w));
+    });
   }
 }

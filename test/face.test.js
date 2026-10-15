@@ -115,6 +115,14 @@ describe('Face', () => {
     });
   });
 
+  it('a partial envelope keeps the default for what it leaves out', () => {
+    const f = new Face(adapter, { facs: { ...TEST_FACS, expressions: { blip: { kind: 'beat', aus: { AU6: 0.5 }, envelope: { hold: 100 } } } } });
+    f.play('blip');
+    run(f, 1200);
+    expect(f._beats).toHaveLength(0);
+    expect(adapter.baseline.cheekSquintLeft).toBe(0);
+  });
+
   it('reset() returns every driven morph to rest at once', () => {
     face.play('grin');
     run(face, 600);

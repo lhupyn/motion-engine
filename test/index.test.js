@@ -77,7 +77,30 @@ describe('MotionEngine', () => {
     it('sends the previous line as context', async () => {
       engine.feed('First line. Second line. ');
       await flush();
-      expect(classify.mock.calls[1][0]).toEqual({ speaker: 'avatar', text: 'Second line.', previous_line: 'First line.' });
+      expect(classify.mock.calls[1][0]).toEqual({ speaker: 'avatar', text: 'Second line.', previous: { speaker: 'avatar', text: 'First line.' } });
+    });
+
+    it("says who said the previous line", async () => {
+      engine.feed('I got the job.', { speaker: 'user', final: true });
+      engine.feed('Wait, really? ');
+      await flush();
+      expect(classify.mock.calls[1][0]).toEqual({ speaker: 'avatar', text: 'Wait, really?', previous: { speaker: 'user', text: 'I got the job.' } });
+    });
+
+    it('a final with no text field ends the turn instead of throwing', async () => {
+      engine.feed('well I guess');
+      expect(() => engine.feed(undefined, { final: true })).not.toThrow();
+      await flush();
+      expect(classify).toHaveBeenCalledWith({ speaker: 'avatar', text: 'well I guess' }, expect.anything(), expect.anything());
+    });
+
+    it('silence forgets the heard text, so a later final is still deduped', async () => {
+      engine.feed('Hello there. ');
+      await vi.advanceTimersByTimeAsync(3000);
+      engine.feed('Bye for now. ');
+      engine.feed('Bye for now.', { final: true });
+      await flush();
+      expect(classify.mock.calls.map((c) => c[0].text)).toEqual(['Hello there.', 'Bye for now.']);
     });
 
     it('applies the decision and reports it', async () => {
@@ -212,6 +235,47 @@ describe('MotionEngine', () => {
         engine.feed('Wait, stop.', { speaker: 'user', final: true });
         await flush();
         expect(decisions.at(-1).skipped).toBeUndefined();
+      });
+
+      it('drops the rest of a cut-off turn (Realtime: late delta, then the whole turn as final)', async () => {
+        engine.feed('Let me tell you about');
+        engine.interrupt();
+        engine.feed(' my day');
+        engine.feed('Let me tell you about my day. It was long.', { final: true });
+        engine.feed('Sorry, go on.', { speaker: 'user', final: true });
+        await flush();
+        expect(classify.mock.calls.map((c) => c[0].speaker)).toEqual(['user']);
+        expect(decisions.at(-1)).toMatchObject({ speaker: 'user' });
+        expect(decisions.at(-1).skipped).toBeUndefined();
+      });
+
+      it('without a final, silence ends the cut and the next turn is classified', async () => {
+        engine.feed('Let me tell');
+        engine.interrupt();
+        await vi.advanceTimersByTimeAsync(1000);
+        engine.feed(' you more');
+        await vi.advanceTimersByTimeAsync(2999);
+        engine.feed('Still the old turn. ');
+        await vi.advanceTimersByTimeAsync(3000);
+        engine.feed('A new turn. ');
+        await flush();
+        expect(classify.mock.calls.map((c) => c[0].text)).toEqual(['A new turn.']);
+      });
+
+      it("the person's final also ends the cut: the avatar's next turn answers it", async () => {
+        engine.feed('Let me tell');
+        engine.interrupt();
+        engine.feed('Stop.', { speaker: 'user', final: true });
+        engine.feed('Okay, sorry. ');
+        await flush();
+        expect(classify.mock.calls.map((c) => c[0].text)).toEqual(['Stop.', 'Okay, sorry.']);
+      });
+
+      it('interrupting a quiet avatar cuts nothing', async () => {
+        engine.interrupt();
+        engine.feed('Hello there. ');
+        await flush();
+        expect(classify).toHaveBeenCalledTimes(1);
       });
 
       it('stops the body only if the avatar was speaking', () => {

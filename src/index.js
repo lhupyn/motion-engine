@@ -34,8 +34,9 @@ export class MotionEngine {
     this._inflight = new Map();
     this._seq = 0;
     this._applied = 0;
-    this._previous = '';
+    this._previous = null;
     this._avatarSpeaking = false;
+    this._cut = false;
     this._disposed = false;
 
     this._offFrame = this.adapter.onFrame((dt) => {
@@ -59,14 +60,25 @@ export class MotionEngine {
    * @param {boolean} [options.final=false] - Last fragment of the turn; may repeat the whole turn or be empty
    */
   feed(text, { speaker = 'avatar', final = false } = {}) {
+    text ??= '';
     if (this._disposed || !this.classify || (!text && !final)) return;
     const seg = this._segments[speaker];
     if (!seg) throw new Error(`Unknown speaker "${speaker}" (use avatar or user)`);
 
     if (speaker === 'avatar') {
-      this._avatarSpeaking = !final;
       clearTimeout(this._timers.silence);
-      if (!final) this._timers.silence = setTimeout(() => { this._avatarSpeaking = false; }, SILENCE_ENDS_TURN);
+      // Providers keep sending the cut-off turn after a barge-in (late deltas,
+      // then the whole turn as final); none of it was said.
+      if (this._cut) {
+        if (final) this._cut = false;
+        else this._timers.silence = setTimeout(() => { this._cut = false; }, SILENCE_ENDS_TURN);
+        return;
+      }
+      this._avatarSpeaking = !final;
+      if (!final) this._timers.silence = setTimeout(() => this._endAvatarTurn(), SILENCE_ENDS_TURN);
+    } else if (final) {
+      // The avatar's next turn answers this line, so the cut-off one is over.
+      this._cut = false;
     }
     clearTimeout(this._timers[speaker]);
 
@@ -85,9 +97,12 @@ export class MotionEngine {
     for (const [ctrl, speaker] of this._inflight) if (speaker === 'avatar') ctrl.abort();
     this._segments.avatar.reset();
     clearTimeout(this._timers.avatar);
-    clearTimeout(this._timers.silence);
-    if (this._avatarSpeaking) this.body.stop();
+    if (!this._avatarSpeaking) return;
     this._avatarSpeaking = false;
+    this.body.stop();
+    this._cut = true;
+    clearTimeout(this._timers.silence);
+    this._timers.silence = setTimeout(() => { this._cut = false; }, SILENCE_ENDS_TURN);
   }
 
   /** Unhook from the avatar and stop everything; the engine can't be used afterwards. */
@@ -102,6 +117,16 @@ export class MotionEngine {
     this.face.reset();
   }
 
+  // Silence, not a final fragment: also forget the heard text, or it would
+  // grow across turns and break the dedupe of a later final.
+  _endAvatarTurn() {
+    this._avatarSpeaking = false;
+    const seg = this._segments.avatar;
+    clearTimeout(this._timers.avatar);
+    for (const line of seg.flush()) this._handle(line, 'avatar');
+    seg.reset();
+  }
+
   async _handle(text, speaker) {
     if (speaker === 'user' && this._avatarSpeaking) {
       this._emit({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
@@ -110,12 +135,12 @@ export class MotionEngine {
 
     const seq = ++this._seq;
     const previous = this._previous;
-    this._previous = text;
+    this._previous = { speaker, text };
     const ctrl = new AbortController();
     this._inflight.set(ctrl, speaker);
 
     try {
-      const state = previous ? { speaker, text, previous_line: previous } : { speaker, text };
+      const state = previous ? { speaker, text, previous } : { speaker, text };
       const r = await this.classify(state, this.director.questions(speaker), { signal: ctrl.signal });
       // A custom classifier may ignore the signal.
       if (ctrl.signal.aborted) return;

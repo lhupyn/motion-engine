@@ -39,6 +39,19 @@ describe('Segmenter', () => {
     expect(s.push('Hello there. How are you today?', true)).toEqual(['How are you today?']);
   });
 
+  it('dedupes a final whose spacing differs from the fragments', () => {
+    const s = new Segmenter();
+    expect(s.push('Hola')).toEqual([]);
+    expect(s.push('¿qué tal?')).toEqual(['Hola¿qué tal?']);
+    expect(s.push('Hola, ¿qué tal? Bien.', true)).toEqual(['Bien.']);
+  });
+
+  it('dedupes a final whose punctuation and casing differ, taking the unreleased sentence from the final', () => {
+    const s = new Segmenter();
+    expect(s.push('hello there. how are')).toEqual(['hello there.']);
+    expect(s.push('Hello there! How are you?', true)).toEqual(['How are you?']);
+  });
+
   it('a final fragment that is just the last piece is appended', () => {
     const s = new Segmenter();
     s.push('See you');
@@ -70,8 +83,14 @@ describe('Segmenter', () => {
     expect(s.pending).toBe(false);
   });
 
-  it('drops filler too short to mean anything', () => {
+  it('drops filler but keeps short answers and reactions', () => {
     const s = new Segmenter();
     expect(s.push('Mm. Eh. Okay then. ')).toEqual(['Okay then.']);
+    expect(s.push('No. Sí. Ok. Oh! Uh, um. Hmm. A. ')).toEqual(['No.', 'Sí.', 'Ok.', 'Oh!']);
+  });
+
+  it('splits CJK sentences, which have no space after the terminator', () => {
+    const s = new Segmenter();
+    expect(s.push('今日はいい天気ですね。散歩に行きましょう！')).toEqual(['今日はいい天気ですね。', '散歩に行きましょう！']);
   });
 });
