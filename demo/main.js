@@ -3,6 +3,7 @@ import { MotionEngine } from '../src/index.js';
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
+const status = (text) => { $('status').textContent = text; };
 
 const head = new TalkingHead($('avatar'), {
   cameraView: 'upper',
@@ -13,25 +14,28 @@ const head = new TalkingHead($('avatar'), {
 try {
   await head.showAvatar({ url: './female_1.glb', body: 'F' });
 } catch (err) {
-  $('status').textContent = `Could not load the avatar: ${err.message}`;
+  status(`Could not load the avatar: ${err.message}`);
   throw err;
 }
 
 const engine = new MotionEngine(head);
 window.engine = engine;
 
-const status = (text) => { $('status').textContent = text; };
 status('Ready');
+
+function button(text, onclick) {
+  return Object.assign(document.createElement('button'), { textContent: text, onclick });
+}
+
+const select = (row, b) => row.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
 
 function chips(id, names, onPick, { exclusive = false } = {}) {
   const row = $(id);
   for (const name of names) {
-    const b = document.createElement('button');
-    b.textContent = label(name);
-    b.onclick = () => {
-      if (exclusive) row.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    const b = button(label(name), () => {
+      if (exclusive) select(row, b);
       status(onPick(name));
-    };
+    });
     row.append(b);
   }
 }
@@ -53,10 +57,10 @@ chips('beats', engine.face.names.filter((n) => kindOf(n) === 'beat'), (name) => 
   return `Face beat: ${label(name)}`;
 });
 
-for (const channel of ['head', 'hands']) {
-  chips(channel === 'head' ? 'head-gestures' : 'hand-gestures', Object.keys(engine.body.gestures[channel]), (name) => {
+for (const [channel, row, title] of [['head', 'head-gestures', 'Head'], ['hands', 'hand-gestures', 'Hands']]) {
+  chips(row, Object.keys(engine.body.gestures[channel]), (name) => {
     engine.body.play(name).then((done) => done && status('Ready'));
-    return `${channel === 'head' ? 'Head' : 'Hands'}: ${label(name)}`;
+    return `${title}: ${label(name)}`;
   });
 }
 
@@ -108,21 +112,14 @@ $('key-save').onclick = () => {
 };
 
 function renderPhrases() {
-  const row = $('phrases');
-  row.replaceChildren();
-  for (const p of PHRASES[speaker]) {
-    const b = document.createElement('button');
-    b.textContent = p;
-    b.onclick = () => say(p);
-    row.append(b);
-  }
+  $('phrases').replaceChildren(...PHRASES[speaker].map((p) => button(p, () => say(p))));
 }
 
 $('speaker').onclick = (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   speaker = b.dataset.speaker;
-  $('speaker').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  select($('speaker'), b);
   $('text').placeholder = PHRASES[speaker][0];
   renderPhrases();
 };
@@ -186,7 +183,7 @@ engine.onDecision = (d) => {
   }
 
   $('log').prepend(li);
-  if (d.actions.some((a) => a.applied)) {
-    status(d.actions.filter((a) => a.applied).map((a) => label(a.name)).join(' + '));
-  }
+  while ($('log').children.length > 50) $('log').lastChild.remove();
+  const applied = d.actions.filter((a) => a.applied);
+  if (applied.length) status(applied.map((a) => label(a.name)).join(' + '));
 };

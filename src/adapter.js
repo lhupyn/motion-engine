@@ -15,6 +15,13 @@ const OWN = Symbol('motion-engine');
 // animations get a key of their own.
 const key = (name) => `motion-engine:${name}`;
 
+// Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
+// baseline, so they go through the system slot (it expires on its own). Every
+// other morph is written as baseline so lip-sync visemes still play over it.
+const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
+
+const has = (o, k) => !!o && Object.hasOwn(o, k);
+
 export class TalkingHeadAdapter {
   constructor(head) {
     this.head = head;
@@ -48,9 +55,10 @@ export class TalkingHeadAdapter {
     this.head.animEmojis[key(name)] = template;
   }
 
-  /** [public] Plays a registered animation through the gesture system, so stopGesture() ends it. */
-  playGesture(name, dur, mirror, ms) {
-    this.head.playGesture(key(name), dur, mirror, ms);
+  /** [public] Plays a registered animation through the gesture system, until stopGesture(). */
+  playGesture(name) {
+    // An infinite duration: no rescaling and no timer of TalkingHead's own.
+    this.head.playGesture(key(name), Infinity);
   }
 
   /** [public] */
@@ -93,28 +101,33 @@ export class TalkingHeadAdapter {
     if (i !== -1) queue.splice(i, 1);
   }
 
-  /** [internal] */
-  setMorphBaseline(mt, value) {
-    this.head.setBaselineValue(mt, value);
+  /** [internal] Shows a morph `w` above its rest level; call it every frame while it's held. */
+  setExpressionMorph(mt, w) {
+    const value = Math.min(1, this.restBaseline(mt) + w);
+    if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, value, 200);
+    else this.head.setBaselineValue(mt, value);
   }
 
-  /** [internal] System slot: outranks the idle eye animation. */
-  setMorphValue(mt, value, ms) {
-    this.head.setValue(mt, value, ms);
+  /** [internal] Back to the rest level. */
+  releaseMorph(mt) {
+    if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this.restBaseline(mt));
   }
 
   /** [internal] A morph's level with no expression, in setMood()'s precedence order. */
   restBaseline(mt) {
     const head = this.head;
-    const has = (o) => o && Object.prototype.hasOwnProperty.call(o, mt);
-    if (has(head.mood?.baseline)) return head.mood.baseline[mt];
-    if (has(head.avatar?.baseline)) return head.avatar.baseline[mt];
-    if (has(head.mtBaselineExceptions)) return head.mtBaselineExceptions[mt];
+    if (has(head.mood?.baseline, mt)) return head.mood.baseline[mt];
+    if (has(head.avatar?.baseline, mt)) return head.avatar.baseline[mt];
+    if (has(head.mtBaselineExceptions, mt)) return head.mtBaselineExceptions[mt];
     return head.mtBaselineDefault ?? 0;
   }
 
-  /** [internal] Per-bone offsets ("Bone.quaternion", "Bone.position"); null without pose deltas. */
-  poseDeltaProps() {
-    return this.head.poseDelta?.props || null;
+  /** [internal] Rotation offset (Euler x, y, z) on top of a bone's pose; ignored for bones TalkingHead keeps no offset for. */
+  setBoneOffset(bone, x, y, z) {
+    const d = this.head.poseDelta?.props?.[`${bone}.quaternion`];
+    if (!d) return;
+    d.x = x;
+    d.y = y;
+    d.z = z;
   }
 }

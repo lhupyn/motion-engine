@@ -8,4 +8,6 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: { external: ['three', 'talkinghead'] },
   },
+  // TalkingHead loads its lip-sync modules relative to itself; prebundling breaks those paths.
+  optimizeDeps: { exclude: ['talkinghead'] },
 });

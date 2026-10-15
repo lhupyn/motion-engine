@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Face } from '../src/face.js';
+import { TalkingHeadAdapter } from '../src/adapter.js';
 import FACS from '../src/facs.json';
 
-/** Records every morph write; rest level comes from a plain map. */
+/** The real adapter over a stand-in avatar that records every morph write; `rest` is its mood baseline. */
 function fakeAdapter(rest = {}) {
   const baseline = {};
   const system = {};
-  return {
-    baseline,
-    system,
-    restBaseline: (mt) => rest[mt] ?? 0,
-    setMorphBaseline: (mt, v) => { baseline[mt] = v; },
-    setMorphValue: (mt, v) => { system[mt] = v; },
-  };
+  const adapter = new TalkingHeadAdapter({
+    mood: { baseline: rest },
+    setBaselineValue: (mt, v) => { baseline[mt] = v; },
+    setValue: (mt, v) => { system[mt] = v; },
+  });
+  return Object.assign(adapter, { baseline, system });
 }
 
 // Synthetic data so the math doesn't couple to per-model calibration.

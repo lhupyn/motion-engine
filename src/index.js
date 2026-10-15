@@ -66,16 +66,15 @@ export class MotionEngine {
     if (!seg) throw new Error(`Unknown speaker "${speaker}" (use avatar or user)`);
 
     if (speaker === 'avatar') {
-      clearTimeout(this._timers.silence);
+      if (final) clearTimeout(this._timers.silence);
+      else this._endTurnAfterSilence();
       // Providers keep sending the cut-off turn after a barge-in (late deltas,
       // then the whole turn as final); none of it was said.
       if (this._cut) {
         if (final) this._cut = false;
-        else this._timers.silence = setTimeout(() => { this._cut = false; }, SILENCE_ENDS_TURN);
         return;
       }
       this._avatarSpeaking = !final;
-      if (!final) this._timers.silence = setTimeout(() => this._endAvatarTurn(), SILENCE_ENDS_TURN);
     } else if (final) {
       // The avatar's next turn answers this line, so the cut-off one is over.
       this._cut = false;
@@ -101,8 +100,7 @@ export class MotionEngine {
     this._avatarSpeaking = false;
     this.body.stop();
     this._cut = true;
-    clearTimeout(this._timers.silence);
-    this._timers.silence = setTimeout(() => { this._cut = false; }, SILENCE_ENDS_TURN);
+    this._endTurnAfterSilence();
   }
 
   /** Unhook from the avatar and stop everything; the engine can't be used afterwards. */
@@ -117,10 +115,16 @@ export class MotionEngine {
     this.face.reset();
   }
 
+  _endTurnAfterSilence() {
+    clearTimeout(this._timers.silence);
+    this._timers.silence = setTimeout(() => this._endAvatarTurn(), SILENCE_ENDS_TURN);
+  }
+
   // Silence, not a final fragment: also forget the heard text, or it would
   // grow across turns and break the dedupe of a later final.
   _endAvatarTurn() {
     this._avatarSpeaking = false;
+    this._cut = false;
     const seg = this._segments.avatar;
     clearTimeout(this._timers.avatar);
     for (const line of seg.flush()) this._handle(line, 'avatar');
@@ -129,7 +133,7 @@ export class MotionEngine {
 
   async _handle(text, speaker) {
     if (speaker === 'user' && this._avatarSpeaking) {
-      this._emit({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
+      this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;
     }
 
@@ -145,23 +149,19 @@ export class MotionEngine {
       // A custom classifier may ignore the signal.
       if (ctrl.signal.aborted) return;
       if (seq < this._applied) {
-        this._emit({ speaker, text, ...r, actions: [], skipped: 'superseded by a newer line' });
+        this.onDecision?.({ speaker, text, ...r, actions: [], skipped: 'superseded by a newer line' });
         return;
       }
       this._applied = seq;
       const actions = this.director.apply(r.answers, speaker);
       this.director.scheduleRelax();
-      this._emit({ speaker, text, ...r, actions });
+      this.onDecision?.({ speaker, text, ...r, actions });
     } catch (err) {
-      if (err.name !== 'AbortError') this._emit({ speaker, text, actions: [], error: err.message });
+      if (err.name !== 'AbortError') this.onDecision?.({ speaker, text, actions: [], error: err.message });
     } finally {
       this._inflight.delete(ctrl);
     }
   }
-
-  _emit(decision) {
-    this.onDecision?.(decision);
-  }
 }
 
-export { TalkingHeadAdapter, Face, Body, Director, Segmenter, jev };
+export { jev };

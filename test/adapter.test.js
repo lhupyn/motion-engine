@@ -90,8 +90,9 @@ describe('adapter verbs', () => {
     const head = makeHead();
     const a = new TalkingHeadAdapter(head);
     a.registerAnim('ok', { dt: [100] });
-    a.playGesture('ok', Infinity, false, 300);
-    const [played] = head.playGesture.mock.calls[0];
+    a.playGesture('ok');
+    const [played, dur] = head.playGesture.mock.calls[0];
+    expect(dur).toBe(Infinity);
     expect(played).not.toBe('ok');
     expect(head.animEmojis[played]).toEqual({ dt: [100] });
   });
@@ -135,8 +136,25 @@ describe('adapter verbs', () => {
     expect(a.restBaseline('jawOpen')).toBe(0);          // default
   });
 
-  it('exposes pose-delta props, or null without pose-delta support', () => {
-    expect(new TalkingHeadAdapter(makeHead()).poseDeltaProps()).toHaveProperty('Head.quaternion');
-    expect(new TalkingHeadAdapter({}).poseDeltaProps()).toBeNull();
+  it('shows expression morphs above rest: gaze and blink in the system slot, the rest as baseline', () => {
+    const head = makeHead();
+    const a = new TalkingHeadAdapter(head);
+    a.setExpressionMorph('mouthSmileLeft', 0.5);
+    a.setExpressionMorph('eyeBlinkLeft', 0.4);
+    expect(head.setBaselineValue).toHaveBeenCalledWith('mouthSmileLeft', 0.7);
+    expect(head.setValue).toHaveBeenCalledWith('eyeBlinkLeft', 0.4, 200);
+    a.releaseMorph('mouthSmileLeft');
+    a.releaseMorph('eyeBlinkLeft');
+    expect(head.setBaselineValue).toHaveBeenLastCalledWith('mouthSmileLeft', 0.2);
+    expect(head.setBaselineValue).toHaveBeenCalledTimes(2);
+  });
+
+  it('offsets a bone through its pose delta; bones without one, or no pose deltas at all, are ignored', () => {
+    const head = makeHead();
+    const a = new TalkingHeadAdapter(head);
+    a.setBoneOffset('Head', 0.1, 0.2, 0.3);
+    expect(head.poseDelta.props['Head.quaternion']).toEqual({ x: 0.1, y: 0.2, z: 0.3 });
+    expect(() => a.setBoneOffset('Tail', 1, 1, 1)).not.toThrow();
+    expect(() => new TalkingHeadAdapter({}).setBoneOffset('Head', 1, 1, 1)).not.toThrow();
   });
 });

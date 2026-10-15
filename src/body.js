@@ -2,9 +2,9 @@
 //   head  — head and torso (nod, shake, bow), run as plain animations
 //   hands — arm gestures, through TalkingHead's gesture system
 // Each channel plays one gesture at a time; a new one interrupts the current
-// one on its channel. An optional overlay adds per-bone sine oscillations or a
-// jump arc through TalkingHead's pose deltas. Hand gestures move the arms to
-// TalkingHead's built-in poses (handup, namaste…) or to the catalog's own `poses`.
+// one on its channel. An optional overlay adds per-bone sine oscillations on
+// top. Hand gestures move the arms to TalkingHead's built-in poses (handup,
+// namaste…) or to the catalog's own `poses`.
 
 import GESTURES from './gestures.json' with { type: 'json' };
 
@@ -17,7 +17,7 @@ export class Body {
    * @param {{head: object, hands: object, poses?: object}} [options.gestures]
    * @param {number} [options.fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
    * @param {number} [options.fadeOut=800]
-   * @param {number} [options.cutFade=100] - Fade when interrupted
+   * @param {number} [options.cutFade=100] - Arms back to the stance when a hand gesture is stopped early
    * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
    */
   constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
@@ -36,8 +36,10 @@ export class Body {
     }
     for (const channel of Object.keys(this.gestures)) {
       for (const [name, g] of Object.entries(gestures[channel] || {})) {
+        const t = toTemplate(g, fadeIn);
         this.gestures[channel][name] = g;
-        adapter.registerAnim(name, toTemplate(g, fadeIn));
+        this._channels[channel].frames[name] = framesOf(t);
+        adapter.registerAnim(name, t);
       }
     }
   }
@@ -79,6 +81,7 @@ class Channel {
     this.kind = kind;
     this.opt = opt;
     this.current = null;
+    this.frames = {};
     this._cancel = null;
     this._osc = new Oscillation(adapter);
   }
@@ -86,10 +89,10 @@ class Channel {
   async play(name, g) {
     // A new hand gesture takes the arms over from the current one instead of
     // dropping them to the stance first.
-    this.stop(this.kind === 'hands' ? g : null);
+    this.stop(this.frames[name]);
     this.current = name;
     const total = duration(g.dt);
-    if (this.kind === 'hands') this.adapter.playGesture(name, Infinity, false, this.opt.fadeIn);
+    if (this.kind === 'hands') this.adapter.playGesture(name);
     else this.adapter.playAnim(name);
     if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
 
@@ -102,14 +105,14 @@ class Channel {
     return true;
   }
 
-  /** @param {object} [next] - Hand gesture taking over; without one, a real stop */
+  /** @param {Array} [next] - Frames of the hand gesture taking over; without them, a real stop */
   stop(next = null) {
     // An overlay can outlast its gesture.
     this._osc.clear();
     if (!this.current) return;
     this._cancel?.();
     if (this.kind === 'head') this.adapter.stopAnim(this.current);
-    else if (next) this.adapter.handOver(framePoses(next), framesOf(next)[0]?.[3] ?? this.opt.fadeIn);
+    else if (next) this.adapter.handOver(next.map(([pose, , mirror]) => [pose, mirror]), next[0]?.[3] ?? this.opt.fadeIn);
     else this.adapter.stopGesture(this.opt.cutFade);
     this.current = null;
   }
@@ -134,16 +137,7 @@ class Oscillation {
 
   start(bones, length, delay) {
     this.clear();
-    this._run = {
-      t: -delay,
-      length,
-      bones: Object.entries(bones).map(([bone, osc]) => ({
-        osc,
-        jump: osc.custom === 'jump',
-        pos: `${bone}.position`,
-        quat: `${bone}.quaternion`,
-      })),
-    };
+    this._run = { t: -delay, length, bones: Object.entries(bones) };
   }
 
   update(dt) {
@@ -153,32 +147,19 @@ class Oscillation {
     if (run.t < 0) return;
     if (run.t > run.length) { this.clear(); return; }
 
-    const props = this.adapter.poseDeltaProps();
-    if (!props) return;
-
     const sec = run.t / 1000;
     const env = Math.min(run.t / RAMP, 1) * Math.min((run.length - run.t) / RAMP, 1);
-    for (const { osc, jump, pos, quat } of run.bones) {
-      if (jump) {
-        if (props[pos]) props[pos].y = Math.sin((run.t / run.length) * Math.PI) * 0.12;
-      } else if (props[quat]) {
-        const s = Math.sin(sec * osc.freq) * env;
-        props[quat].x = s * (osc.amp[0] || 0);
-        props[quat].y = s * (osc.amp[1] || 0);
-        props[quat].z = Math.sin(sec * osc.freq + (osc.phase || 0)) * (osc.amp[2] || 0) * env;
-      }
+    for (const [bone, osc] of run.bones) {
+      const s = Math.sin(sec * osc.freq) * env;
+      const z = Math.sin(sec * osc.freq + (osc.phase || 0)) * env;
+      this.adapter.setBoneOffset(bone, s * (osc.amp[0] || 0), s * (osc.amp[1] || 0), z * (osc.amp[2] || 0));
     }
   }
 
   clear() {
     const run = this._run;
     this._run = null;
-    const props = run && this.adapter.poseDeltaProps();
-    if (!props) return;
-    for (const { jump, pos, quat } of run.bones) {
-      if (jump) { if (props[pos]) props[pos].y = 0; }
-      else if (props[quat]) { props[quat].x = props[quat].y = props[quat].z = 0; }
-    }
+    if (run) for (const [bone] of run.bones) this.adapter.setBoneOffset(bone, 0, 0, 0);
   }
 }
 
@@ -188,8 +169,7 @@ class Oscillation {
 function toTemplate({ dt, rescale, vs }, fadeIn) {
   const t = { dt, vs: structuredClone(vs) };
   if (rescale) t.rescale = rescale;
-  for (const frame of t.vs.gesture || []) {
-    if (!Array.isArray(frame)) continue;
+  for (const frame of framesOf(t)) {
     frame[1] ??= Infinity;
     frame[2] ??= false;
     frame[3] ??= fadeIn;
@@ -198,9 +178,6 @@ function toTemplate({ dt, rescale, vs }, fadeIn) {
 }
 
 const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
-
-// The [pose, mirror] pairs a hand gesture moves the arms to.
-const framePoses = (g) => framesOf(g).map(([pose, , mirror]) => [pose, !!mirror]);
 
 // A [min, max] timing counts as its midpoint.
 function duration(dt) {

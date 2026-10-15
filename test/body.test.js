@@ -12,7 +12,7 @@ function fakeAdapter() {
   return {
     anims: {},
     poses: {},
-    props: { 'RightHand.quaternion': { x: 0, y: 0, z: 0 }, 'Hips.position': { x: 0, y: 0, z: 0 } },
+    offsets: {},
     gestureNames: () => ['handup', 'ok'],
     registerAnim(name, t) { this.anims[name] = t; },
     registerPose(name, p) { this.poses[name] = p; },
@@ -21,7 +21,7 @@ function fakeAdapter() {
     handOver: vi.fn(),
     playAnim: vi.fn(),
     stopAnim: vi.fn(),
-    poseDeltaProps() { return this.props; },
+    setBoneOffset(bone, x, y, z) { this.offsets[bone] = { x, y, z }; },
   };
 }
 
@@ -36,7 +36,7 @@ const TEST_GESTURES = {
       vs: { gesture: [['handup', null, true], null] },
       overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, delay: 100, duration: 1000 },
     },
-    jump: { description: 'Jump', dt: [500], vs: {}, overlay: { bones: { Hips: { custom: 'jump' } }, duration: 500 } },
+    clap: { description: 'Clap', dt: [500], vs: {} },
     shrug: { description: 'Named like a built-in pose', dt: [100], vs: {} },
   },
 };
@@ -56,8 +56,8 @@ describe('Body', () => {
 
   describe('registration', () => {
     it('registers both channels as TalkingHead animations', () => {
-      expect(body.names).toEqual(['nod', 'wave', 'jump', 'shrug']);
-      expect(Object.keys(adapter.anims)).toEqual(['nod', 'wave', 'jump', 'shrug']);
+      expect(body.names).toEqual(['nod', 'wave', 'clap', 'shrug']);
+      expect(Object.keys(adapter.anims)).toEqual(['nod', 'wave', 'clap', 'shrug']);
       expect(body.channelOf('nod')).toBe('head');
       expect(body.channelOf('wave')).toBe('hands');
     });
@@ -104,7 +104,7 @@ describe('Body', () => {
     it('plays through the gesture system, fades out and resolves true', async () => {
       const done = body.play('wave');
       expect(body.current).toEqual({ head: null, hands: 'wave' });
-      expect(adapter.playGesture).toHaveBeenCalledWith('wave', Infinity, false, 50);
+      expect(adapter.playGesture).toHaveBeenCalledWith('wave');
       await vi.advanceTimersByTimeAsync(1100); // 100 + midpoint of [800, 1200]
       expect(adapter.stopGesture).toHaveBeenCalledWith(50);
       await vi.advanceTimersByTimeAsync(100);
@@ -114,7 +114,7 @@ describe('Body', () => {
 
     it('a new hand gesture takes the arms over: the current one resolves false, nothing drops to the stance', async () => {
       const first = body.play('wave');
-      const second = body.play('jump');
+      const second = body.play('clap');
       expect(await first).toBe(false);
       expect(adapter.stopGesture).not.toHaveBeenCalled();
       expect(adapter.handOver).toHaveBeenCalledWith([], 50);
@@ -175,20 +175,20 @@ describe('Body', () => {
   describe('oscillation', () => {
     it('waits for its delay, oscillates, then zeroes the bone', () => {
       body.play('wave');
-      const q = adapter.props['RightHand.quaternion'];
       body.update(50);
-      expect(q.y).toBe(0);
+      expect(adapter.offsets.RightHand).toBeUndefined();
       for (let i = 0; i < 20; i++) body.update(16);
+      const q = adapter.offsets.RightHand;
       expect(Math.abs(q.y) + Math.abs(q.z)).toBeGreaterThan(0);
       for (let i = 0; i < 80; i++) body.update(16);
-      expect(q).toEqual({ x: 0, y: 0, z: 0 });
+      expect(adapter.offsets.RightHand).toEqual({ x: 0, y: 0, z: 0 });
     });
 
     it('stop() zeroes the bones immediately', () => {
       body.play('wave');
       for (let i = 0; i < 30; i++) body.update(16);
       body.stop();
-      expect(adapter.props['RightHand.quaternion']).toEqual({ x: 0, y: 0, z: 0 });
+      expect(adapter.offsets.RightHand).toEqual({ x: 0, y: 0, z: 0 });
     });
 
     it('stop() also clears an overlay that outlasts its gesture', async () => {
@@ -197,17 +197,9 @@ describe('Body', () => {
       await vi.advanceTimersByTimeAsync(200);
       for (let i = 0; i < 20; i++) b.update(16);
       expect(b.current.head).toBeNull();
-      expect(Math.abs(adapter.props['RightHand.quaternion'].y)).toBeGreaterThan(0);
+      expect(Math.abs(adapter.offsets.RightHand.y)).toBeGreaterThan(0);
       b.stop();
-      expect(adapter.props['RightHand.quaternion']).toEqual({ x: 0, y: 0, z: 0 });
-    });
-
-    it('jump lifts the hips in an arc and lands', () => {
-      body.play('jump');
-      for (let i = 0; i < 16; i++) body.update(16);
-      expect(adapter.props['Hips.position'].y).toBeGreaterThan(0.1);
-      for (let i = 0; i < 20; i++) body.update(16);
-      expect(adapter.props['Hips.position'].y).toBe(0);
+      expect(adapter.offsets.RightHand).toEqual({ x: 0, y: 0, z: 0 });
     });
   });
 

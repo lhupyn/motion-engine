@@ -8,7 +8,13 @@ const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)|[。！？]+[」』”’）
 // Hesitation sounds, not reactions ("oh" is one).
 const FILLER = /^(m+|h+m+|u+h+|u+m+|e+h+|a+h+|e+r+)$/;
 
-const norm = (s) => s.replace(/\s+/g, ' ');
+// Drops what has under two letters or is only filler ("Mm.", "Uh, um…").
+function clean(segments) {
+  return segments.map((s) => s.replace(/\s+/g, ' ').trim()).filter((s) => {
+    const words = s.toLowerCase().match(/\p{L}+/gu) || [];
+    return words.join('').length >= 2 && !words.every((w) => FILLER.test(w));
+  });
+}
 
 // What the streamed fragments and the final text of the same turn share; they
 // can differ in spacing, punctuation and casing.
@@ -68,21 +74,13 @@ export class Segmenter {
       out.push(this._buffer);
       this.reset();
     }
-    return this._clean(out);
+    return clean(out);
   }
 
   /** Release an unfinished sentence, e.g. after a pause in the stream. */
   flush() {
-    const out = this._clean([this._buffer]);
+    const out = clean([this._buffer]);
     this._buffer = '';
     return out;
-  }
-
-  // Drops what has under two letters or is only filler ("Mm.", "Uh, um…").
-  _clean(segments) {
-    return segments.map((s) => norm(s).trim()).filter((s) => {
-      const words = s.toLowerCase().match(/\p{L}+/gu) || [];
-      return words.join('').length >= 2 && !words.every((w) => FILLER.test(w));
-    });
   }
 }

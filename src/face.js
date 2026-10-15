@@ -4,11 +4,6 @@
 
 import FACS from './facs.json' with { type: 'json' };
 
-// Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
-// baseline; they must go through the system slot. Everything else is written as
-// baseline so lip-sync visemes still play over the expression.
-const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
-
 const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
 export class Face {
@@ -25,6 +20,9 @@ export class Face {
     this._moods = [];
     this._beats = [];
     this._driven = new Set();
+    // Reused every frame: the summed morphs, and the next frame's driven set.
+    this._sum = new Map();
+    this._spare = new Set();
   }
 
   get names() {
@@ -52,35 +50,37 @@ export class Face {
   play(name) {
     const r = this.resolve(name);
     if (!r) return false;
+    const morphs = Object.entries(r.vs);
     if (r.kind === 'beat') {
-      if (Object.keys(r.vs).length) this._beats.push({ vs: r.vs, t: 0, ...BEAT_ENVELOPE, ...r.envelope });
+      if (morphs.length) this._beats.push({ morphs, t: 0, ...BEAT_ENVELOPE, ...r.envelope });
       return true;
     }
     for (const m of this._moods) m.target = 0;
-    if (Object.keys(r.vs).length) this._moods.push({ name, vs: r.vs, level: 0, target: 1 });
+    if (morphs.length) this._moods.push({ name, morphs, level: 0, target: 1 });
     return true;
   }
 
   reset() {
     this._moods = [];
     this._beats = [];
-    for (const mt of this._driven) this._release(mt);
+    for (const mt of this._driven) this.adapter.releaseMorph(mt);
     this._driven.clear();
   }
 
   update(dt) {
     if (!this._moods.length && !this._beats.length && !this._driven.size) return;
 
-    const sum = {};
-    const add = (vs, k) => {
-      for (const [mt, w] of Object.entries(vs)) sum[mt] = (sum[mt] || 0) + w * k;
+    const sum = this._sum;
+    sum.clear();
+    const add = (morphs, k) => {
+      for (const [mt, w] of morphs) sum.set(mt, (sum.get(mt) || 0) + w * k);
     };
 
     const step = dt / this.fade;
     this._moods = this._moods.filter((m) => {
       m.level = m.target > m.level ? Math.min(m.target, m.level + step) : Math.max(m.target, m.level - step);
       if (m.level <= 0 && m.target === 0) return false;
-      add(m.vs, m.level);
+      add(m.morphs, m.level);
       return true;
     });
 
@@ -90,24 +90,20 @@ export class Face {
       const k = b.t < b.in ? b.t / b.in
         : b.t < b.in + b.hold ? 1
         : 1 - (b.t - b.in - b.hold) / b.out;
-      add(b.vs, k);
+      add(b.morphs, k);
       return true;
     });
 
-    const driven = new Set();
-    for (const [mt, w] of Object.entries(sum)) {
-      if (w <= 0) continue;
-      const value = Math.min(1, this.adapter.restBaseline(mt) + w);
-      if (EYE_ANIM_RE.test(mt)) this.adapter.setMorphValue(mt, value, 200);
-      else this.adapter.setMorphBaseline(mt, value);
+    const driven = this._spare;
+    driven.clear();
+    sum.forEach((w, mt) => {
+      if (w <= 0) return;
+      this.adapter.setExpressionMorph(mt, w);
       driven.add(mt);
-    }
-    for (const mt of this._driven) if (!driven.has(mt)) this._release(mt);
+    });
+    for (const mt of this._driven) if (!driven.has(mt)) this.adapter.releaseMorph(mt);
+    this._spare = this._driven;
     this._driven = driven;
-  }
-
-  _release(mt) {
-    if (!EYE_ANIM_RE.test(mt)) this.adapter.setMorphBaseline(mt, this.adapter.restBaseline(mt));
   }
 
   // A trailing _L/_R makes an AU unilateral.

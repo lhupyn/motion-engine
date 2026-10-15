@@ -450,7 +450,7 @@ Frames fire at the `dt` boundaries, so several frames chain poses (`applause` al
 
 **Poses.** A map of pose name → bone rotations in radians (Euler XYZ), the same format as TalkingHead's `gestureTemplates`. As in TalkingHead, one-hand poses are written for the left arm and mirrored for the right. A pose can't reuse a built-in's name (it's skipped with a warning). The bundled poses are fitted to the demo avatar's proportions; on another avatar, hands may miss their target (the chest, the chin) and the poses may need re-solving.
 
-**Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (quaternion components), `phase` (z only); plus `delay` and `duration` in ms.
+**Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (rotation offsets in radians), `phase` (z only); plus `delay` and `duration` in ms.
 
 **Manual-only entries.** `wave_left` and `hand_raise_left` have no description: Jev can't pick a side from text, but your code can play them with `engine.body.play(name)`. The same goes for the face's gaze beats (`look_left`, …), `open_mouth`, `close_eyes`, `squint` and `neutral`.
 
