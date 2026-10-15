@@ -141,7 +141,7 @@ No build step needed: it's plain ES modules, and the catalogs load as JSON modul
 </script>
 ```
 
-`@1.0.0` is a placeholder — pin the release tag you want. JSON import attributes need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+.
+`@1.0.0` pins this release; use the tag you want. JSON import attributes need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+.
 
 Or install it from GitHub (it isn't on npm yet) and use it with any bundler:
 
