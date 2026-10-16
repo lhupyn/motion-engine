@@ -2,8 +2,12 @@
 // Fragments are buffered and released one sentence at a time.
 
 // Fragments split at word boundaries, so punctuation at the end of what has
-// arrived already closes the sentence. CJK puts no space after it.
-const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)|[。！？]+[」』”’）]*/;
+// arrived already closes the sentence. CJK, Arabic, Urdu, Devanagari,
+// Armenian, Ethiopic and Burmese marks only end sentences, so they need no space.
+const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)|[。！？؟۔।॥։።။]+[」』”’）]*/;
+
+// "3." at the end of a fragment may be "3.50": wait for the next one.
+const NUMBER_DOT = /\d\.$/;
 
 // Hesitation sounds, not reactions ("oh" is one).
 const FILLER = /^(m+|h+m+|u+h+|u+m+|e+h+|a+h+|e+r+)$/;
@@ -70,6 +74,7 @@ export class Segmenter {
     let m;
     while ((m = SENTENCE_END.exec(this._buffer))) {
       const cut = m.index + m[0].length;
+      if (!final && cut === this._buffer.length && NUMBER_DOT.test(this._buffer)) break;
       out.push(this._buffer.slice(0, cut));
       this._buffer = this._buffer.slice(cut);
     }
