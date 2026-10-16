@@ -136,6 +136,13 @@
       "description": "Clapping: congratulating, applauding an achievement.",
       "dt": [100,450,170,170,170,170,170,170,170,350],
       "vs": {"gesture":[["namaste_low",null,false,450],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],null]}
+    },
+
+    "vulcan_salute": {
+      "description": "The Vulcan salute 🖖: only when someone says 'live long and prosper' (or 'larga vida y prosperidad'), or explicitly mentions Star Trek or Vulcans.",
+      "dt": [100,1500],
+      "rescale": [0,1],
+      "vs": {"gesture":[["vulcan",null,true,500],null]}
     }
   },
 
@@ -230,6 +237,11 @@
     "ok_relaxed": {
       "LeftShoulder.rotation":{"x":1.75,"y":0.3,"z":-1.4}, "LeftArm.rotation":{"x":1.6,"y":-0.5,"z":1.1}, "LeftForeArm.rotation":{"x":-0.415,"y":-0.2,"z":1.575}, "LeftHand.rotation":{"x":-0.476,"y":-0.506,"z":-0.208},
       "LeftHandThumb1.rotation":{"x":0.703,"y":0.445,"z":0.899}, "LeftHandThumb2.rotation":{"x":-0.312,"y":-0.04,"z":-0.938}, "LeftHandThumb3.rotation":{"x":-0.37,"y":0.024,"z":-0.393}, "LeftHandIndex1.rotation":{"x":0.8,"y":-0.086,"z":-0.091}, "LeftHandIndex2.rotation":{"x":1.123,"y":-0.046,"z":-0.074}, "LeftHandIndex3.rotation":{"x":0.562,"y":-0.013,"z":-0.043}, "LeftHandMiddle1.rotation":{"x":0.106,"y":-0.128,"z":-0.082}, "LeftHandMiddle2.rotation":{"x":0.383,"y":0.019,"z":-0.074}, "LeftHandMiddle3.rotation":{"x":0.1,"y":0,"z":0}, "LeftHandRing1.rotation":{"x":0.18,"y":-0.241,"z":-0.152}, "LeftHandRing2.rotation":{"x":0.436,"y":0.021,"z":-0.076}, "LeftHandRing3.rotation":{"x":0.125,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.284,"y":-0.336,"z":-0.26}, "LeftHandPinky2.rotation":{"x":0.353,"y":0.019,"z":0.001}, "LeftHandPinky3.rotation":{"x":0.15,"y":0,"z":0}
+    },
+
+    "vulcan": {
+      "LeftShoulder.rotation":{"x":1.599,"y":0.084,"z":-1.77}, "LeftArm.rotation":{"x":1.691,"y":0.298,"z":0.75}, "LeftForeArm.rotation":{"x":-0.98,"y":-0.667,"z":1.58}, "LeftHand.rotation":{"x":-0.456,"y":0.171,"z":0.248},
+      "LeftHandThumb1.rotation":{"x":1.345,"y":-0.526,"z":0.604}, "LeftHandThumb2.rotation":{"x":-0.107,"y":-0.01,"z":-0.142}, "LeftHandThumb3.rotation":{"x":0,"y":0.001,"z":0}, "LeftHandIndex1.rotation":{"x":0.035,"y":0,"z":0.37}, "LeftHandIndex2.rotation":{"x":0.02,"y":0,"z":-0.05}, "LeftHandIndex3.rotation":{"x":0.02,"y":0,"z":-0.025}, "LeftHandMiddle1.rotation":{"x":-0.02,"y":0,"z":0.35}, "LeftHandMiddle2.rotation":{"x":0.02,"y":0,"z":0.08}, "LeftHandMiddle3.rotation":{"x":0.02,"y":0,"z":-0.015}, "LeftHandRing1.rotation":{"x":0.11,"y":0,"z":-0.21}, "LeftHandRing2.rotation":{"x":0.02,"y":0,"z":0}, "LeftHandRing3.rotation":{"x":0.02,"y":0,"z":0}, "LeftHandPinky1.rotation":{"x":0.19,"y":0,"z":-0.12}, "LeftHandPinky2.rotation":{"x":0.02,"y":0,"z":0}, "LeftHandPinky3.rotation":{"x":0.02,"y":0,"z":0}
     }
   }
 }

@@ -110,6 +110,8 @@
     button:hover { background: var(--chip-hover); }
     button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
     button.manual { background: transparent; border-style: dashed; color: var(--muted); }
+    .legend .key { padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--text); }
+    .legend .key.manual { background: transparent; border-style: dashed; color: var(--muted); }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     input[type=text], input[type=password] {
@@ -214,7 +216,7 @@
 
     <section>
       <div class="section-head"><h2>Face</h2><span class="tag">No key needed</span></div>
-      <p class="note">Dashed: manual only — the decision model never picks it.</p>
+      <p class="note legend"><span class="key">solid</span> Jev can pick it · <span class="key manual">dashed</span> manual only, Jev never picks it</p>
       <h3>Expressions — held until replaced</h3>
       <div class="chips" id="moods" role="group" aria-label="Expressions"></div>
       <h3>Beats — play once</h3>
@@ -225,6 +227,7 @@
 
     <section>
       <div class="section-head"><h2>Body</h2><span class="tag">No key needed</span></div>
+      <p class="note legend"><span class="key">solid</span> Jev can pick it · <span class="key manual">dashed</span> manual only, Jev never picks it</p>
       <h3>Head — can play with a hand gesture</h3>
       <div class="chips" id="head-gestures"></div>
       <h3>Hands <label class="side"><input type="checkbox" id="left-hand" /> Left hand</label></h3>
