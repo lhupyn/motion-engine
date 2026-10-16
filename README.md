@@ -53,7 +53,7 @@ Plain ES modules, no build step. From a CDN with an import map:
   "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
   "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
-  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.0.0/src/index.js"
+  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.1.0/src/index.js"
 } }
 </script>
 ```
@@ -199,7 +199,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 
 ## Appendix B: Catalogs
 
-Both catalogs ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`, or `…@2.0.0/src/facs.json` on the CDN). Pass your own:
+Both catalogs ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`, or `…@2.1.0/src/facs.json` on the CDN). Pass your own:
 
 ```js
 import facs from './my-facs.json' with { type: 'json' };
