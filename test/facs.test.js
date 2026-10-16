@@ -7,6 +7,12 @@ describe('facs.json calibration', () => {
   it('every bundled expression stays within au_limits and avoid', () => {
     expect(auViolations(FACS)).toEqual([]);
   });
+
+  it('tender does not smile: Jev picks it for condolences ("I am so sorry")', () => {
+    const aus = Object.keys(FACS.expressions.tender.aus).map((au) => au.replace(/_[LR]$/, ''));
+    expect(aus).not.toContain('AU12');
+    expect(aus).not.toContain('AU14');
+  });
 });
 
 describe('auViolations', () => {
