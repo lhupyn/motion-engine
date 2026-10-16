@@ -99,14 +99,19 @@ export class MotionEngine {
     if (!seg) throw new Error(`Unknown speaker "${speaker}" (use avatar or user)`);
 
     if (speaker === 'avatar') {
-      if (final) clearTimeout(this._timers.silence);
-      else this._endTurnAfterSilence();
       // Providers keep sending the cut-off turn after a barge-in (late deltas,
-      // then the whole turn as final); none of it was said.
+      // then the whole turn as final); none of it was said. Its fragments don't
+      // extend the silence that ends the cut, or a next turn streaming without a
+      // final would be dropped whole.
       if (this._cut) {
-        if (final) this._cut = false;
+        if (final) {
+          clearTimeout(this._timers.silence);
+          this._cut = false;
+        }
         return;
       }
+      if (final) clearTimeout(this._timers.silence);
+      else this._endTurnAfterSilence();
       this._avatarSpeaking = !final;
     } else if (final) {
       // The avatar's next turn answers this line, so the cut-off one is over.

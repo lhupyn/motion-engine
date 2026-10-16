@@ -319,17 +319,36 @@ describe('MotionEngine', () => {
         expect(decisions.at(-1).skipped).toBeUndefined();
       });
 
-      it('without a final, silence ends the cut and the next turn is classified', async () => {
+      it('without a final, the cut ends 3 s after the interrupt and the next turn is classified', async () => {
         engine.feed('Let me tell');
         engine.interrupt();
         await vi.advanceTimersByTimeAsync(1000);
         engine.feed(' you more');
-        await vi.advanceTimersByTimeAsync(2999);
+        await vi.advanceTimersByTimeAsync(1000);
         engine.feed('Still the old turn. ');
-        await vi.advanceTimersByTimeAsync(3000);
+        await vi.advanceTimersByTimeAsync(1000);
         engine.feed('A new turn. ');
         await flush();
         expect(classify.mock.calls.map((c) => c[0].text)).toEqual(['A new turn.']);
+      });
+
+      it("a cut turn's late fragments don't keep the cut open", async () => {
+        engine.feed('Let me tell');
+        engine.interrupt();
+        // No final for the cut turn and none from the person: the next turn
+        // streams in without a pause long enough to end it by silence.
+        for (let i = 0; i < 6; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+          engine.feed(`Sentence ${i}. `);
+        }
+        await flush();
+        // Sentences 0 and 1 arrive within 3 s of the cut; 2 lands as it ends.
+        expect(classify.mock.calls.map((c) => c[0].text)).toEqual([
+          'Sentence 2.',
+          'Sentence 3.',
+          'Sentence 4.',
+          'Sentence 5.',
+        ]);
       });
 
       it("the person's final also ends the cut: the avatar's next turn answers it", async () => {
