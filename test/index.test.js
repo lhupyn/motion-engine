@@ -190,6 +190,40 @@ describe('MotionEngine', () => {
       });
     });
 
+    describe('context', () => {
+      it("is the avatar's next line's context, with no call of its own", async () => {
+        engine.context('  Can you   raise your hand? ');
+        await flush();
+        expect(classify).not.toHaveBeenCalled();
+        engine.feed('Sure, here it is. ');
+        await flush();
+        expect(classify.mock.calls[0][0]).toEqual({
+          speaker: 'avatar',
+          text: 'Sure, here it is.',
+          previous: { speaker: 'user', text: 'Can you raise your hand?' },
+        });
+        expect(decisions.map((d) => d.speaker)).toEqual(['avatar']);
+      });
+
+      it('ignores empty text', async () => {
+        engine.context('  ');
+        engine.feed('Hello there. ');
+        await flush();
+        expect(classify.mock.calls[0][0]).toEqual({ speaker: 'avatar', text: 'Hello there.' });
+      });
+
+      it("ends a cut-off avatar turn, like the person's final", async () => {
+        engine.feed('Let me tell');
+        engine.interrupt();
+        engine.context('Stop.');
+        engine.feed('Okay, sorry. ');
+        await flush();
+        expect(classify.mock.calls.map((c) => c[0])).toEqual([
+          { speaker: 'avatar', text: 'Okay, sorry.', previous: { speaker: 'user', text: 'Stop.' } },
+        ]);
+      });
+    });
+
     it('reacts to the person when the avatar is quiet', async () => {
       classify.mockResolvedValueOnce(answer('tender'));
       engine.feed("I'm sad today.", { speaker: 'user', final: true });

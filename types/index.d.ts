@@ -79,6 +79,13 @@ export declare class MotionEngine {
      */
     useClassifier(classify: Classify | null): void;
     /**
+     * The person's line as context only: the avatar's next line is classified
+     * knowing what it answers, with no call and no reaction for this one. Like a
+     * final from the person, it also ends a cut-off avatar turn.
+     * @param {string} text
+     */
+    context(text: string): void;
+    /**
      * Feed transcript text as it arrives. Each sentence is one classifier call. Lines
      * from the person are not classified while the avatar is speaking: the
      * reaction would come too late.

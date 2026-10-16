@@ -83,6 +83,19 @@ export class MotionEngine {
   }
 
   /**
+   * The person's line as context only: the avatar's next line is classified
+   * knowing what it answers, with no call and no reaction for this one. Like a
+   * final from the person, it also ends a cut-off avatar turn.
+   * @param {string} text
+   */
+  context(text) {
+    text = (text ?? '').replace(/\s+/g, ' ').trim();
+    if (this._disposed || !text) return;
+    this._previous = { speaker: 'user', text };
+    this._cut = false;
+  }
+
+  /**
    * Feed transcript text as it arrives. Each sentence is one classifier call. Lines
    * from the person are not classified while the avatar is speaking: the
    * reaction would come too late.
