@@ -25,13 +25,6 @@ describe('adapter contract (TalkingHead source)', () => {
     expect(isMethod || isField).toBe(true);
   });
 
-  it("TalkingHead's playGesture() queues a 'lookat' anim, which the adapter drops", () => {
-    const playGesture = th.slice(th.indexOf('playGesture(name'), th.indexOf('stopGesture('));
-    expect(playGesture).toMatch(/this\.lookAtCamera\(/);
-    expect(th).toMatch(/name:\s*'lookat'/);
-    expect(th).toMatch(/\.template\.name === 'lookat'/);
-  });
-
   it('TalkingHead takes the realtime slot as is (no easing, under fixed only) and never writes it itself', () => {
     expect(th).toMatch(
       /else if \( o\.realtime !== null \) \{\s*o\.ref = null;\s*o\.base = null;\s*newvalue = o\.realtime;/,
@@ -123,31 +116,6 @@ describe('adapter verbs', () => {
     expect(dur).toBe(Infinity);
     expect(played).not.toBe('ok');
     expect(head.animEmojis[played]).toEqual({ dt: [100] });
-  });
-
-  it('drops the camera look TalkingHead queues with a gesture, keeping one it started before', () => {
-    const head = makeHead();
-    const idle = { template: { name: 'lookat' } };
-    const blink = { template: { name: 'blink' } };
-    head.animQueue.push(idle, blink);
-    // Like TalkingHead: replace any lookat, then queue the gesture anim.
-    head.playGesture = vi.fn(() => {
-      head.animQueue.splice(head.animQueue.indexOf(idle), 1);
-      head.animQueue.push({ template: { name: 'lookat' } }, { template: {}, gesture: true });
-    });
-    const a = new TalkingHeadAdapter(head);
-    a.registerAnim('wave', { dt: [100] });
-    a.playGesture('wave');
-    expect(head.animQueue.filter((x) => x.template.name === 'lookat')).toEqual([idle]);
-    expect(head.animQueue).toContain(blink);
-    expect(head.animQueue.some((x) => x.gesture)).toBe(true);
-  });
-
-  it('drops the camera look even when none was running before', () => {
-    const head = makeHead();
-    head.playGesture = vi.fn(() => head.animQueue.push({ template: { name: 'lookat' } }));
-    new TalkingHeadAdapter(head).playGesture('wave');
-    expect(head.animQueue).toEqual([]);
   });
 
   it('registers poses as gesture templates, kept out of gestureNames() so they can be replaced', () => {

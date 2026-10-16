@@ -26,8 +26,6 @@ const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
 
 const has = (o, k) => !!o && Object.hasOwn(o, k);
 
-const isLookAt = (anim) => anim.template?.name === 'lookat';
-
 export class TalkingHeadAdapter {
   constructor(head) {
     this.head = head;
@@ -70,14 +68,8 @@ export class TalkingHeadAdapter {
 
   /** [public] Plays a registered animation through the gesture system, until stopGesture(). */
   playGesture(name) {
-    const queue = this.head.animQueue;
-    const prior = queue.find(isLookAt);
     // An infinite duration: no rescaling and no timer of TalkingHead's own.
     this.head.playGesture(key(name), Infinity);
-    // [internal] TalkingHead also looks at the camera on every gesture: it pitches the
-    // head up and raises the brows at random. Drop that look, keep any earlier one.
-    for (let i = queue.length - 1; i >= 0; i--) if (isLookAt(queue[i]) && queue[i] !== prior) queue.splice(i, 1);
-    if (prior && !queue.includes(prior)) queue.push(prior);
   }
 
   /** [public] */
