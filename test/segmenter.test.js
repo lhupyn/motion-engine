@@ -27,6 +27,46 @@ describe('Segmenter', () => {
     expect(s.push(' today.', true)).toEqual(['It costs 3.5 euros at example.com today.']);
   });
 
+  it('a number split across fragments stays one sentence (3. + 50 euros)', () => {
+    const s = new Segmenter();
+    expect(s.push('It costs 3.')).toEqual([]);
+    expect(s.push('50 euros. Cheap!')).toEqual(['It costs 3.50 euros.', 'Cheap!']);
+  });
+
+  it('only the number at the end of a fragment waits', () => {
+    expect(new Segmenter().push('Hi. I am 30.')).toEqual(['Hi.']);
+    expect(new Segmenter().push('I am 30. ')).toEqual(['I am 30.']);
+  });
+
+  it('a number ending a sentence is released by the next fragment, a pause or the final', () => {
+    const s = new Segmenter();
+    expect(s.push('I was born in 1990.')).toEqual([]);
+    expect(s.push(' And you?')).toEqual(['I was born in 1990.', 'And you?']);
+    expect(s.push('Room 4.')).toEqual([]);
+    expect(s.flush()).toEqual(['Room 4.']);
+    expect(s.push('Page 12.', true)).toEqual(['Page 12.']);
+  });
+
+  it('abbreviations still cut: no rule tells "Dr. Smith" from "No. Smith said"', () => {
+    const s = new Segmenter();
+    expect(s.push('Ask Dr. ')).toEqual(['Ask Dr.']);
+    expect(s.push('No. ')).toEqual(['No.']);
+  });
+
+  it.each([
+    ['Arabic', 'كيف حالك؟', 'أنا بخير'],
+    ['Urdu', 'میں ٹھیک ہوں۔', 'شکریہ'],
+    ['Hindi', 'मैं ठीक हूँ।', 'धन्यवाद'],
+    ['Sanskrit', 'सत्यमेव जयते॥', 'शान्तिः'],
+    ['Armenian', 'Ես լավ եմ։', 'Շնորհակալություն'],
+    ['Amharic', 'ደህና ነኝ።', 'አመሰግናለሁ'],
+    ['Burmese', 'နေကောင်းပါတယ်။', 'ကျေးဇူးတင်ပါတယ်'],
+  ])('%s: its sentence mark closes the sentence', (_, sentence, next) => {
+    const s = new Segmenter();
+    expect(s.push(sentence + next)).toEqual([sentence]);
+    expect(s.flush()).toEqual([next]);
+  });
+
   it('keeps closing quotes with their sentence', () => {
     const s = new Segmenter();
     expect(s.push('She said "wow!" and left. ')).toEqual(['She said "wow!"', 'and left.']);

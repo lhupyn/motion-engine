@@ -410,11 +410,10 @@
     },
     "tender": {
       "description": "Tender warmth: caring, comforting, compassionate, gentle support.",
-      "facs": "extension: soft closed smile (AU6+AU12) + raised inner brows (AU1)",
+      "facs": "extension: raised inner brows (AU1) + a slight brow lowerer (AU4), concern without a smile",
       "aus": {
         "AU1": 0.45,
-        "AU6": 0.3,
-        "AU12": 0.4
+        "AU4": 0.2
       }
     },
     "love": {

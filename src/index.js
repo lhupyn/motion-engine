@@ -83,6 +83,19 @@ export class MotionEngine {
   }
 
   /**
+   * The person's line as context only: the avatar's next line is classified
+   * knowing what it answers, with no call and no reaction for this one. Like a
+   * final from the person, it also ends a cut-off avatar turn.
+   * @param {string} text
+   */
+  context(text) {
+    text = (text ?? '').replace(/\s+/g, ' ').trim();
+    if (this._disposed || !text) return;
+    this._previous = { speaker: 'user', text };
+    this._cut = false;
+  }
+
+  /**
    * Feed transcript text as it arrives. Each sentence is one classifier call. Lines
    * from the person are not classified while the avatar is speaking: the
    * reaction would come too late.
@@ -99,14 +112,15 @@ export class MotionEngine {
     if (!seg) throw new Error(`Unknown speaker "${speaker}" (use avatar or user)`);
 
     if (speaker === 'avatar') {
-      if (final) clearTimeout(this._timers.silence);
-      else this._endTurnAfterSilence();
       // Providers keep sending the cut-off turn after a barge-in (late deltas,
-      // then the whole turn as final); none of it was said.
+      // then the whole turn as final); none of it was said. Its fragments don't
+      // extend the silence that ends the cut.
       if (this._cut) {
-        if (final) this._cut = false;
+        this._cut = !final;
         return;
       }
+      if (final) clearTimeout(this._timers.silence);
+      else this._endTurnAfterSilence();
       this._avatarSpeaking = !final;
     } else if (final) {
       // The avatar's next turn answers this line, so the cut-off one is over.
@@ -170,14 +184,14 @@ export class MotionEngine {
   async _handle(text, speaker) {
     // The classifier can be removed while text is still buffered.
     if (!this.classify) return;
+    const previous = this._previous;
+    this._previous = { speaker, text };
     if (speaker === 'user' && this._avatarSpeaking) {
       this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;
     }
 
     const seq = ++this._seq;
-    const previous = this._previous;
-    this._previous = { speaker, text };
     const ctrl = new AbortController();
     this._inflight.set(ctrl, speaker);
 

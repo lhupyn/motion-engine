@@ -24,7 +24,7 @@ motion-engine gives that job to a decision model that answers multiple-choice qu
 
 ## How it works
 
-`feed()` → **segmenter** (sentences; a repeated final turn deduped; under two letters or only filler like `"mm"` dropped, `"No."` kept; an unfinished sentence goes after `pause` ms) → **classifier**, one call per sentence: expression? head? hands? (+ "intelligible?" for the person's lines) → **director** (rules below) → **face** (FACS compositor) and **body** (head + hands channels) → **adapter**, the only module that touches TalkingHead, contract-tested against 1.7.
+`feed()` → **segmenter** (sentences; a repeated final turn deduped; under two letters or only filler like `"mm"` dropped, `"No."` kept; `"3."` + `"50"` stays one number; an unfinished sentence goes after `pause` ms) → **classifier**, one call per sentence: expression? head? hands? (+ "intelligible?" for the person's lines) → **director** (rules below) → **face** (FACS compositor) and **body** (head + hands channels) → **adapter**, the only module that touches TalkingHead, contract-tested against 1.7.
 
 **Director rules.** A skipped choice reports why in its action's `reason`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `avatar is speaking` (a beat with `whileSpeaking: false`), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`. A whole line reports `skipped` instead: `avatar is already speaking` (a line from the person, not sent) or `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
 
@@ -37,10 +37,11 @@ engine.feed(text, { speaker: 'avatar' | 'user', final });
 The same text gets a different reaction depending on who says it: *"My grandma passed away"* from the avatar is a sad face; from the person, the listening avatar shows concern, not a copy of their emotion.
 
 - **Avatar lines** drive the face and body while it speaks. They're the main input, and `speaker` defaults to `'avatar'`.
-- **The person's lines** are optional (not fed → not billed). They're skipped while the avatar speaks, and garbled ones get no reaction.
+- **The person's lines** are optional (not fed → not billed). They're skipped while the avatar speaks (the avatar's next line still sees them as `previous`), and garbled ones get no reaction.
+- **`context(text)`** passes the person's line as context only: no call, no reaction, and the avatar's next line is classified knowing what it answers. Use it instead of `feed()` when you don't want listening reactions ([realtime voice](#integration-recipes)).
 - **`final: true`** ends a turn; it may repeat the whole turn or be empty. 3 s without avatar fragments also ends its turn.
-- **`interrupt()`** is barge-in on the avatar's side only: it drops the avatar's pending text and calls and, if it was speaking, its gestures and the rest of the cut-off turn. Reactions to the person keep going, so call it whenever the person starts talking.
-- **Languages:** the line can be in any language; descriptions stay in English. Tested with English and Spanish.
+- **`interrupt()`** is barge-in on the avatar's side only: it drops the avatar's pending text and calls and, if it was speaking, its gestures and the rest of the cut-off turn, whose late fragments are ignored until a final from either side, `context()`, or 3 s after the interrupt. Reactions to the person keep going, so call it whenever the person starts talking.
+- **Languages:** the line can be in any language; descriptions stay in English. Sentences also end at CJK, Arabic, Urdu, Devanagari, Armenian, Ethiopic and Burmese marks. Tested with English and Spanish.
 
 ## Quick start
 
@@ -52,7 +53,7 @@ Plain ES modules, no build step. From a CDN with an import map:
   "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
   "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
-  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.0.0/src/index.js"
+  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.1.0/src/index.js"
 } }
 </script>
 ```
@@ -100,7 +101,7 @@ engine.body.stop();               // both, or stop('head') / stop('hands')
 
 Hand gestures play with the right hand by default; `mirror: true` flips every frame to the other hand and moves the overlay with it. Head movements have no side. `face.play` returns `false` for an unknown name; `body.play` resolves `false` when unknown or interrupted. `engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
 
-Besides `feed()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
+Besides `feed()`, `context()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
 
 ## Integration recipes
 
@@ -128,6 +129,8 @@ switch (event.type) {
   case 'input_audio_buffer.speech_started': engine.interrupt(); break;
 }
 ```
+
+With realtime voice the person's transcript often arrives after the avatar has started answering, too late to react to. To skip listening reactions, pass it with `engine.context(transcript)` instead of `feed()`.
 
 **Text chat:**
 
@@ -196,7 +199,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 
 ## Appendix B: Catalogs
 
-Both catalogs ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`, or `…@2.0.0/src/facs.json` on the CDN). Pass your own:
+Both catalogs ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`, or `…@2.1.0/src/facs.json` on the CDN). Pass your own:
 
 ```js
 import facs from './my-facs.json' with { type: 'json' };
