@@ -13,6 +13,8 @@ const head = new TalkingHead($('avatar'), {
   cameraView: 'upper',
   showProgressBar: false,
   dracoEnabled: true,
+  // Versioned with three; gstatic's unversioned v1 decoder broke three's DRACOLoader on 2026-10-15.
+  dracoDecoderPath: 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/',
 });
 
 try {
