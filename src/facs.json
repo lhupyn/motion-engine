@@ -624,6 +624,7 @@
       }
     },
     "close_eyes": {
+      "description": "Eyes closed for a moment: savoring, relief, a fond memory.",
       "facs": "AU43 eyes closed",
       "kind": "beat",
       "aus": {
@@ -715,6 +716,7 @@
       }
     },
     "look_up": {
+      "description": "Eyes up, searching memory: recalling a name or a date, \"let me think\".",
       "facs": "AU63 eyes up",
       "kind": "beat",
       "aus": {
@@ -727,6 +729,7 @@
       }
     },
     "look_down": {
+      "description": "A brief look down: sheepish, humble, owning up to something.",
       "facs": "AU64 eyes down",
       "kind": "beat",
       "aus": {

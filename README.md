@@ -207,7 +207,7 @@ new MotionEngine(head, { classify: systemOne({ apiKey }), face: { facs }, body: 
 
 **Rules**
 
-- Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: the gaze beats (`look_left`, …), `open_mouth`, `close_eyes`, `squint`, `neutral`.
+- Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: `look_left`, `look_right`, `open_mouth`, `squint`, `neutral`.
 - The description says *when* to use it: *"Warm, genuine smile: glad, pleased, friendly, good news."* A narrow one keeps a novelty for its cue: `vulcan_salute` (🖖) only on "live long and prosper" or a mention of Star Trek or Vulcans.
 - Keep options distinct: similar options split the confidence and can both fall under the threshold.
 - Check faces still and while talking; keep jaw opening out of held moods, or it fights the visemes.
