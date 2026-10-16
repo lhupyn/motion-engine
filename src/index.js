@@ -114,13 +114,9 @@ export class MotionEngine {
     if (speaker === 'avatar') {
       // Providers keep sending the cut-off turn after a barge-in (late deltas,
       // then the whole turn as final); none of it was said. Its fragments don't
-      // extend the silence that ends the cut, or a next turn streaming without a
-      // final would be dropped whole.
+      // extend the silence that ends the cut.
       if (this._cut) {
-        if (final) {
-          clearTimeout(this._timers.silence);
-          this._cut = false;
-        }
+        this._cut = !final;
         return;
       }
       if (final) clearTimeout(this._timers.silence);
@@ -188,16 +184,14 @@ export class MotionEngine {
   async _handle(text, speaker) {
     // The classifier can be removed while text is still buffered.
     if (!this.classify) return;
+    const previous = this._previous;
+    this._previous = { speaker, text };
     if (speaker === 'user' && this._avatarSpeaking) {
-      // Too late to react to, but the avatar's next line answers it.
-      this._previous = { speaker, text };
       this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;
     }
 
     const seq = ++this._seq;
-    const previous = this._previous;
-    this._previous = { speaker, text };
     const ctrl = new AbortController();
     this._inflight.set(ctrl, speaker);
 

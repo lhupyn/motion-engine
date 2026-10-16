@@ -33,6 +33,11 @@ describe('Segmenter', () => {
     expect(s.push('50 euros. Cheap!')).toEqual(['It costs 3.50 euros.', 'Cheap!']);
   });
 
+  it('only the number at the end of a fragment waits', () => {
+    expect(new Segmenter().push('Hi. I am 30.')).toEqual(['Hi.']);
+    expect(new Segmenter().push('I am 30. ')).toEqual(['I am 30.']);
+  });
+
   it('a number ending a sentence is released by the next fragment, a pause or the final', () => {
     const s = new Segmenter();
     expect(s.push('I was born in 1990.')).toEqual([]);

@@ -356,7 +356,7 @@ The seven core emotions use the canonical EMFACS-7 AU combinations; the other ex
 ```bash
 npm install
 npm run demo     # Vite dev server for demo/
-npm test         # Vitest, incl. the adapter contract test against TalkingHead's source (dev dependency pinned to v1.7.0)
+npm test         # Vitest, incl. the adapter contract test against TalkingHead's source
 npm run build    # Build the demo into dist/
 npm run lint     # ESLint
 npm run format   # Prettier (format:check to verify only)

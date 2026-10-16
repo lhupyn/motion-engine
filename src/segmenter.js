@@ -74,7 +74,7 @@ export class Segmenter {
     let m;
     while ((m = SENTENCE_END.exec(this._buffer))) {
       const cut = m.index + m[0].length;
-      if (!final && cut === this._buffer.length && NUMBER_DOT.test(this._buffer)) break;
+      if (cut === this._buffer.length && NUMBER_DOT.test(this._buffer)) break;
       out.push(this._buffer.slice(0, cut));
       this._buffer = this._buffer.slice(cut);
     }
