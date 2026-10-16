@@ -27,10 +27,21 @@ export declare class TalkingHeadAdapter {
     playAnim(name: any): void;
     /** [internal] */
     stopAnim(name: any): void;
-    /** [internal] Shows a morph `w` above its rest level; call it every frame while it's held. */
-    setExpressionMorph(mt: any, w: any): void;
+    /**
+     * [internal] Shows a morph `w` above its rest level; call it every frame while it's held.
+     * TalkingHead eases baseline changes over about a second, which smooths a mood's
+     * cross-fade but smears a beat, so `exact` writes the value through the realtime
+     * slot (no easing, and TalkingHead never writes it itself). The baseline follows
+     * along, so releasing the slot doesn't jump.
+     * @param {string} mt
+     * @param {number} w
+     * @param {boolean} [exact=false]
+     */
+    setExpressionMorph(mt: string, w: number, exact?: boolean): any;
     /** [internal] Back to the rest level. */
     releaseMorph(mt: any): void;
+    /** [internal] */
+    _realtime(mt: any, value: any): void;
     /** [internal] Whether TalkingHead is playing speech (audio or lip-sync) right now. */
     isSpeaking(): boolean;
     /**

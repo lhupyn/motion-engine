@@ -113,6 +113,38 @@ describe('Face', () => {
   });
 
   describe('beats', () => {
+    it('hold every morph exactly while alive, even at 0, then settle one frame before letting go', () => {
+      const set = vi.spyOn(adapter, 'setExpressionMorph');
+      const release = vi.spyOn(adapter, 'releaseMorph');
+      const tongue = () => set.mock.calls.filter(([mt]) => mt === 'tongueOut');
+      face.play('tongue'); // 150/700/300, AU19 offset 150: the tongue is at 0 for its first and last 150 ms
+      face.update(16);
+      expect(tongue().at(-1)).toEqual(['tongueOut', 0, true]);
+      run(face, 1150 - 16 - 16); // last frame of the beat: the tongue's ramp is already over
+      expect(tongue().at(-1)).toEqual(['tongueOut', 0, true]);
+      expect(release).not.toHaveBeenCalledWith('tongueOut');
+      face.update(16); // the beat is gone: one exact frame at rest
+      expect(tongue().at(-1)).toEqual(['tongueOut', 0, true]);
+      expect(release).not.toHaveBeenCalledWith('tongueOut');
+      face.update(16);
+      expect(release).toHaveBeenCalledWith('tongueOut');
+    });
+
+    it('are written exactly, without TalkingHead easing; a mood alone is eased', () => {
+      const set = vi.spyOn(adapter, 'setExpressionMorph');
+      face.play('grin');
+      face.update(16);
+      expect(set).toHaveBeenCalledWith('mouthSmileLeft', expect.any(Number), false);
+      face.play('tongue');
+      face.update(16);
+      expect(set).toHaveBeenLastCalledWith('mouthLowerDownLeft', expect.any(Number), true);
+      expect(set).toHaveBeenCalledWith('mouthSmileLeft', expect.any(Number), false);
+      run(face, 1200);
+      set.mockClear();
+      face.update(16);
+      expect(set.mock.calls.every(([, , exact]) => exact === false)).toBe(true);
+    });
+
     it('drive eye morphs through the system slot, never the baseline', () => {
       face.play('glance');
       run(face, 150);

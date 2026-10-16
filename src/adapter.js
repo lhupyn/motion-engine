@@ -120,16 +120,36 @@ export class TalkingHeadAdapter {
     if (i !== -1) queue.splice(i, 1);
   }
 
-  /** [internal] Shows a morph `w` above its rest level; call it every frame while it's held. */
-  setExpressionMorph(mt, w) {
+  /**
+   * [internal] Shows a morph `w` above its rest level; call it every frame while it's held.
+   * TalkingHead eases baseline changes over about a second, which smooths a mood's
+   * cross-fade but smears a beat, so `exact` writes the value through the realtime
+   * slot (no easing, and TalkingHead never writes it itself). The baseline follows
+   * along, so releasing the slot doesn't jump.
+   * @param {string} mt
+   * @param {number} w
+   * @param {boolean} [exact=false]
+   */
+  setExpressionMorph(mt, w, exact = false) {
     const value = Math.min(1, this.restBaseline(mt) + w);
-    if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, value, 200);
-    else this.head.setBaselineValue(mt, value);
+    if (EYE_ANIM_RE.test(mt)) return this.head.setValue(mt, value, 200);
+    this.head.setBaselineValue(mt, value);
+    this._realtime(mt, exact ? value : null);
   }
 
   /** [internal] Back to the rest level. */
   releaseMorph(mt) {
-    if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this.restBaseline(mt));
+    if (EYE_ANIM_RE.test(mt)) return;
+    this.head.setBaselineValue(mt, this.restBaseline(mt));
+    this._realtime(mt, null);
+  }
+
+  /** [internal] */
+  _realtime(mt, value) {
+    const o = this.head.mtAvatar?.[mt];
+    if (!o || (o.realtime ?? null) === value) return;
+    o.realtime = value;
+    o.needsUpdate = true;
   }
 
   /** [internal] Whether TalkingHead is playing speech (audio or lip-sync) right now. */

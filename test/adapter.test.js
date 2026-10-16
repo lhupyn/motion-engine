@@ -32,6 +32,15 @@ describe('adapter contract (TalkingHead source)', () => {
     expect(th).toMatch(/\.template\.name === 'lookat'/);
   });
 
+  it('TalkingHead takes the realtime slot as is (no easing, under fixed only) and never writes it itself', () => {
+    expect(th).toMatch(
+      /else if \( o\.realtime !== null \) \{\s*o\.ref = null;\s*o\.base = null;\s*newvalue = o\.realtime;/,
+    );
+    expect(th.indexOf('o.fixed !== null')).toBeLessThan(th.indexOf('o.realtime !== null'));
+    expect(th.indexOf('o.realtime !== null')).toBeLessThan(th.indexOf('o.system !== null'));
+    expect(th).not.toMatch(/\.realtime\s*=[^=]/);
+  });
+
   it('TalkingHead copies mtLimits/mtOnchange into each morph and applies limit() every frame', () => {
     expect(th).toMatch(/limit:\s*this\.mtLimits\.hasOwnProperty\(x\)\s*\?\s*this\.mtLimits\[x\]/);
     expect(th).toMatch(/onchange:\s*this\.mtOnchange\.hasOwnProperty\(x\)\s*\?\s*this\.mtOnchange\[x\]/);
@@ -205,6 +214,42 @@ describe('adapter verbs', () => {
     expect(head.poseDelta.props['Head.quaternion']).toEqual({ x: 0.1, y: 0.2, z: 0.3 });
     expect(() => a.setBoneOffset('Tail', 1, 1, 1)).not.toThrow();
     expect(() => new TalkingHeadAdapter({}).setBoneOffset('Head', 1, 1, 1)).not.toThrow();
+  });
+
+  describe('expression morphs', () => {
+    const morphHead = () => {
+      const head = makeHead();
+      head.mtAvatar = { mouthSmileLeft: { realtime: null, needsUpdate: false }, eyeBlinkLeft: { realtime: null } };
+      return head;
+    };
+
+    it('a held expression goes through the eased baseline', () => {
+      const head = morphHead();
+      new TalkingHeadAdapter(head).setExpressionMorph('mouthSmileLeft', 0.3);
+      expect(head.setBaselineValue).toHaveBeenCalledWith('mouthSmileLeft', 0.5);
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+    });
+
+    it('an exact one also takes the realtime slot, and lets go of it after', () => {
+      const head = morphHead();
+      const a = new TalkingHeadAdapter(head);
+      a.setExpressionMorph('mouthSmileLeft', 0.3, true);
+      expect(head.mtAvatar.mouthSmileLeft).toMatchObject({ realtime: 0.5, needsUpdate: true });
+      expect(head.setBaselineValue).toHaveBeenLastCalledWith('mouthSmileLeft', 0.5);
+      a.setExpressionMorph('mouthSmileLeft', 0.2);
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+      a.setExpressionMorph('mouthSmileLeft', 0.3, true);
+      a.releaseMorph('mouthSmileLeft');
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+      expect(head.setBaselineValue).toHaveBeenLastCalledWith('mouthSmileLeft', 0.2);
+    });
+
+    it('gaze and blink stay in the system slot', () => {
+      const head = morphHead();
+      new TalkingHeadAdapter(head).setExpressionMorph('eyeBlinkLeft', 0.5, true);
+      expect(head.setValue).toHaveBeenCalledWith('eyeBlinkLeft', 0.5, 200);
+      expect(head.mtAvatar.eyeBlinkLeft.realtime).toBeNull();
+    });
   });
 
   describe('duckMouth', () => {

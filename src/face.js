@@ -51,6 +51,9 @@ export class Face {
   // Reused every frame: the summed morphs, and the next frame's driven set.
   /** @internal */ _sum = new Map();
   /** @internal */ _spare = new Set();
+  // Morphs a beat drives this frame, and last frame: written exactly, without TalkingHead's easing.
+  /** @internal */ _exact = new Set();
+  /** @internal */ _wasExact = new Set();
 
   /**
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
@@ -149,21 +152,38 @@ export class Face {
       return true;
     });
 
+    const exact = this._wasExact;
+    const wasExact = this._exact;
+    exact.clear();
     this._beats = this._beats.filter((b) => {
       b.t += dt;
       if (b.t >= b.in + b.hold + b.out) return false;
-      for (const [mt, w, offset] of b.morphs) sum.set(mt, (sum.get(mt) || 0) + w * beatLevel(b, offset));
+      // All of a live beat's morphs, even at 0 (an offset's tail): eased, they'd linger.
+      for (const [mt, w, offset] of b.morphs) {
+        exact.add(mt);
+        sum.set(mt, (sum.get(mt) || 0) + w * beatLevel(b, offset));
+      }
       return true;
     });
 
     const driven = this._spare;
     driven.clear();
     sum.forEach((w, mt) => {
-      if (w <= 0) return;
-      this.adapter.setExpressionMorph(mt, w);
+      const isExact = exact.has(mt) || wasExact.has(mt);
+      if (w <= 0 && !isExact) return;
+      // One more exact frame after a beat ends puts its last level in place, so
+      // TalkingHead's easing (slow to start) has no tail left to ease.
+      this.adapter.setExpressionMorph(mt, Math.max(0, w), isExact);
       driven.add(mt);
     });
+    for (const mt of wasExact) {
+      if (driven.has(mt)) continue;
+      this.adapter.setExpressionMorph(mt, 0, true);
+      driven.add(mt);
+    }
     for (const mt of this._driven) if (!driven.has(mt)) this.adapter.releaseMorph(mt);
+    this._exact = exact;
+    this._wasExact = wasExact;
     this._spare = this._driven;
     this._driven = driven;
   }

@@ -109,6 +109,6 @@ describe('Face', () => {
     expect(warn).toHaveBeenCalledWith('[motion-engine] grin: AU12 0.9 is above 0.5');
     expect(face.play('grin')).toBe(true);
     face.update(400);
-    expect(face.adapter.setExpressionMorph).toHaveBeenCalledWith('mouthSmileLeft', 0.9);
+    expect(face.adapter.setExpressionMorph).toHaveBeenCalledWith('mouthSmileLeft', 0.9, false);
   });
 });
