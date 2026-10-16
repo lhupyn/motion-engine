@@ -239,7 +239,7 @@ Values are illustrative.
 | `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. |
 | `aus` | AU → level. `_L` / `_R` makes it one-sided. Each AU adds level × `au_map` weight to the avatar's rest level, capped at 1. |
 | `envelope` | Beats: `{ in, hold, out }` ms. |
-| `whileSpeaking` | Beats, default `true`. `false`: never starts while the avatar speaks (`yawn`). |
+| `whileSpeaking` | Beats, default `true`. `false`: the director never starts it while the avatar speaks (`yawn`); `face.play` still can. |
 | `offset` | Beats: `{ AU: ms }`. That AU starts `ms` later and ends `ms` earlier, nested inside the rest (`tongue_out`); capped at half of `hold`. |
 
 `au_limits` and `avoid` don't clamp: the tests fail if a bundled recipe breaks them, and a custom one plays as written with a console warning.
