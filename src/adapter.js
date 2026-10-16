@@ -26,6 +26,7 @@ const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
 
 const has = (o, k) => !!o && Object.hasOwn(o, k);
 
+/** @internal */
 export class TalkingHeadAdapter {
   constructor(head) {
     this.head = head;
@@ -161,51 +162,65 @@ export class TalkingHeadAdapter {
    */
   duckMouth(floors) {
     const head = this.head;
-    const mt = head.mtAvatar;
-    if (!mt || !head.mtLimits || !head.mtOnchange) return () => {};
-    const visemes = Object.keys(mt).filter((n) => n.startsWith('viseme_') && n !== 'viseme_sil');
-    const targets = Object.keys(floors).filter((n) => mt[n]);
-    const open = () => visemes.reduce((m, n) => Math.max(m, mt[n]?.value || 0), 0);
-    const duck = (floor) => (v) => v * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK));
+    if (!head.mtAvatar || !head.mtLimits || !head.mtOnchange) return () => {};
+    const isViseme = (n) => n.startsWith('viseme_') && n !== 'viseme_sil';
+    const targets = Object.keys(floors);
+    // Always the current morph table: showAvatar() builds a new one with our hooks.
+    let table, visemes;
+    const open = () => {
+      if (head.mtAvatar !== table) {
+        table = head.mtAvatar;
+        visemes = Object.keys(table).filter(isViseme);
+      }
+      return visemes.reduce((m, n) => Math.max(m, table[n]?.value || 0), 0);
+    };
+    const refresh = () => {
+      for (const n of targets) if (head.mtAvatar?.[n]) head.mtAvatar[n].needsUpdate = true;
+    };
 
-    const undo = [];
+    // Removing turns our hooks into pass-throughs instead of unlinking them, so
+    // two engines on one head can be disposed in any order.
+    let active = true;
+    const hooks = [];
+    const replaced = new Map(); // our hook → what it replaced
     // One hook per morph, in both places TalkingHead keeps it.
-    const wrap = (table, name, field, make) => {
-      const prev = table[name] ?? null;
+    const wrap = (store, name, field, make) => {
+      const prev = store[name] ?? null;
       const ours = make(prev);
-      table[name] = ours;
-      const entry = mt[name];
-      const live = entry?.[field] ?? null;
-      if (entry) entry[field] = live === prev ? ours : make(live);
-      const installed = entry?.[field];
-      undo.push(() => {
-        if (table[name] === ours) {
-          if (prev === null) delete table[name];
-          else table[name] = prev;
-        }
-        if (entry && entry[field] === installed) entry[field] = live;
-      });
+      store[name] = ours;
+      replaced.set(ours, prev);
+      hooks.push({ store, name, field, ours, prev });
+      const entry = head.mtAvatar[name];
+      if (!entry) return;
+      const live = entry[field] ?? null;
+      entry[field] = live === prev ? ours : make(live);
+      replaced.set(entry[field], live);
     };
     for (const n of targets) {
-      const d = duck(floors[n]);
-      wrap(head.mtLimits, n, 'limit', (prev) => (prev ? (v) => d(prev(v)) : d));
+      const floor = floors[n];
+      wrap(head.mtLimits, n, 'limit', (prev) => (v) => {
+        const x = prev ? prev(v) : v;
+        return active ? x * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK)) : x;
+      });
     }
-    const refresh = () => {
-      for (const n of targets) if (mt[n]) mt[n].needsUpdate = true;
-    };
-    for (const n of visemes) {
-      wrap(head.mtOnchange, n, 'onchange', (prev) =>
-        prev
-          ? (v) => {
-              prev(v);
-              refresh();
-            }
-          : refresh,
-      );
+    for (const n of Object.keys(head.mtAvatar).filter(isViseme)) {
+      wrap(head.mtOnchange, n, 'onchange', (prev) => (v) => {
+        prev?.(v);
+        if (active) refresh();
+      });
     }
     refresh();
     return () => {
-      for (const u of undo.reverse()) u();
+      if (!active) return;
+      active = false;
+      for (const { store, name, field, ours, prev } of hooks.reverse()) {
+        if (store[name] === ours) {
+          if (prev === null) delete store[name];
+          else store[name] = prev;
+        }
+        const entry = head.mtAvatar?.[name];
+        if (entry && replaced.has(entry[field])) entry[field] = replaced.get(entry[field]);
+      }
       refresh();
     };
   }

@@ -274,7 +274,17 @@ describe('adapter verbs', () => {
       expect(head.mtAvatar.mouthLowerDownLeft.needsUpdate).toBe(true);
     });
 
-    it('wraps hooks already there, survives an avatar reload, and removes cleanly', () => {
+    // What showAvatar() does: a new morph table, hooks copied from mtLimits/mtOnchange.
+    const reload = (head) => {
+      head.mtAvatar = Object.fromEntries(
+        Object.keys(head.mtAvatar).map((n) => [
+          n,
+          { value: 0, limit: head.mtLimits[n] ?? null, onchange: head.mtOnchange[n] ?? null, needsUpdate: false },
+        ]),
+      );
+    };
+
+    it('wraps hooks already there and removes cleanly', () => {
       const head = mouthHead();
       const theirs = vi.fn();
       head.mtOnchange.viseme_aa = theirs;
@@ -287,8 +297,6 @@ describe('adapter verbs', () => {
       expect(theirs).toHaveBeenCalledWith(0.6);
       head.mtAvatar.viseme_aa.value = 0.3;
       expect(head.mtAvatar.jawOpen.limit(0.8)).toBeCloseTo(0.4 * 0.5);
-      // showAvatar() copies mtLimits into the new morph table.
-      expect(head.mtLimits.jawOpen).toBe(head.mtAvatar.jawOpen.limit);
       expect(head.mtLimits.eyeBlinkLeft).toBe(head.mtAvatar.eyeBlinkLeft.limit);
 
       off();
@@ -297,6 +305,44 @@ describe('adapter verbs', () => {
       expect(head.mtAvatar.viseme_aa.onchange).toBe(theirs);
       expect(head.mtOnchange.viseme_aa).toBe(theirs);
       expect(head.mtOnchange.viseme_PP).toBeUndefined();
+    });
+
+    it('keeps ducking the new morph table after an avatar reload, and removes cleanly from it', () => {
+      const head = mouthHead();
+      const off = new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0, mouthLowerDownLeft: 0.5 });
+      const old = head.mtAvatar;
+      reload(head);
+      expect(head.mtAvatar).not.toBe(old);
+
+      old.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+      head.mtAvatar.jawOpen.needsUpdate = false;
+      head.mtAvatar.viseme_aa.onchange(0.6);
+      expect(head.mtAvatar.jawOpen.needsUpdate).toBe(true);
+
+      off();
+      expect(head.mtAvatar.jawOpen.limit).toBeNull();
+      expect(head.mtAvatar.viseme_aa.onchange).toBeNull();
+      expect(head.mtLimits.jawOpen).toBeUndefined();
+    });
+
+    it('two engines on one head can be removed in either order', () => {
+      const head = mouthHead();
+      const a = new TalkingHeadAdapter(head);
+      const offA = a.duckMouth({ jawOpen: 0 });
+      const offB = a.duckMouth({ jawOpen: 0.5 });
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+
+      offA();
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBeCloseTo(0.2);
+      offB();
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
+      reload(head);
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit?.(0.4) ?? 0.4).toBe(0.4);
     });
 
     it('does nothing on a head without a morph table', () => {

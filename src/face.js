@@ -60,6 +60,7 @@ export class Face {
   /** @internal */ _wasExact = new Set();
 
   /**
+   * @internal
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {FaceOptions} [options]
    */

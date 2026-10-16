@@ -193,6 +193,26 @@ describe('Body', () => {
       expect(adapter.handOver).toHaveBeenLastCalledWith([['handup', false]], 50);
     });
 
+    it('turns and tilts of a custom hand gesture go the other way', () => {
+      const a = fakeAdapter();
+      const vs = {
+        gesture: [['handup', null, false, 300]],
+        bodyRotateY: [0.1, [0.2, 0.3], null],
+        headRotateZ: [-0.05],
+        eyesRotateY: [0.2],
+        headRotateX: [0.1],
+        eyeLookInLeft: [0.5],
+      };
+      new Body(a, { gestures: { head: {}, hands: { turn: { dt: [100, 500], vs } } } });
+      const m = a.anims['turn:mirror'].vs;
+      expect(m.bodyRotateY).toEqual([-0.1, [-0.2, -0.3], null]);
+      expect(m.headRotateZ).toEqual([0.05]);
+      expect(m.eyesRotateY).toEqual([-0.2]);
+      expect(m.headRotateX).toEqual([0.1]);
+      expect(m.eyeLookInRight).toEqual([0.5]);
+      expect(a.anims.turn.vs.bodyRotateY).toEqual([0.1, [0.2, 0.3], null]);
+    });
+
     it('head movements have no side', () => {
       body.play('nod', { mirror: true });
       expect(adapter.playAnim).toHaveBeenCalledWith('nod');

@@ -77,11 +77,6 @@ export type BodyOptions = {
  * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
  */
 export declare class Body {
-    /**
-     * @param {import('./adapter.js').TalkingHeadAdapter} adapter
-     * @param {BodyOptions} [options]
-     */
-    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { gestures, fadeIn, fadeOut, cutFade, settle, }?: BodyOptions);
     /** @returns {string[]} */
     get names(): string[];
     /**

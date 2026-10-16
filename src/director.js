@@ -47,6 +47,7 @@ const DEFAULTS = {
   relaxAfter: 6000,
 };
 
+/** @internal */
 export class Director {
   /**
    * @param {import('./face.js').Face} face

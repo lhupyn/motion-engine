@@ -49,6 +49,7 @@ export class Body {
   /** @internal */ _channels;
 
   /**
+   * @internal
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {BodyOptions} [options]
    */
@@ -265,12 +266,16 @@ const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
 
 const otherSide = (name) => name.replace(/(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left'));
 
-// The gesture with the other hand: each frame's mirror flag flips, and the
-// overlay moves to the other side's bones, its y and z rotations reversed.
+// Rotation tracks that turn or tilt to one side.
+const SIDED_TRACKS = new Set(['bodyRotateY', 'bodyRotateZ', 'headRotateY', 'headRotateZ', 'eyesRotateY']);
+const negate = (v) => (typeof v === 'number' ? -v : Array.isArray(v) ? v.map(negate) : v);
+
+// The gesture with the other hand: each frame's mirror flag flips, sided tracks
+// and the overlay move to the other side, their y and z rotations reversed.
 function mirrored(g) {
   const m = structuredClone(g);
   for (const frame of framesOf(m)) frame[2] = !frame[2];
-  m.vs = Object.fromEntries(Object.entries(m.vs).map(([k, v]) => [otherSide(k), v]));
+  m.vs = Object.fromEntries(Object.entries(m.vs).map(([k, v]) => [otherSide(k), SIDED_TRACKS.has(k) ? negate(v) : v]));
   if (m.overlay?.bones) {
     m.overlay.bones = Object.fromEntries(
       Object.entries(m.overlay.bones).map(([bone, o]) => [

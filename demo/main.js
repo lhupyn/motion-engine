@@ -1,6 +1,7 @@
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine, systemOne } from '../src/index.js';
 import FACS from '../src/facs.json' with { type: 'json' };
+import GESTURES from '../src/gestures.json' with { type: 'json' };
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
@@ -116,6 +117,12 @@ chips(
 );
 chips('gaze', beats.filter(isGaze), playFace('Gaze'), { manual: 'expression' });
 
+// Both arms move in these, so the other hand changes nothing worth naming.
+const twoArms = (name) =>
+  (GESTURES.hands[name]?.vs.gesture || [])
+    .filter(Array.isArray)
+    .every(([pose]) => Object.keys(GESTURES.poses[pose] || {}).some((b) => b.startsWith('Right')));
+
 for (const [channel, row, title] of [
   ['head', 'head-gestures', 'Head'],
   ['hands', 'hand-gestures', 'Hands'],
@@ -124,9 +131,10 @@ for (const [channel, row, title] of [
     row,
     Object.keys(engine.body.gestures[channel]),
     (name) => {
+      endGreeting();
       const mirror = channel === 'hands' && $('left-hand').checked;
       engine.body.play(name, { mirror }).then((done) => done && status('Ready'));
-      return `${title}: ${label(name)}${mirror ? ' (left hand)' : ''}`;
+      return `${title}: ${label(name)}${mirror && !twoArms(name) ? ' (left hand)' : ''}`;
     },
     { manual: channel },
   );

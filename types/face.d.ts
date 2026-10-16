@@ -97,11 +97,6 @@ export type FaceOptions = {
  *   visemes. 1 = off
  */
 export declare class Face {
-    /**
-     * @param {import('./adapter.js').TalkingHeadAdapter} adapter
-     * @param {FaceOptions} [options]
-     */
-    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { facs, fade, speechMouth, speechSmile }?: FaceOptions);
     /** @returns {string[]} */
     get names(): string[];
     /**

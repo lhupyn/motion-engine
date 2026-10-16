@@ -34,6 +34,7 @@ function cutAt(s, n) {
   return i;
 }
 
+/** @internal */
 export class Segmenter {
   constructor() {
     this.reset();
