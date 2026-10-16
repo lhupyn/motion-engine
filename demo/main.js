@@ -29,18 +29,8 @@ const GREETING_FACES = {
 };
 const greetingOnly = new Set(Object.keys(GREETING_FACES));
 
-// For comparing speech ducking: ?speechMouth=1&speechSmile=1 turns it off.
-const param = (name) => {
-  const v = Number(new URLSearchParams(location.search).get(name) ?? NaN);
-  return Number.isFinite(v) ? v : undefined;
-};
-
 const engine = new MotionEngine(head, {
-  face: {
-    facs: { ...FACS, expressions: { ...FACS.expressions, ...GREETING_FACES } },
-    speechMouth: param('speechMouth'),
-    speechSmile: param('speechSmile'),
-  },
+  face: { facs: { ...FACS, expressions: { ...FACS.expressions, ...GREETING_FACES } } },
 });
 window.engine = engine;
 
