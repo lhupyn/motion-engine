@@ -178,6 +178,18 @@ describe('MotionEngine', () => {
       expect(decisions[0]).toMatchObject({ speaker: 'user', skipped: 'avatar is already speaking' });
     });
 
+    it("a person's line skipped while the avatar speaks is still the next line's context", async () => {
+      engine.feed('Let me tell you');
+      engine.feed('Can you raise your hand?', { speaker: 'user', final: true });
+      engine.feed(' about it. ');
+      await flush();
+      expect(classify.mock.calls[0][0]).toEqual({
+        speaker: 'avatar',
+        text: 'Let me tell you about it.',
+        previous: { speaker: 'user', text: 'Can you raise your hand?' },
+      });
+    });
+
     it('reacts to the person when the avatar is quiet', async () => {
       classify.mockResolvedValueOnce(answer('tender'));
       engine.feed("I'm sad today.", { speaker: 'user', final: true });

@@ -176,6 +176,8 @@ export class MotionEngine {
     // The classifier can be removed while text is still buffered.
     if (!this.classify) return;
     if (speaker === 'user' && this._avatarSpeaking) {
+      // Too late to react to, but the avatar's next line answers it.
+      this._previous = { speaker, text };
       this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;
     }
