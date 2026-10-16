@@ -26,7 +26,7 @@ motion-engine gives that job to a decision model that answers multiple-choice qu
 
 `feed()` → **segmenter** (sentences; a repeated final turn deduped; under two letters or only filler like `"mm"` dropped, `"No."` kept; an unfinished sentence goes after `pause` ms) → **classifier**, one call per sentence: expression? head? hands? (+ "intelligible?" for the person's lines) → **director** (rules below) → **face** (FACS compositor) and **body** (head + hands channels) → **adapter**, the only module that touches TalkingHead, contract-tested against 1.7.
 
-**Director rules.** A skipped choice reports why in `onDecision`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `avatar is speaking` (a beat with `whileSpeaking: false`), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`, `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
+**Director rules.** A skipped choice reports why in its action's `reason`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `avatar is speaking` (a beat with `whileSpeaking: false`), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`. A whole line reports `skipped` instead: `avatar is already speaking` (a line from the person, not sent) or `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
 
 ## Speaker turns
 
@@ -36,7 +36,7 @@ engine.feed(text, { speaker: 'avatar' | 'user', final });
 
 The same text gets a different reaction depending on who says it: *"My grandma passed away"* from the avatar is a sad face; from the person, the listening avatar shows concern, not a copy of their emotion.
 
-- **Avatar lines** drive the face and body while it speaks. They're the main input.
+- **Avatar lines** drive the face and body while it speaks. They're the main input, and `speaker` defaults to `'avatar'`.
 - **The person's lines** are optional (not fed → not billed). They're skipped while the avatar speaks, and garbled ones get no reaction.
 - **`final: true`** ends a turn; it may repeat the whole turn or be empty. 3 s without avatar fragments also ends its turn.
 - **`interrupt()`** is barge-in on the avatar's side only: it drops the avatar's pending text and calls and, if it was speaking, its gestures and the rest of the cut-off turn. Reactions to the person keep going, so call it whenever the person starts talking.
@@ -98,7 +98,7 @@ engine.body.play('wave', { mirror: true }); // the same hand gesture with the ot
 engine.body.stop();               // both, or stop('head') / stop('hands')
 ```
 
-Hand gestures play with the right hand by default; `mirror: true` flips every frame to the other hand and moves the overlay with it. Head movements have no side. `engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
+Hand gestures play with the right hand by default; `mirror: true` flips every frame to the other hand and moves the overlay with it. Head movements have no side. `face.play` returns `false` for an unknown name; `body.play` resolves `false` when unknown or interrupted. `engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
 
 Besides `feed()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
 
@@ -151,7 +151,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 
 **Code:** [MIT](LICENSE), Copyright (c) 2026 lhupyn.
 
-**Demo avatar — not MIT.** `demo/public/female_1.glb` was made with Ready Player Me, whose terms license such avatars under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) (non-commercial; its public service shut down on 2026-01-31). Don't use it in commercial products.
+**Demo avatar — not MIT.** `demo/public/female_1.glb` was made with Ready Player Me, whose terms license such avatars under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) (non-commercial). Don't use it in commercial products.
 
 **Credits:** [TalkingHead](https://github.com/met4citizen/TalkingHead) by Mika Suominen (MIT) and [three.js](https://threejs.org) (MIT), loaded from a CDN in the demo · [Jev](https://typesafe.ai) by TypeSafe, the default decision model, called through its API · FACS sources in [Appendix D](#appendix-d-facs-sources).
 
@@ -191,7 +191,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | `gestures` | built-in `gestures.json` | Gesture catalog, `{ head, hands, poses }`. |
 | `fadeIn` | `800` | Arm transition into a pose, ms, unless the frame sets its own. |
 | `fadeOut` | `800` | Hand gesture fade-out, ms. |
-| `cutFade` | `100` | Fade when a gesture is interrupted, ms. |
+| `cutFade` | `100` | Arms back to the stance when a hand gesture is stopped early (`stop()`, `interrupt()`), ms. Another hand gesture takes the arms over instead. |
 | `settle` | `1000` | Wait after a hand fade-out before the channel is free, ms. |
 
 ## Appendix B: Catalogs
@@ -222,7 +222,7 @@ Values are illustrative.
   "au_map": { "AU12": { "mouthSmileLeft": 1, "mouthSmileRight": 1 } },
   "expressions": {
     "happy": { "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
-               "facs": "EMFACS-7 happiness: AU6+AU12", "aus": { "AU6": 0.3, "AU12": 0.6 } },
+               "facs": "EMFACS-7 happiness: AU6+AU12", "aus": { "AU6": 0.25, "AU12": 0.5 } },
     "wink": { "description": "A playful wink: a shared secret, a joke, flirting.", "kind": "beat",
               "aus": { "AU43_L": 0.7 }, "envelope": { "in": 120, "hold": 140, "out": 220 } }
   }
@@ -246,7 +246,7 @@ Values are illustrative.
 
 ### `gestures.json`
 
-`head` and `hands` hold gestures; `poses` holds custom arm poses. Trimmed example (a real pose also sets shoulder, hand and finger bones):
+`head` and `hands` hold gestures; `poses` holds custom arm poses. Trimmed example (the real `wave` also sways the forearm, and its pose sets shoulder, hand and finger bones):
 
 ```json
 {
@@ -255,14 +255,14 @@ Values are illustrative.
              "vs": { "headMove": [0], "headRotateX": [0.18, -0.03, 0.13, 0], "headRotateZ": [0] } }
   },
   "hands": {
-    "wave": { "description": "A wave: hello or goodbye.", "dt": [100, 2400], "rescale": [0, 1],
-              "vs": { "gesture": [["hand_wave", null, true, 500], null] },
-              "overlay": { "bones": { "RightHand": { "freq": 14, "amp": [0, 0.2, 0.25], "phase": 0 } },
-                           "delay": 500, "duration": 2000 } }
+    "wave": { "description": "A wave: hello or goodbye.", "dt": [100, 1500], "rescale": [0, 1],
+              "vs": { "gesture": [["hand_wave_low", null, true, 500], null] },
+              "overlay": { "bones": { "RightHand": { "freq": 14, "amp": [0, 0.1, 0.125], "phase": 0 } },
+                           "delay": 300, "duration": 1200 } }
   },
   "poses": {
-    "hand_wave": { "LeftArm.rotation": { "x": 1.394, "y": 0.048, "z": 1.016 },
-                   "LeftForeArm.rotation": { "x": -1.246, "y": -0.683, "z": 1.58 } }
+    "hand_wave_low": { "LeftArm.rotation": { "x": 1.168, "y": 0.181, "z": 0.688 },
+                       "LeftForeArm.rotation": { "x": -1.027, "y": -0.667, "z": 1.58 } }
   }
 }
 ```
@@ -282,7 +282,7 @@ Frames fire at the `dt` boundaries, so several frames chain poses (`applause`). 
 
 **Poses**: name → bone rotations in radians (Euler XYZ), as in TalkingHead's `gestureTemplates`. One-hand poses are written for the left arm. A pose can't reuse a built-in's name. The bundled poses fit the demo avatar; another avatar may need them re-solved.
 
-**Overlays**: sine oscillations per bone: `freq` (rad/s), `amp` `[x, y, z]` (radians), `phase` (z only); `delay` (default 0) and `duration` (default: the gesture's length) in ms. For physics (hair, skirts, earrings), use TalkingHead's [Dynamic Bones](https://github.com/met4citizen/TalkingHead#appendix-e-dynamic-bones-advanced) on a rigged avatar.
+**Overlays**: sine oscillations per bone: `freq` (rad/s), `amp` `[x, y, z]` (radians), `phase` (z only); `delay` (default 0) and `duration` (default: the gesture's length) in ms.
 
 ## Appendix C: Classifiers
 
@@ -304,7 +304,7 @@ Errors reject as `System One <status>: <message>` and reach `onDecision({ error 
 Other decision models speak the same API; only Jev has been tested with motion-engine.
 
 - **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
-- **Self-hosted** (not tested by us): [Kev](https://github.com/jaredpalmer/kev) (Apache-2.0, 0.8B–27B) or [Laya](https://github.com/NandhaKishorM/laya) (Apache-2.0, CPU, multilingual) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
+- **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
 
 The default thresholds were set with Jev; check `minConfidence` against another model's answers in `onDecision`.
 
@@ -338,7 +338,7 @@ new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ an
 | `answers.expression`, `.head`, `.hands` | `{ choice, confidence }` | `choice` is a `criteria` key; `'none'` or missing plays nothing. `confidence` 0–1; missing counts as below `minConfidence`. |
 | `answers.clear` | `{ noul }` | 0–1, how likely the line is intelligible; missing counts as clear. |
 
-`model`, `usage` and `ms` pass through to `onDecision`. Honor `signal`: reject with an `AbortError` and nothing is reported; any other rejection becomes `onDecision({ error })`. Answers arriving after `interrupt()` or `dispose()` are dropped either way.
+`model`, `usage` and `ms` pass through to `onDecision`. Honor `signal`: reject with an `AbortError` and nothing is reported; any other rejection becomes `onDecision({ error })`. The avatar's answers arriving after `interrupt()`, and all answers after `dispose()`, are dropped either way.
 
 ## Appendix D: FACS sources
 
