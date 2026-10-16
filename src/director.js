@@ -1,22 +1,42 @@
-// Asks Jev what a line means for the avatar, then decides what actually plays.
-// Only catalog entries with a description are offered to Jev.
+// Asks the classifier what a line means for the avatar, then decides what
+// actually plays. Only catalog entries with a description are offered.
 
-import { ask } from './jev.js';
+import { ask } from './systemone.js';
 
 const NONE = 'none';
 
 const INSTRUCTIONS = {
   avatar: {
-    expression: "The facial expression the avatar shows while saying this line. 'none' if the line is emotionally neutral or the current expression should stay.",
+    expression:
+      "The facial expression the avatar shows while saying this line. 'none' if the line is emotionally neutral or the current expression should stay.",
     head: "A head movement that naturally goes with the avatar saying this line. 'none' if no movement fits.",
-    hands: "A hand gesture that naturally goes with the avatar saying this line. Most lines need none.",
+    hands: 'A hand gesture that naturally goes with the avatar saying this line. Most lines need none.',
   },
   user: {
-    expression: "The avatar is listening. The facial expression it shows in reaction to what the person just said. React like an empathetic friend: concern or tenderness for bad news, not a copy of the person's emotion. 'none' if no visible reaction fits.",
+    expression:
+      "The avatar is listening. The facial expression it shows in reaction to what the person just said. React like an empathetic friend: concern or tenderness for bad news, not a copy of the person's emotion. 'none' if no visible reaction fits.",
     head: "A head movement the listening avatar makes in reaction to what the person said. 'none' if no movement fits.",
-    hands: "A hand gesture the listening avatar makes in reaction to what the person said. Most messages need none.",
+    hands: 'A hand gesture the listening avatar makes in reaction to what the person said. Most messages need none.',
   },
 };
+
+/**
+ * One choice from the classifier and what became of it.
+ * @typedef {object} Action
+ * @property {'face'|'head'|'hands'} channel
+ * @property {string} name
+ * @property {number} confidence
+ * @property {boolean} applied
+ * @property {string} [reason] - Why it didn't play: low confidence, already showing, avatar is speaking, already moving, cooldown, unclear transcript, not in catalog
+ */
+
+/**
+ * @typedef {object} DirectorOptions
+ * @property {{expression?: number, head?: number, hands?: number}} [minConfidence] - Default { expression: 0.45, head: 0.5, hands: 0.55 }
+ * @property {number} [minClarity=0.5] - For the person's lines: below this "intelligible" score, nothing plays
+ * @property {{head?: number, hands?: number}} [cooldown] - Ms between gestures per channel; default { head: 2500, hands: 4000 }
+ * @property {number} [relaxAfter=6000] - Ms after the last decision before the face relaxes to neutral
+ */
 
 const GESTURE_CHANNELS = ['head', 'hands'];
 
@@ -27,7 +47,13 @@ const DEFAULTS = {
   relaxAfter: 6000,
 };
 
+/** @internal */
 export class Director {
+  /**
+   * @param {import('./face.js').Face} face
+   * @param {import('./body.js').Body} body
+   * @param {DirectorOptions} [options]
+   */
   constructor(face, body, options = {}) {
     this.face = face;
     this.body = body;
@@ -38,11 +64,17 @@ export class Director {
       cooldown: { ...DEFAULTS.cooldown, ...options.cooldown },
     };
     this.busy = () => false;
+    // TalkingHead's own speech state: audio runs behind the transcript.
+    this.talking = () => false;
     this._lastGesture = { head: -Infinity, hands: -Infinity };
     this._relaxTimer = null;
     this._questions = {};
   }
 
+  /**
+   * @param {'avatar'|'user'} speaker
+   * @returns {import('./systemone.js').Questions}
+   */
   questions(speaker) {
     if (!this._questions[speaker]) {
       const text = INSTRUCTIONS[speaker];
@@ -65,7 +97,9 @@ export class Director {
 
   /**
    * Play what passes the rules and report every choice with the reason it was skipped.
-   * @returns {{channel:'face'|'head'|'hands', name:string, confidence:number, applied:boolean, reason?:string}[]}
+   * @param {import('./systemone.js').Answers} answers
+   * @param {'avatar'|'user'} speaker
+   * @returns {Action[]}
    */
   apply(answers, speaker) {
     const actions = [];
@@ -79,6 +113,8 @@ export class Director {
       else if (!kind) a.reason = 'not in catalog';
       else if (!(a.confidence >= this.opt.minConfidence.expression)) a.reason = 'low confidence';
       else if (kind === 'mood' && this.face.current === a.name) a.reason = 'already showing';
+      else if (kind === 'beat' && this.face.facs.expressions[a.name].whileSpeaking === false && this.talking())
+        a.reason = 'avatar is speaking';
       else {
         this.face.play(a.name);
         a.applied = true;

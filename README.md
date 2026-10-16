@@ -2,102 +2,31 @@
 
 Expressive face and body for [TalkingHead](https://github.com/met4citizen/TalkingHead) avatars, decided by a classifier that reads the transcript — not by tags in the LLM's output.
 
-**[Live demo](https://lhupyn.github.io/motion-engine/)** — bring your own OpenRouter key.
+**[Live demo](https://lhupyn.github.io/motion-engine/)** — try expressions and gestures right away; add an OpenRouter key to let Jev react to text.
 
-![motion-engine demo](images/demo.jpg)
+https://github.com/user-attachments/assets/456c9c19-f37a-4aff-8274-5e15c5ce0839
 
 - **The main LLM just talks.** No emoji, no `[happy]` markers, no extra rules in its prompt.
-- **Jev decides.** Each sentence of the transcript goes to [Jev](https://typesafe.ai), TypeSafe's decision model, which answers typed questions (which expression, which head movement, which hand gesture) with a confidence.
-- **A director filters.** Confidence thresholds, cooldowns and a few rules decide what actually plays.
-- **FACS-grounded faces.** Expressions are Action Unit recipes resolved to ARKit blendshapes, layered so lip-sync keeps working.
-- **Two body channels.** Head movements and hand gestures play at the same time, with optional bone oscillation overlays.
-
----
+- **Jev decides.** Each sentence goes to [Jev](https://typesafe.ai), TypeSafe's decision model, which picks an expression, a head movement and a hand gesture, each with a confidence.
+- **A director filters.** Thresholds, cooldowns and a few rules decide what actually plays.
+- **FACS faces, two body channels.** Expressions are Action Unit recipes on ARKit blendshapes that give way to lip-sync while speaking; head and hand gestures play together.
 
 ## Contents
 
-- [Why it exists](#why-it-exists)
-- [How it works](#how-it-works)
-- [Speaker turns](#speaker-turns)
-- [Languages](#languages)
-- [Quick start](#quick-start)
-- [Integration recipes](#integration-recipes)
-- [Providers and keys](#providers-and-keys)
-- [Configuration](#configuration)
-- [Catalogs](#catalogs)
-- [FACS grounding and sources](#facs-grounding-and-sources)
-- [Development](#development)
-- [Roadmap](#roadmap)
-- [Licenses and credits](#licenses-and-credits)
-
----
+- [Why it exists](#why-it-exists) · [How it works](#how-it-works) · [Speaker turns](#speaker-turns) · [Quick start](#quick-start) · [Integration recipes](#integration-recipes) · [Keys](#keys) · [Roadmap](#roadmap) · [Licenses and credits](#licenses-and-credits)
+- Appendices: [A. Configuration](#appendix-a-configuration) · [B. Catalogs](#appendix-b-catalogs) · [C. Classifiers](#appendix-c-classifiers) · [D. FACS sources](#appendix-d-facs-sources) · [E. Development](#appendix-e-development)
 
 ## Why it exists
 
-The usual way to make an LLM-driven avatar expressive is to ask the LLM to tag its own output: emoji, `::markers::`, `[happy]`. That has costs:
+Asking the LLM to tag its own output (emoji, `::markers::`, `[happy]`) costs tokens and prompt rules on every turn, and leaks in production: models coin marker words, leak reasoning into them, and the TTS reads them aloud.
 
-- **Tokens and prompt complexity.** Every turn carries the tag vocabulary and the rules for using it.
-- **It leaks in production.** Models coin marker words that aren't in the vocabulary, leak reasoning into them, and the TTS reads them aloud.
-- **It mixes two jobs.** Choosing a good answer and choosing a good face are different problems, and the second one competes with the first for the model's attention.
-
-motion-engine moves that job to a second, specialized model. Jev reads the transcript and answers multiple-choice questions with a confidence. It doesn't write text, so nothing it returns can end up spoken, and an answer outside the menu is simply ignored. The main LLM's prompt stays untouched.
-
-Measured in the demo with `typesafe/jev-1.14`: about **0.4–0.7 s** and **~$0.00008 per sentence** (~2,000 input tokens, one call per sentence).
-
----
+motion-engine gives that job to a decision model that answers multiple-choice questions instead of writing text, so nothing it returns can be spoken and an answer outside the menu is ignored. Measured in the demo with `typesafe/jev-1.14`: **0.4–0.75 s** and **~$0.00008 per sentence** (~2,000 input tokens, one call per sentence).
 
 ## How it works
 
-```
- transcript fragments
-        │  feed(text, { speaker, final })
-        ▼
- ┌─────────────┐   sentences; a final fragment that repeats
- │  Segmenter  │   the whole turn is deduped; filler dropped
- └──────┬──────┘
-        │  one call per sentence
-        ▼
- ┌─────────────┐   expression? head movement? hand gesture?
- │     Jev     │   (+ "is this intelligible?" for the person's lines)
- └──────┬──────┘
-        │  choices + confidences
-        ▼
- ┌─────────────┐   thresholds · no restart of a held expression ·
- │  Director   │   one gesture per channel · cooldowns · relax to neutral
- └──┬───────┬──┘
-    ▼       ▼
- ┌──────┐ ┌──────────────┐
- │ Face │ │ Body         │
- │ FACS │ │ head + hands │
- └──┬───┘ └──────┬───────┘
-    └─────┬──────┘
-          ▼
- ┌──────────────────┐
- │ TalkingHead      │   the only module that touches TalkingHead
- │ adapter          │
- └──────────────────┘
-```
+`feed()` → **segmenter** (sentences; a repeated final turn deduped; under two letters or only filler like `"mm"` dropped, `"No."` kept; an unfinished sentence goes after `pause` ms) → **classifier**, one call per sentence: expression? head? hands? (+ "intelligible?" for the person's lines) → **director** (rules below) → **face** (FACS compositor) and **body** (head + hands channels) → **adapter**, the only module that touches TalkingHead, contract-tested against 1.7.
 
-| Layer | File | What it does |
-| --- | --- | --- |
-| Segmenter | `src/segmenter.js` | Buffers streamed fragments and releases whole sentences. If a provider's final fragment repeats the whole turn, only the unheard part is used. Segments with fewer than two letters, or made only of filler (`"mm"`, `"uh, um"`), are dropped; `"No."`, `"Sí."` or `"Oh!"` are kept. `。！？` close a sentence too. An unfinished sentence is released after a pause (`pause`, 800 ms). |
-| Jev client | `src/jev.js` | One `fetch` per sentence. Sends the line, the speaker and the previous line as state, and three `choice` questions — expression, head, hands — built from the catalogs. For the person's lines it adds a yes/no question: is the transcript intelligible? |
-| Director | `src/director.js` | Applies the rules below and reports every choice, applied or not, with the reason. |
-| Face | `src/face.js` | FACS compositor. Resolves AU recipes to ARKit blendshapes, cross-fades held expressions (*moods*), plays one-shot *beats* with an in/hold/out envelope. Writes to the mood baseline so lip-sync visemes still play over the expression; gaze and blink go through TalkingHead's system slot so they outrank its idle eye animation. |
-| Body | `src/body.js` | Two channels that combine: **head** (nod, shake, tilt, bow… — plain animations) and **hands** (open palms, hand on heart, wave… — arm poses through TalkingHead's gesture system). One gesture per channel; a new one interrupts the current one on its channel. Optional per-bone sine oscillation overlays. |
-| Adapter | `src/adapter.js` | The only module that touches the TalkingHead instance. Each member is labeled public / appendix / internal. `test/adapter.test.js` checks every member it uses against TalkingHead's real source, so an upgrade that renames something fails the test instead of the avatar. Verified against TalkingHead 1.7. |
-
-**Director rules**
-
-- Below the confidence threshold for its channel → skipped (`low confidence`).
-- A held expression that's already showing isn't restarted (`already showing`).
-- A gesture channel that's still moving isn't interrupted (`already moving`), and each channel has a cooldown (`cooldown`).
-- A line from the person that Jev judges unintelligible gets no reaction (`unclear transcript`).
-- A choice that isn't in the catalog is ignored (`not in catalog`).
-- If an older line's answer arrives after a newer one, it's dropped (`superseded by a newer line`).
-- The face relaxes to `neutral` some time after the last decision (`relaxAfter`), never while the avatar is mid-line.
-
----
+**Director rules.** A skipped choice reports why in its action's `reason`: `low confidence` (below `minConfidence`), `already showing` (that held expression is on), `avatar is speaking` (a beat with `whileSpeaking: false`), `already moving` / `cooldown` (channel busy, or played less than `cooldown` ms ago), `unclear transcript` (the person's line was unintelligible), `not in catalog`. A whole line reports `skipped` instead: `avatar is already speaking` (a line from the person, not sent) or `superseded by a newer line` (an older line's answer arrived late). The face relaxes to `neutral` `relaxAfter` ms after the last decision, never mid-line.
 
 ## Speaker turns
 
@@ -105,30 +34,17 @@ Measured in the demo with `typesafe/jev-1.14`: about **0.4–0.7 s** and **~$0.0
 engine.feed(text, { speaker: 'avatar' | 'user', final });
 ```
 
-The same text needs a different reaction depending on who says it. *"My grandma passed away last week"* said by the avatar calls for a sad face; said by the person, the listening avatar reacts like an empathetic friend — concern or tenderness, not a copy of the person's emotion. Jev gets different instructions for each speaker.
+The same text gets a different reaction depending on who says it: *"My grandma passed away"* from the avatar is a sad face; from the person, the listening avatar shows concern, not a copy of their emotion.
 
-| | `speaker: 'avatar'` | `speaker: 'user'` |
-| --- | --- | --- |
-| What it drives | The avatar's face and body while it speaks | A listening reaction |
-| Extra check | — | "Is the transcript intelligible?" — garbled text gets no reaction |
-| When skipped | — | While the avatar is speaking: the reaction would come too late |
-
-- Avatar lines are the main input. The person's lines are optional — **if you don't feed them, nothing is called and nothing is billed.** The same goes for the whole engine: no `feed()`, no requests.
-- Short filler (`"mm"`, `"eh."`) is dropped before any call.
-- `final: true` marks the last fragment of a turn. It may repeat the whole turn, or be empty (`feed('', { final: true })` just ends the turn). Not every provider sends one, so 3 s without avatar fragments also ends the avatar's turn.
-- `engine.interrupt()` handles barge-in on the avatar's side only: it aborts the avatar's in-flight calls, drops its buffered text and, if it was speaking, stops its gestures and ignores the rest of the cut-off turn — late fragments and the final transcript that some providers still send — until that final, 3 s of silence, or the person's next final line. Reactions to the person's lines and listening gestures keep going, and interrupting a quiet avatar cuts nothing, so it's safe to call whenever the person starts talking.
-
----
-
-## Languages
-
-Jev reads the line in whatever language it's in; the catalog descriptions stay in English. The demo has been checked with Spanish and English lines. Other languages should work the same way but haven't been tested.
-
----
+- **Avatar lines** drive the face and body while it speaks. They're the main input, and `speaker` defaults to `'avatar'`.
+- **The person's lines** are optional (not fed → not billed). They're skipped while the avatar speaks, and garbled ones get no reaction.
+- **`final: true`** ends a turn; it may repeat the whole turn or be empty. 3 s without avatar fragments also ends its turn.
+- **`interrupt()`** is barge-in on the avatar's side only: it drops the avatar's pending text and calls and, if it was speaking, its gestures and the rest of the cut-off turn. Reactions to the person keep going, so call it whenever the person starts talking.
+- **Languages:** the line can be in any language; descriptions stay in English. Tested with English and Spanish.
 
 ## Quick start
 
-No build step needed: it's plain ES modules, and the catalogs load as JSON modules (`import … with { type: 'json' }`). Like TalkingHead, it can come straight from a CDN through an import map:
+Plain ES modules, no build step. From a CDN with an import map:
 
 ```html
 <script type="importmap">
@@ -136,79 +52,61 @@ No build step needed: it's plain ES modules, and the catalogs load as JSON modul
   "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
   "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs",
-  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@1.0.0/src/index.js"
+  "motion-engine": "https://cdn.jsdelivr.net/gh/lhupyn/motion-engine@2.0.0/src/index.js"
 } }
 </script>
 ```
 
-`@1.0.0` pins this release; use the tag you want. JSON import attributes need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+.
+Or with a bundler: `npm i github:lhupyn/motion-engine` (not on npm yet). The catalogs load as JSON modules, which need Chrome/Edge 123+, Safari 17.2+, Firefox 138+ or Node 22+. TalkingHead is not a dependency; bring your own (1.7). TypeScript types are included (generated from the JSDoc, in `types/`).
 
-Or install it from GitHub (it isn't on npm yet) and use it with any bundler:
-
-```bash
-npm i github:lhupyn/motion-engine
-```
-
-TalkingHead is not a dependency — bring your own (the adapter is verified against 1.7).
+**Avatar:** TalkingHead's [requirements](https://github.com/met4citizen/TalkingHead#appendix-a-create-your-own-3d-avatar): a Mixamo-compatible rig with the 52 ARKit and 15 Oculus viseme blend shapes. The bundled poses and expression levels are fitted to the demo avatar; another avatar may need them retuned ([catalogs](#appendix-b-catalogs)).
 
 ```js
 import { TalkingHead } from 'talkinghead';
-import { MotionEngine } from 'motion-engine';
+import { MotionEngine, systemOne } from 'motion-engine';
 
 const head = new TalkingHead(document.getElementById('avatar'), { /* ... */ });
 await head.showAvatar({ url: './avatar.glb', body: 'F' });
 
-const engine = new MotionEngine(head, { jev: { apiKey: userKey } });
-
-// Feed transcript text as it arrives.
-engine.feed('Hello! It is so nice to see you again.', { speaker: 'avatar', final: true });
-
-// See what Jev chose and what the director did with it.
+const engine = new MotionEngine(head, { classify: systemOne({ apiKey: userKey }) }); // Jev via OpenRouter
 engine.onDecision = (d) => console.log(d.text, d.actions, d.ms, d.usage);
+engine.feed('Hello! It is so nice to see you again.', { speaker: 'avatar', final: true });
 ```
 
-Create the engine after `showAvatar()`. It hooks into TalkingHead's frame loop (`opt.update`) by itself, chaining any callback you already set.
+Create the engine after `showAvatar()`; it hooks TalkingHead's `opt.update` itself, keeping any callback you set. Without `classify`, `feed()` does nothing.
 
-**`onDecision(d)`** is called once per sentence:
+**`onDecision(d)`**, once per sentence:
 
 | Field | Meaning |
 | --- | --- |
 | `speaker`, `text` | The line |
 | `actions` | `[{ channel: 'face' \| 'head' \| 'hands', name, confidence, applied, reason? }]` |
-| `answers` | Jev's raw answers |
-| `ms`, `model`, `usage` | Latency, model id, and `usage` as returned by the provider (e.g. `input_tokens`, `cost`) |
-| `skipped` | Why the line wasn't sent to Jev, or why its answer was dropped |
+| `answers` | The classifier's raw answers |
+| `ms`, `model`, `usage` | Latency, model id, provider usage (e.g. `input_tokens`, `cost`) |
+| `skipped` | Why the line wasn't sent, or its answer was dropped |
 | `error` | The request failed |
 
-**Direct control.** The face and body can be driven without Jev:
+**Direct control**, no classifier needed:
 
 ```js
-engine.face.play('happy');        // a mood: held, cross-fades from the previous one
-engine.face.play('wink');         // a beat: plays once on top
+engine.face.play('happy');        // mood: held, cross-fades
+engine.face.play('wink');         // beat: plays once on top
 engine.face.play('neutral');      // fade the held expression out
 engine.body.play('nod');          // head channel; resolves true when done
-engine.body.play('thumbs_up');    // hands channel; plays together with the nod
-engine.body.stop();               // both channels, or stop('head') / stop('hands')
+engine.body.play('thumbs_up');    // hands channel; plays with the nod
+engine.body.play('wave', { mirror: true }); // the same hand gesture with the other (left) hand
+engine.body.stop();               // both, or stop('head') / stop('hands')
 ```
 
-`engine.face.names`, `engine.body.names` and `engine.body.gestures` list what's available.
+Hand gestures play with the right hand by default; `mirror: true` flips every frame to the other hand and moves the overlay with it. Head movements have no side. `face.play` returns `false` for an unknown name; `body.play` resolves `false` when unknown or interrupted. `engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
 
-**Lifecycle**
-
-| Method | What it does |
-| --- | --- |
-| `feed(text, { speaker, final })` | Feed transcript text, see [Speaker turns](#speaker-turns). |
-| `interrupt()` | Barge-in: drop the avatar's pending text and calls, and ignore the rest of the cut-off turn. |
-| `useJev(options)` | Set or replace the Jev connection later (the demo uses it when the visitor pastes a key). |
-| `dispose()` | Unhook from TalkingHead's render loop, abort calls, clear timers, stop the body and reset the face. `feed()` does nothing afterwards. |
-
----
+Besides `feed()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
 
 ## Integration recipes
 
-motion-engine has no SDK code. Feed it whatever transcript your stack produces.
+Feed whatever transcript your stack produces.
 
-**Gemini Live** — enable `outputAudioTranscription` and `inputAudioTranscription` in the session config:
+**Gemini Live** — enable `outputAudioTranscription` and `inputAudioTranscription`:
 
 ```js
 onmessage: (msg) => {
@@ -231,9 +129,7 @@ switch (event.type) {
 }
 ```
 
-`interrupt()` only touches the avatar's side, so calling it on every `speech_started` doesn't cut a listening reaction.
-
-**Plain text chat:**
+**Text chat:**
 
 ```js
 engine.feed(userMessage, { speaker: 'user', final: true });
@@ -241,34 +137,190 @@ for await (const chunk of llmStream) engine.feed(chunk, { speaker: 'avatar' });
 engine.feed(fullReply, { speaker: 'avatar', final: true });
 ```
 
+## Keys
+
+`systemOne()` defaults to OpenRouter, which accepts browser requests, so a public page can use the **visitor's own key**. TypeSafe's own API is server-only. Options, other models and custom classifiers: [Appendix C](#appendix-c-classifiers).
+
+**Never ship a key in a bundle** (Vite inlines every `VITE_*`). Let the visitor bring their own, or point `url` at a proxy that holds it. The demo keeps the key in `localStorage` and sends it only to openrouter.ai.
+
+## Roadmap
+
+Planned, not built yet: blending the top two expressions by Jev's probabilities · an intensity question (softer or stronger expressions and head movements) · a torso posture channel (leaning in or back, shrinking) · a demo avatar with hair and clothes physics (TalkingHead's Dynamic Bones) · a pose authoring tool that fits poses to a new avatar · camera-based listening (FaceMirror) as an optional plugin · the classifier picks the hand when the text asks for it ("raise your left hand"); today the director always plays the right hand.
+
+## Licenses and credits
+
+**Code:** [MIT](LICENSE), Copyright (c) 2026 lhupyn.
+
+**Demo avatar — not MIT.** `demo/public/female_1.glb` was made with Ready Player Me, whose terms license such avatars under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) (non-commercial). Don't use it in commercial products.
+
+**Credits:** [TalkingHead](https://github.com/met4citizen/TalkingHead) by Mika Suominen (MIT) and [three.js](https://threejs.org) (MIT), loaded from a CDN in the demo · [Jev](https://typesafe.ai) by TypeSafe, the default decision model, called through its API · FACS sources in [Appendix D](#appendix-d-facs-sources).
+
 ---
 
-## Providers and keys
+## Appendix A: Configuration
 
-| Option | Where it runs | Notes |
+`new MotionEngine(head, { classify, pause, director: {…}, face: {…}, body: {…} })`
+
+| Option | Default | Description |
 | --- | --- | --- |
-| `provider: 'openrouter'` (default) | Browser or server | OpenRouter's endpoint accepts requests from any origin, so a public page can use the **visitor's own key**. Default model `~typesafe/jev-latest`. |
-| `provider: 'typesafe'` | Server only | TypeSafe's API only accepts browser requests from its own console. Default model `jev-latest`. |
-| `url` | Anywhere | Send requests to your own proxy instead, which holds the key. |
-| `classify` | Anywhere | Replace Jev with any function of the same signature (below). |
+| `classify` | `null` | The classifier ([Appendix C](#appendix-c-classifiers)). Without it, `feed()` does nothing. |
+| `pause` | `800` | Send an unfinished sentence after this many ms without fragments. |
 
-**Never ship a key in a bundle.** Bundlers inline build-time env vars (Vite inlines every `VITE_*`) into the public JavaScript. Either let the visitor bring their own key, or put a proxy in front. The demo stores the visitor's key in `localStorage` and sends it only to openrouter.ai.
+**`director`** (partial objects merge with the defaults)
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `minConfidence` | `{ expression: 0.45, head: 0.5, hands: 0.55 }` | Minimum confidence per channel. |
+| `minClarity` | `0.5` | Person's lines: below this "intelligible" score, nothing plays. |
+| `cooldown` | `{ head: 2500, hands: 4000 }` | Minimum ms between gestures per channel. |
+| `relaxAfter` | `6000` | Ms after the last decision before relaxing to `neutral`. |
+
+**`face`**
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `facs` | built-in `facs.json` | Expression catalog ([Appendix B](#appendix-b-catalogs)). |
+| `fade` | `400` | Mood cross-fade, ms. Beats without an `envelope` use `{ in: 300, hold: 1500, out: 600 }`. |
+| `speechMouth` | `0.3` | While a viseme plays, mouth-opening morphs (from AU10, AU16, AU20, AU25, AU26, AU27) drop to this share, so speech doesn't over-open the mouth or bare the teeth, and p/b/m still close. `1` = off. |
+| `speechSmile` | `0.5` | The same for the lip corners (AU12, AU14: smile, dimple), which over-stretch the mouth on visemes. `1` = off. |
+
+**`body`**
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `gestures` | built-in `gestures.json` | Gesture catalog, `{ head, hands, poses }`. |
+| `fadeIn` | `800` | Arm transition into a pose, ms, unless the frame sets its own. |
+| `fadeOut` | `800` | Hand gesture fade-out, ms. |
+| `cutFade` | `100` | Arms back to the stance when a hand gesture is stopped early (`stop()`, `interrupt()`), ms. Another hand gesture takes the arms over instead. |
+| `settle` | `1000` | Wait after a hand fade-out before the channel is free, ms. |
+
+## Appendix B: Catalogs
+
+Both catalogs ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`, or `…@2.0.0/src/facs.json` on the CDN). Pass your own:
+
+```js
+import facs from './my-facs.json' with { type: 'json' };
+import gestures from './my-gestures.json' with { type: 'json' };
+
+new MotionEngine(head, { classify: systemOne({ apiKey }), face: { facs }, body: { gestures } });
+```
+
+**Rules**
+
+- Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: `look_left`, `look_right`, `open_mouth`, `squint`, `neutral`.
+- The description says *when* to use it: *"Warm, genuine smile: glad, pleased, friendly, good news."* A narrow one keeps a novelty for its cue: `vulcan_salute` (🖖) only on "live long and prosper" or a mention of Star Trek or Vulcans.
+- Keep options distinct: similar options split the confidence and can both fall under the threshold.
+- Check faces still and while talking; keep jaw opening out of held moods, or it fights the visemes.
+- Keep an entry named `neutral`: the director relaxes to it.
+
+### `facs.json`
+
+Values are illustrative.
+
+```json
+{
+  "au_map": { "AU12": { "mouthSmileLeft": 1, "mouthSmileRight": 1 } },
+  "expressions": {
+    "happy": { "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
+               "facs": "EMFACS-7 happiness: AU6+AU12", "aus": { "AU6": 0.25, "AU12": 0.5 } },
+    "wink": { "description": "A playful wink: a shared secret, a joke, flirting.", "kind": "beat",
+              "aus": { "AU43_L": 0.7 }, "envelope": { "in": 120, "hold": 140, "out": 220 } }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `au_map` | Action Unit → ARKit blendshapes with weights, calibrated per avatar. |
+| `au_limits` | Optional, per avatar: `{ AU: { max, beatMax?, note } }`, the highest natural level in a held mood (`beatMax` for beats, default `max`). `AU12_L` counts as `AU12`. |
+| `avoid` | Optional, per avatar: `[{ aus: { AU: level, … }, note }]`. No recipe may exceed every listed level at once. |
+| `expressions.<name>.description` | When to use it; without it, the classifier never picks it. |
+| `facs` | Provenance note; not used at runtime. |
+| `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. |
+| `aus` | AU → level. `_L` / `_R` makes it one-sided. Each AU adds level × `au_map` weight to the avatar's rest level, capped at 1. |
+| `envelope` | Beats: `{ in, hold, out }` ms. |
+| `whileSpeaking` | Beats, default `true`. `false`: the director never starts it while the avatar speaks (`yawn`); `face.play` still can. |
+| `offset` | Beats: `{ AU: ms }`. That AU starts `ms` later and ends `ms` earlier, nested inside the rest (`tongue_out`); capped at half of `hold`. |
+
+`au_limits` and `avoid` don't clamp: the tests fail if a bundled recipe breaks them, and a custom one plays as written with a console warning.
+
+### `gestures.json`
+
+`head` and `hands` hold gestures; `poses` holds custom arm poses. Trimmed example (the real `wave` also sways the forearm, and its pose sets shoulder, hand and finger bones):
+
+```json
+{
+  "head": {
+    "nod": { "description": "A head nod: agreeing, saying yes, confirming.", "dt": [260, 240, 240, 320],
+             "vs": { "headMove": [0], "headRotateX": [0.18, -0.03, 0.13, 0], "headRotateZ": [0] } }
+  },
+  "hands": {
+    "wave": { "description": "A wave: hello or goodbye.", "dt": [100, 1500], "rescale": [0, 1],
+              "vs": { "gesture": [["hand_wave_low", null, true, 500], null] },
+              "overlay": { "bones": { "RightHand": { "freq": 14, "amp": [0, 0.1, 0.125], "phase": 0 } },
+                           "delay": 300, "duration": 1200 } }
+  },
+  "poses": {
+    "hand_wave_low": { "LeftArm.rotation": { "x": 1.168, "y": 0.181, "z": 0.688 },
+                       "LeftForeArm.rotation": { "x": -1.027, "y": -0.667, "z": 1.58 } }
+  }
+}
+```
+
+**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`.
+
+**Hand frames** in `vs.gesture` are `[pose, duration, mirror, transitionMs]`:
+
+| Item | Meaning |
+| --- | --- |
+| `pose` | A built-in (`handup`, `index`, `ok`, `thumbup`, `thumbdown`, `side`, `shrug`, `namaste`) or one from `poses`. |
+| `duration` | `null` holds until the gesture ends. |
+| `mirror` | `true` plays a one-hand pose with the right arm. Default `false`. |
+| `transitionMs` | Time to reach the pose. Default: `fadeIn`. |
+
+Frames fire at the `dt` boundaries, so several frames chain poses (`applause`). A new hand gesture moves the arms straight from pose to pose.
+
+**Poses**: name → bone rotations in radians (Euler XYZ), as in TalkingHead's `gestureTemplates`. One-hand poses are written for the left arm. A pose can't reuse a built-in's name. The bundled poses fit the demo avatar; another avatar may need them re-solved.
+
+**Overlays**: sine oscillations per bone: `freq` (rad/s), `amp` `[x, y, z]` (radians), `phase` (z only); `delay` (default 0) and `duration` (default: the gesture's length) in ms.
+
+## Appendix C: Classifiers
+
+### `systemOne()`
+
+A client for the System One API; by default, Jev through OpenRouter.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `apiKey` | — | OpenRouter or TypeSafe key. |
+| `provider` | `'openrouter'` | `'openrouter'` (`https://openrouter.ai/api/v1/systemone`, browser OK) or `'typesafe'` (`https://api.typesafe.ai/v1/systemone`, server only). |
+| `model` | `'~typesafe/jev-latest'` (OpenRouter), `'jev-latest'` (TypeSafe) | Model id. |
+| `url` | provider endpoint | Your own proxy or a self-hosted model. |
+
+Errors reject as `System One <status>: <message>` and reach `onDecision({ error })`.
+
+### Other decision models
+
+Other decision models speak the same API; only Jev has been tested with motion-engine.
+
+- **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
+- **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
+
+The default thresholds were set with Jev; check `minConfidence` against another model's answers in `onDecision`.
 
 ### Custom classifier
-
-Any classifier that honors this contract can replace Jev:
 
 ```js
 new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ answers }) });
 ```
 
-**`state`** — the line to classify:
+**`state`** (`previous` omitted on the first line):
 
 ```js
-{ speaker: 'avatar' | 'user', text: 'Wait, really?', previous: { speaker: 'user', text: 'I got the job.' } } // previous omitted on the first line
+{ speaker: 'avatar' | 'user', text: 'Wait, really?', previous: { speaker: 'user', text: 'I got the job.' } }
 ```
 
-**`questions`** — keyed by what the director reads back. `clear` is only asked for the person's lines.
+**`questions`** (`clear` only for the person's lines; `criteria` maps option names to catalog descriptions, plus `none`):
 
 ```js
 {
@@ -279,242 +331,33 @@ new MotionEngine(head, { classify: async (state, questions, { signal }) => ({ an
 }
 ```
 
-`criteria` of a `choice` maps each option name to its catalog description, plus `none`. `noul` is a yes/no question.
-
-**Return value** — `Promise<{ answers, model?, usage?, ms? }>`. The director reads:
+**Return** `Promise<{ answers, model?, usage?, ms? }>`:
 
 | Key | Shape | Meaning |
 | --- | --- | --- |
-| `answers.expression`, `answers.head`, `answers.hands` | `{ choice, confidence }` | `choice` is one of the `criteria` keys; `'none'` or a missing key plays nothing. `confidence` is 0–1 and compared with `minConfidence`; a missing confidence counts as below it. |
-| `answers.clear` | `{ noul }` | 0–1, how likely the line is intelligible. Compared with `minClarity`; if missing, the line counts as clear. |
+| `answers.expression`, `.head`, `.hands` | `{ choice, confidence }` | `choice` is a `criteria` key; `'none'` or missing plays nothing. `confidence` 0–1; missing counts as below `minConfidence`. |
+| `answers.clear` | `{ noul }` | 0–1, how likely the line is intelligible; missing counts as clear. |
 
-`model`, `usage` and `ms` are passed through to `onDecision` untouched. Honor `signal`: when the engine aborts a call, reject with an `AbortError` and nothing is reported. Any other rejection is reported as `onDecision({ error })`. An answer that resolves after its call was aborted (by `interrupt()` or `dispose()`) is dropped anyway, so a classifier that ignores the signal only wastes the request.
+`model`, `usage` and `ms` pass through to `onDecision`. Honor `signal`: reject with an `AbortError` and nothing is reported; any other rejection becomes `onDecision({ error })`. The avatar's answers arriving after `interrupt()`, and all answers after `dispose()`, are dropped either way.
 
----
+## Appendix D: FACS sources
 
-## Configuration
+The seven core emotions use the canonical EMFACS-7 AU combinations; the other expressions are blends of the same AUs, with provenance in each `facs` field.
 
-```js
-new MotionEngine(head, {
-  jev: { apiKey, provider, model, url },
-  classify,
-  pause: 800,
-  director: { minConfidence: { hands: 0.7 }, relaxAfter: 8000 },
-  face: { fade: 400 },
-  body: { fadeIn: 800 },
-});
-```
+- **EMFACS-7** (Ekman & Friesen, 1983) — [paulekman.com](https://www.paulekman.com/facial-action-coding-system/)
+- **ARKit ↔ FACS** — [Melinda Ozel's cheat sheet](https://melindaozel.com/arkit-to-facs-cheat-sheet/) · [clinical blendshape ↔ AU mapping](https://www.sciencedirect.com/science/article/pii/S2451958826001995) · [interactive ARKit-52 ↔ AU guide](https://arkit.miniface.org/faces)
+- **AU-Blendshape**, per-model AU calibration — [arXiv:2507.12001](https://arxiv.org/abs/2507.12001)
 
-**Engine**
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `jev` | — | Jev connection, see below. Without `jev` or `classify`, `feed()` does nothing. |
-| `classify` | — | Replaces Jev; same signature as the function `jev()` returns. |
-| `pause` | `800` | Classify an unfinished sentence after this many ms without new fragments. |
-| `director`, `face`, `body` | — | Options for each layer, below. |
-
-**`jev`**
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `apiKey` | — | OpenRouter or TypeSafe key. |
-| `provider` | `'openrouter'` | `'openrouter'` or `'typesafe'`. |
-| `model` | `~typesafe/jev-latest` (OpenRouter), `jev-latest` (TypeSafe) | Model id. |
-| `url` | provider endpoint | Override the endpoint, e.g. your own proxy. |
-
-**`director`**
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `minConfidence` | `{ expression: 0.45, head: 0.5, hands: 0.55 }` | Minimum confidence per channel. Partial objects are merged with the defaults. |
-| `minClarity` | `0.5` | For the person's lines: below this "intelligible" score, nothing plays. |
-| `cooldown` | `{ head: 2500, hands: 4000 }` | Minimum ms between gestures on each channel. |
-| `relaxAfter` | `6000` | Ms after the last decision before the face relaxes to `neutral`. |
-
-**`face`**
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `facs` | built-in `facs.json` | Expression catalog, see [Catalogs](#catalogs). |
-| `fade` | `400` | Mood cross-fade, ms. |
-
-Beats without their own `envelope` use `{ in: 300, hold: 1500, out: 600 }` ms.
-
-**`body`**
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `gestures` | built-in `gestures.json` | Gesture catalog, `{ head, hands, poses }`. |
-| `fadeIn` | `800` | Arm transition into a pose, ms, unless the gesture frame sets its own. |
-| `fadeOut` | `800` | Hand gesture fade-out, ms. |
-| `cutFade` | `100` | Fade when a gesture is interrupted, ms. |
-| `settle` | `1000` | Wait after a hand gesture fades out before the channel counts as free, ms. |
-
----
-
-## Catalogs
-
-Both catalogs are plain JSON and ship as package exports (`motion-engine/facs.json`, `motion-engine/gestures.json`), so you can start from them.
-
-**Rules for both**
-
-- **Only entries with a `description` are offered to Jev.** Entries without one are still playable directly (`face.play`, `body.play`).
-- **The description says *when* to use it**, not what it looks like: *"Warm, genuine smile: glad, pleased, friendly, good news."*
-- **Keep options distinct.** Two similar options split Jev's confidence between them, and both can end up under the threshold.
-- **Validate faces still and while talking.** An expression that looks right on a silent face can fight the lip-sync visemes; keep jaw opening out of held moods.
-
-### `facs.json`
-
-Values below are illustrative.
-
-```json
-{
-  "au_map": {
-    "AU12": { "mouthSmileLeft": 1, "mouthSmileRight": 1 }
-  },
-  "expressions": {
-    "happy": {
-      "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
-      "facs": "EMFACS-7 happiness: AU6+AU12",
-      "aus": { "AU6": 0.3, "AU12": 0.6 }
-    },
-    "wink": {
-      "description": "A playful wink: a shared secret, a joke, flirting.",
-      "kind": "beat",
-      "aus": { "AU43_L": 0.7 },
-      "envelope": { "in": 120, "hold": 140, "out": 220 }
-    }
-  }
-}
-```
-
-| Field | Meaning |
-| --- | --- |
-| `au_map` | FACS Action Unit → ARKit blendshapes with weights. Calibrated per avatar model. |
-| `expressions.<name>.description` | When to use it. Without it, Jev never picks it. |
-| `facs` | Provenance note (which AU combination, which source). Not used at runtime. |
-| `kind` | `'mood'` (default) holds until replaced and cross-fades; `'beat'` plays once on top. |
-| `aus` | AU → final level. A trailing `_L` / `_R` makes it one-sided (`AU12_L`). Final blendshape value = AU level × `au_map` weight, clamped to 0–1. |
-| `envelope` | Beats only: `{ in, hold, out }` in ms. |
-
-Keep an entry named `neutral`: the director relaxes to it.
-
-### `gestures.json`
-
-Three sections: `head` and `hands` hold the gestures, `poses` holds custom arm poses the hand gestures use. Trimmed example (a real pose also sets the shoulder, hand and finger bones):
-
-```json
-{
-  "head": {
-    "nod": {
-      "description": "A head nod: agreeing, saying yes, confirming.",
-      "dt": [260, 240, 240, 320],
-      "vs": { "headMove": [0], "headRotateX": [0.18, -0.03, 0.13, 0], "headRotateZ": [0] }
-    }
-  },
-  "hands": {
-    "wave": {
-      "description": "A wave: hello or goodbye.",
-      "dt": [100, 2400],
-      "rescale": [0, 1],
-      "vs": { "gesture": [["hand_wave", null, true, 500], null] },
-      "overlay": {
-        "bones": { "RightHand": { "freq": 14, "amp": [0, 0.2, 0.25], "phase": 0 } },
-        "delay": 500,
-        "duration": 2000
-      }
-    }
-  },
-  "poses": {
-    "hand_wave": {
-      "LeftArm.rotation": { "x": 1.394, "y": 0.048, "z": 1.016 },
-      "LeftForeArm.rotation": { "x": -1.246, "y": -0.683, "z": 1.58 }
-    }
-  }
-}
-```
-
-**Gestures.** Each entry in `head` and `hands` is a TalkingHead animation template (see TalkingHead's README, Appendix D): `dt` frame timings (a `[min, max]` pair counts as its midpoint), optional `rescale`, and `vs` values per frame. Head entries play as plain animations; hand entries go through TalkingHead's gesture system. Gestures are body-only by design — the face belongs to the FACS layer, and a test keeps blendshapes out of `gestures.json`.
-
-**Hand frames.** Each frame in a hand gesture's `vs.gesture` list is `[pose, duration, mirror, transitionMs]`:
-
-| Item | Meaning |
-| --- | --- |
-| `pose` | A TalkingHead built-in pose (`handup`, `index`, `ok`, `thumbup`, `thumbdown`, `side`, `shrug`, `namaste`) or one from `poses`. |
-| `duration` | `null` holds the pose until the gesture ends (JSON has no `Infinity`). |
-| `mirror` | `true` plays a one-hand pose with the right arm. Default `false`. |
-| `transitionMs` | How long the arms take to reach the pose. Default: the body's `fadeIn` (800 ms). |
-
-Frames fire at the `dt` boundaries, so several frames chain poses (`applause` alternates `namaste` and `clap_open`). When a new hand gesture replaces the current one, the arms go straight from pose to pose instead of dropping to the stance first.
-
-**Poses.** A map of pose name → bone rotations in radians (Euler XYZ), the same format as TalkingHead's `gestureTemplates`. As in TalkingHead, one-hand poses are written for the left arm and mirrored for the right. A pose can't reuse a built-in's name (it's skipped with a warning). The bundled poses are fitted to the demo avatar's proportions; on another avatar, hands may miss their target (the chest, the chin) and the poses may need re-solving.
-
-**Overlays.** `overlay` adds sine oscillations on top: per bone, `freq` (rad/s), `amp` `[x, y, z]` (rotation offsets in radians), `phase` (z only); plus `delay` and `duration` in ms.
-
-**Manual-only entries.** `wave_left` and `hand_raise_left` have no description: Jev can't pick a side from text, but your code can play them with `engine.body.play(name)`. The same goes for the face's gaze beats (`look_left`, …), `open_mouth`, `close_eyes`, `squint` and `neutral`.
-
-### Custom catalogs
-
-```js
-import facs from './my-facs.json' with { type: 'json' };
-import gestures from './my-gestures.json' with { type: 'json' };
-
-new MotionEngine(head, {
-  jev: { apiKey },
-  face: { facs },
-  body: { gestures },
-});
-```
-
----
-
-## FACS grounding and sources
-
-The seven core emotions (happiness, sadness, surprise, fear, anger, disgust, contempt) use the canonical EMFACS-7 Action Unit combinations. The rest of the ~30 expressions are documented blends of the same primitives; each records its provenance in its `facs` field.
-
-- **EMFACS-7** — Emotional FACS (Ekman & Friesen, 1983): canonical AU combinations for the basic emotions. [paulekman.com](https://www.paulekman.com/facial-action-coding-system/)
-- **ARKit ↔ FACS** — each ARKit blendshape ≈ one FACS AU. [Melinda Ozel's cheat sheet](https://melindaozel.com/arkit-to-facs-cheat-sheet/) · [clinical blendshape ↔ AU mapping](https://www.sciencedirect.com/science/article/pii/S2451958826001995) · [interactive ARKit-52 ↔ AU guide](https://arkit.miniface.org/faces)
-- **AU-Blendshape** — fine-grained stylized 3D facial expression manipulation through Action Units, and why each model needs its own AU calibration. [arXiv:2507.12001](https://arxiv.org/abs/2507.12001)
-
----
-
-## Development
+## Appendix E: Development
 
 ```bash
 npm install
 npm run demo     # Vite dev server for demo/
-npm test         # Vitest, including the adapter contract test against TalkingHead's source
+npm test         # Vitest, incl. the adapter contract test against TalkingHead's source
 npm run build    # Build the demo into dist/
+npm run lint     # ESLint
+npm run format   # Prettier (format:check to verify only)
+npm run types    # Regenerate types/ from the JSDoc
 ```
 
-Pushing to `main` tests, builds and publishes the demo to GitHub Pages (`.github/workflows/pages.yml`).
-
-The built demo loads three.js and TalkingHead from a CDN via its import map. During development Vite resolves them from `node_modules` instead, and the `talkinghead` dev dependency also feeds the contract test.
-
----
-
-## Roadmap
-
-Planned, not built yet:
-
-- **`llm()` classifier adapter** — any OpenAI-compatible chat model with JSON-schema output: hundreds of models through OpenRouter, or local ones through Ollama or LM Studio. The trade-off: slower and costlier than Jev, and its confidences are less reliable (taken from logprobs when the model offers them).
-- **Blend the top two expressions** by the probabilities Jev already returns (no extra tokens).
-- **An intensity question** — one score question, so expressions and head movements can play softer or stronger.
-- **Pose authoring tool** — an FK solver that fits the catalog's poses to a new avatar.
-- **Camera-based listening** (FaceMirror) as an optional plugin.
-
----
-
-## Licenses and credits
-
-**Code:** [MIT](LICENSE), Copyright (c) 2026 lhupyn.
-
-**Demo avatar — not covered by the MIT license.** `demo/public/female_1.glb` was created with [Ready Player Me](https://readyplayer.me). Ready Player Me's terms license avatars made with its creator under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): attribution, non-commercial use only, share-alike. Ready Player Me's public service shut down on 2026-01-31. Don't use this file in commercial products; bring your own avatar.
-
-**Credits**
-
-- [TalkingHead](https://github.com/met4citizen/TalkingHead) by Mika Suominen — MIT. Loaded from a CDN in the demo; not bundled.
-- [three.js](https://threejs.org) — MIT. Loaded from a CDN in the demo; not bundled.
-- [Jev](https://typesafe.ai) by TypeSafe — the decision model, used through its API.
-- FACS sources listed in [FACS grounding and sources](#facs-grounding-and-sources).
+Commit the regenerated `types/` with any change to the public JSDoc, or CI fails. CI runs lint, format, types, tests and build on every push and PR; pushing to `main` also deploys the demo to GitHub Pages.

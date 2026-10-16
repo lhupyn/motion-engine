@@ -1,22 +1,32 @@
 {
   "name": "motion-engine",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Expressive face and body for TalkingHead avatars, driven by a decision model instead of tags in the LLM output",
   "type": "module",
   "main": "src/index.js",
+  "types": "types/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
     "./facs.json": "./src/facs.json",
     "./gestures.json": "./src/gestures.json"
   },
+  "sideEffects": false,
   "files": [
-    "src"
+    "src",
+    "types"
   ],
   "scripts": {
     "demo": "vite --open",
     "build": "vite build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "types": "node -e \"require('fs').rmSync('types', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "talkinghead",
@@ -29,8 +39,25 @@
     "llm"
   ],
   "license": "MIT",
+  "author": "lhupyn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhupyn/motion-engine.git"
+  },
+  "homepage": "https://lhupyn.github.io/motion-engine/",
+  "bugs": {
+    "url": "https://github.com/lhupyn/motion-engine/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "talkinghead": "github:met4citizen/TalkingHead",
+    "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
   }

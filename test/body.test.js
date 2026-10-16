@@ -6,7 +6,9 @@ import { createRequire } from 'node:module';
 
 // TalkingHead's built-in arm poses, read from its source.
 const th = readFileSync(createRequire(import.meta.url).resolve('talkinghead/modules/talkinghead.mjs'), 'utf8');
-const BUILT_IN = [...th.slice(th.indexOf('this.gestureTemplates = {'), th.indexOf('this.poseDelta = {')).matchAll(/^\s+'(\w+)': \{/gm)].map((m) => m[1]);
+const BUILT_IN = [
+  ...th.slice(th.indexOf('this.gestureTemplates = {'), th.indexOf('this.poseDelta = {')).matchAll(/^\s+'(\w+)': \{/gm),
+].map((m) => m[1]);
 
 function fakeAdapter() {
   return {
@@ -14,14 +16,20 @@ function fakeAdapter() {
     poses: {},
     offsets: {},
     gestureNames: () => ['handup', 'ok'],
-    registerAnim(name, t) { this.anims[name] = t; },
-    registerPose(name, p) { this.poses[name] = p; },
+    registerAnim(name, t) {
+      this.anims[name] = t;
+    },
+    registerPose(name, p) {
+      this.poses[name] = p;
+    },
     playGesture: vi.fn(),
     stopGesture: vi.fn(),
     handOver: vi.fn(),
     playAnim: vi.fn(),
     stopAnim: vi.fn(),
-    setBoneOffset(bone, x, y, z) { this.offsets[bone] = { x, y, z }; },
+    setBoneOffset(bone, x, y, z) {
+      this.offsets[bone] = { x, y, z };
+    },
   };
 }
 
@@ -57,7 +65,15 @@ describe('Body', () => {
   describe('registration', () => {
     it('registers both channels as TalkingHead animations', () => {
       expect(body.names).toEqual(['nod', 'wave', 'clap', 'shrug']);
-      expect(Object.keys(adapter.anims)).toEqual(['nod', 'wave', 'clap', 'shrug']);
+      expect(Object.keys(adapter.anims)).toEqual([
+        'nod',
+        'wave',
+        'wave:mirror',
+        'clap',
+        'clap:mirror',
+        'shrug',
+        'shrug:mirror',
+      ]);
       expect(body.channelOf('nod')).toBe('head');
       expect(body.channelOf('wave')).toBe('hands');
     });
@@ -69,7 +85,9 @@ describe('Body', () => {
 
     it('keeps a transition set in the frame', () => {
       const a = fakeAdapter();
-      new Body(a, { gestures: { head: {}, hands: { quick: { dt: [100], vs: { gesture: [['ok', null, false, 300]] } } } } });
+      new Body(a, {
+        gestures: { head: {}, hands: { quick: { dt: [100], vs: { gesture: [['ok', null, false, 300]] } } } },
+      });
       expect(a.anims.quick.vs.gesture).toEqual([['ok', Infinity, false, 300]]);
     });
   });
@@ -125,14 +143,79 @@ describe('Body', () => {
 
     it('hands over the poses the next gesture moves to, with its first transition', () => {
       const a = fakeAdapter();
-      const b = new Body(a, { gestures: { head: {}, hands: {
-        one: { dt: [100, 500], vs: { gesture: [['handup', null, true], null] } },
-        two: { dt: [100, 500], vs: { gesture: [['namaste', null, false, 400], ['ok', null, true], null] } },
-      } } });
+      const b = new Body(a, {
+        gestures: {
+          head: {},
+          hands: {
+            one: { dt: [100, 500], vs: { gesture: [['handup', null, true], null] } },
+            two: { dt: [100, 500], vs: { gesture: [['namaste', null, false, 400], ['ok', null, true], null] } },
+          },
+        },
+      });
       b.play('one');
       b.play('two');
-      expect(a.handOver).toHaveBeenCalledWith([['namaste', false], ['ok', true]], 400);
+      expect(a.handOver).toHaveBeenCalledWith(
+        [
+          ['namaste', false],
+          ['ok', true],
+        ],
+        400,
+      );
       b.stop();
+    });
+  });
+
+  describe('mirror', () => {
+    it('plays a hand gesture with the other hand: every frame flips, current still names it', () => {
+      body.play('wave', { mirror: true });
+      expect(adapter.playGesture).toHaveBeenCalledWith('wave:mirror');
+      expect(adapter.anims['wave:mirror'].vs.gesture[0][2]).toBe(false);
+      expect(adapter.anims.wave.vs.gesture[0][2]).toBe(true);
+      expect(body.current.hands).toBe('wave');
+    });
+
+    it('moves the overlay to the other side, its y and z reversed', () => {
+      const at = (mirror) => {
+        body.stop();
+        body.play('wave', { mirror });
+        for (let i = 0; i < 20; i++) body.update(16);
+        return { ...adapter.offsets[mirror ? 'LeftHand' : 'RightHand'] };
+      };
+      const right = at(false);
+      const left = at(true);
+      expect(Math.abs(right.y)).toBeGreaterThan(0);
+      expect(left).toEqual({ x: right.x, y: -right.y, z: -right.z });
+    });
+
+    it('hands over to a mirrored gesture with its flipped frames', () => {
+      body.play('wave');
+      body.play('wave', { mirror: true });
+      expect(adapter.handOver).toHaveBeenLastCalledWith([['handup', false]], 50);
+    });
+
+    it('turns and tilts of a custom hand gesture go the other way', () => {
+      const a = fakeAdapter();
+      const vs = {
+        gesture: [['handup', null, false, 300]],
+        bodyRotateY: [0.1, [0.2, 0.3], null],
+        headRotateZ: [-0.05],
+        eyesRotateY: [0.2],
+        headRotateX: [0.1],
+        eyeLookInLeft: [0.5],
+      };
+      new Body(a, { gestures: { head: {}, hands: { turn: { dt: [100, 500], vs } } } });
+      const m = a.anims['turn:mirror'].vs;
+      expect(m.bodyRotateY).toEqual([-0.1, [-0.2, -0.3], null]);
+      expect(m.headRotateZ).toEqual([0.05]);
+      expect(m.eyesRotateY).toEqual([-0.2]);
+      expect(m.headRotateX).toEqual([0.1]);
+      expect(m.eyeLookInRight).toEqual([0.5]);
+      expect(a.anims.turn.vs.bodyRotateY).toEqual([0.1, [0.2, 0.3], null]);
+    });
+
+    it('head movements have no side', () => {
+      body.play('nod', { mirror: true });
+      expect(adapter.playAnim).toHaveBeenCalledWith('nod');
     });
   });
 
@@ -192,7 +275,18 @@ describe('Body', () => {
     });
 
     it('stop() also clears an overlay that outlasts its gesture', async () => {
-      const b = new Body(adapter, { gestures: { head: { sway: { dt: [200], vs: {}, overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, duration: 2000 } } }, hands: {} } });
+      const b = new Body(adapter, {
+        gestures: {
+          head: {
+            sway: {
+              dt: [200],
+              vs: {},
+              overlay: { bones: { RightHand: { freq: 8, amp: [0, 0.1, 0.1] } }, duration: 2000 },
+            },
+          },
+          hands: {},
+        },
+      });
       b.play('sway');
       await vi.advanceTimersByTimeAsync(200);
       for (let i = 0; i < 20; i++) b.update(16);
@@ -203,17 +297,20 @@ describe('Body', () => {
     });
   });
 
-  it('gestures.json: every gesture has timing and no face morphs', () => {
-    const FACE = /^(mouth|eye|brow|cheek|jaw|nose|tongue)/;
+  it('gestures.json: every gesture has timing and no face morphs (the gaze may follow the head)', () => {
+    const FACE = /^(mouth|eye(?!Look)|brow|cheek|jaw|nose|tongue)/;
     for (const channel of ['head', 'hands']) {
       for (const [name, g] of Object.entries(GESTURES[channel])) {
         expect(g.dt, name).toBeDefined();
-        expect(Object.keys(g.vs).filter((k) => FACE.test(k)), name).toEqual([]);
+        expect(
+          Object.keys(g.vs).filter((k) => FACE.test(k)),
+          name,
+        ).toEqual([]);
       }
     }
   });
 
-  it("gestures.json: Jev's menu (described entries) has distinct options and no left/right pairs", () => {
+  it("gestures.json: the classifier's menu (described entries) has distinct options and no left/right pairs", () => {
     const menu = ['head', 'hands'].flatMap((c) => Object.entries(GESTURES[c]).filter(([, g]) => g.description));
     expect(new Set(menu.map(([, g]) => g.description)).size).toBe(menu.length);
     expect(menu.map(([name]) => name).filter((n) => /_(left|right)$/.test(n))).toEqual([]);

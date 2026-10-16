@@ -10,10 +10,12 @@ const FILLER = /^(m+|h+m+|u+h+|u+m+|e+h+|a+h+|e+r+)$/;
 
 // Drops what has under two letters or is only filler ("Mm.", "Uh, um…").
 function clean(segments) {
-  return segments.map((s) => s.replace(/\s+/g, ' ').trim()).filter((s) => {
-    const words = s.toLowerCase().match(/\p{L}+/gu) || [];
-    return words.join('').length >= 2 && !words.every((w) => FILLER.test(w));
-  });
+  return segments
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter((s) => {
+      const words = s.toLowerCase().match(/\p{L}+/gu) || [];
+      return words.join('').length >= 2 && !words.every((w) => FILLER.test(w));
+    });
 }
 
 // What the streamed fragments and the final text of the same turn share; they
@@ -32,6 +34,7 @@ function cutAt(s, n) {
   return i;
 }
 
+/** @internal */
 export class Segmenter {
   constructor() {
     this.reset();

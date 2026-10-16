@@ -25,6 +25,27 @@ describe('adapter contract (TalkingHead source)', () => {
     expect(isMethod || isField).toBe(true);
   });
 
+  it('TalkingHead takes the realtime slot as is (no easing, under fixed only) and never writes it itself', () => {
+    expect(th).toMatch(
+      /else if \( o\.realtime !== null \) \{\s*o\.ref = null;\s*o\.base = null;\s*newvalue = o\.realtime;/,
+    );
+    expect(th.indexOf('o.fixed !== null')).toBeLessThan(th.indexOf('o.realtime !== null'));
+    expect(th.indexOf('o.realtime !== null')).toBeLessThan(th.indexOf('o.system !== null'));
+    expect(th).not.toMatch(/\.realtime\s*=[^=]/);
+  });
+
+  it('TalkingHead copies mtLimits/mtOnchange into each morph and applies limit() every frame', () => {
+    expect(th).toMatch(/limit:\s*this\.mtLimits\.hasOwnProperty\(x\)\s*\?\s*this\.mtLimits\[x\]/);
+    expect(th).toMatch(/onchange:\s*this\.mtOnchange\.hasOwnProperty\(x\)\s*\?\s*this\.mtOnchange\[x\]/);
+    expect(th).toMatch(/newvalue = o\.limit\(o\.value\)/);
+    expect(th).toMatch(/if \( o\.onchange !== null \) o\.onchange\(newvalue\)/);
+  });
+
+  it('TalkingHead drives vowels at 0.6 and PP/FF at 0.9 (the ducking peak), and flags speech', () => {
+    expect(th).toMatch(/\(viseme === 'PP' \|\| viseme === 'FF'\) \? 0\.9 : 0\.6/);
+    expect(th).toMatch(/this\.isSpeaking = true/);
+  });
+
   it('TalkingHead has the "update" frame callback option', () => {
     expect(th).toMatch(/\bupdate\s*:\s*null/);
     expect(th).toMatch(/this\.opt\.update\(\s*dt\s*\)/);
@@ -108,10 +129,15 @@ describe('adapter verbs', () => {
 
   it('hands over: bones the next poses move stay, the rest go back to the stance', () => {
     const head = makeHead();
-    head.gestureTemplates.handup = { 'LeftArm.rotation': { x: 1, y: 0, z: 1 }, 'LeftHand.rotation': { x: 0, y: 0, z: 0 } };
+    head.gestureTemplates.handup = {
+      'LeftArm.rotation': { x: 1, y: 0, z: 1 },
+      'LeftHand.rotation': { x: 0, y: 0, z: 0 },
+    };
     head.gesture = { 'LeftArm.quaternion': {}, 'RightArm.quaternion': {}, 'RightHand.quaternion': {} };
     let released;
-    head.stopGesture.mockImplementation(() => { released = Object.keys(head.gesture); });
+    head.stopGesture.mockImplementation(() => {
+      released = Object.keys(head.gesture);
+    });
     new TalkingHeadAdapter(head).handOver([['handup', true]], 300);
     expect(released).toEqual(['LeftArm.quaternion']);
     expect(head.stopGesture).toHaveBeenCalledWith(300);
@@ -131,9 +157,9 @@ describe('adapter verbs', () => {
   it('resolves rest baseline with setMood() precedence', () => {
     const a = new TalkingHeadAdapter(makeHead());
     expect(a.restBaseline('mouthSmileLeft')).toBe(0.2); // active mood
-    expect(a.restBaseline('browInnerUp')).toBe(0.1);    // avatar baseline
-    expect(a.restBaseline('eyeBlinkLeft')).toBe(0);     // exception
-    expect(a.restBaseline('jawOpen')).toBe(0);          // default
+    expect(a.restBaseline('browInnerUp')).toBe(0.1); // avatar baseline
+    expect(a.restBaseline('eyeBlinkLeft')).toBe(0); // exception
+    expect(a.restBaseline('jawOpen')).toBe(0); // default
   });
 
   it('shows expression morphs above rest: gaze and blink in the system slot, the rest as baseline', () => {
@@ -156,5 +182,179 @@ describe('adapter verbs', () => {
     expect(head.poseDelta.props['Head.quaternion']).toEqual({ x: 0.1, y: 0.2, z: 0.3 });
     expect(() => a.setBoneOffset('Tail', 1, 1, 1)).not.toThrow();
     expect(() => new TalkingHeadAdapter({}).setBoneOffset('Head', 1, 1, 1)).not.toThrow();
+  });
+
+  describe('expression morphs', () => {
+    const morphHead = () => {
+      const head = makeHead();
+      head.mtAvatar = { mouthSmileLeft: { realtime: null, needsUpdate: false }, eyeBlinkLeft: { realtime: null } };
+      return head;
+    };
+
+    it('a held expression goes through the eased baseline', () => {
+      const head = morphHead();
+      new TalkingHeadAdapter(head).setExpressionMorph('mouthSmileLeft', 0.3);
+      expect(head.setBaselineValue).toHaveBeenCalledWith('mouthSmileLeft', 0.5);
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+    });
+
+    it('an exact one also takes the realtime slot, and lets go of it after', () => {
+      const head = morphHead();
+      const a = new TalkingHeadAdapter(head);
+      a.setExpressionMorph('mouthSmileLeft', 0.3, true);
+      expect(head.mtAvatar.mouthSmileLeft).toMatchObject({ realtime: 0.5, needsUpdate: true });
+      expect(head.setBaselineValue).toHaveBeenLastCalledWith('mouthSmileLeft', 0.5);
+      a.setExpressionMorph('mouthSmileLeft', 0.2);
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+      a.setExpressionMorph('mouthSmileLeft', 0.3, true);
+      a.releaseMorph('mouthSmileLeft');
+      expect(head.mtAvatar.mouthSmileLeft.realtime).toBeNull();
+      expect(head.setBaselineValue).toHaveBeenLastCalledWith('mouthSmileLeft', 0.2);
+    });
+
+    it('gaze and blink stay in the system slot', () => {
+      const head = morphHead();
+      new TalkingHeadAdapter(head).setExpressionMorph('eyeBlinkLeft', 0.5, true);
+      expect(head.setValue).toHaveBeenCalledWith('eyeBlinkLeft', 0.5, 200);
+      expect(head.mtAvatar.eyeBlinkLeft.realtime).toBeNull();
+    });
+  });
+
+  describe('duckMouth', () => {
+    // A stand-in for TalkingHead's morph table after showAvatar().
+    const mouthHead = () => {
+      const blink = (v) => v + 1;
+      const head = {
+        mtLimits: { eyeBlinkLeft: blink },
+        mtOnchange: {},
+        mtAvatar: {},
+        isSpeaking: false,
+      };
+      for (const n of ['mouthLowerDownLeft', 'jawOpen', 'eyeBlinkLeft', 'viseme_aa', 'viseme_PP', 'viseme_sil']) {
+        head.mtAvatar[n] = { value: 0, limit: head.mtLimits[n] ?? null, onchange: null, needsUpdate: false };
+      }
+      return head;
+    };
+
+    it('mouth morphs drop to the floor at a full viseme, in proportion below it', () => {
+      const head = mouthHead();
+      new TalkingHeadAdapter(head).duckMouth({ mouthLowerDownLeft: 0.3, jawOpen: 0.3 });
+      const limit = head.mtAvatar.mouthLowerDownLeft.limit;
+      expect(limit(0.5)).toBe(0.5);
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(limit(0.5)).toBeCloseTo(0.15);
+      head.mtAvatar.viseme_aa.value = 0.3;
+      expect(limit(0.5)).toBeCloseTo(0.5 * (1 - 0.7 * 0.5));
+      head.mtAvatar.viseme_aa.value = 0;
+      head.mtAvatar.viseme_PP.value = 0.9;
+      expect(limit(0.5)).toBeCloseTo(0.15);
+    });
+
+    it('each morph keeps its own floor', () => {
+      const head = mouthHead();
+      new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0, mouthLowerDownLeft: 0.5 });
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+      expect(head.mtAvatar.mouthLowerDownLeft.limit(0.4)).toBeCloseTo(0.2);
+    });
+
+    it('silence is not speech', () => {
+      const head = mouthHead();
+      new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0 });
+      head.mtAvatar.viseme_sil.value = 1;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
+    });
+
+    it('a viseme change re-evaluates the mouth morphs', () => {
+      const head = mouthHead();
+      new TalkingHeadAdapter(head).duckMouth({ mouthLowerDownLeft: 0.3, jawOpen: 0.3 });
+      head.mtAvatar.jawOpen.needsUpdate = false;
+      head.mtAvatar.viseme_aa.onchange(0.6);
+      expect(head.mtAvatar.jawOpen.needsUpdate).toBe(true);
+      expect(head.mtAvatar.mouthLowerDownLeft.needsUpdate).toBe(true);
+    });
+
+    // What showAvatar() does: a new morph table, hooks copied from mtLimits/mtOnchange.
+    const reload = (head) => {
+      head.mtAvatar = Object.fromEntries(
+        Object.keys(head.mtAvatar).map((n) => [
+          n,
+          { value: 0, limit: head.mtLimits[n] ?? null, onchange: head.mtOnchange[n] ?? null, needsUpdate: false },
+        ]),
+      );
+    };
+
+    it('wraps hooks already there and removes cleanly', () => {
+      const head = mouthHead();
+      const theirs = vi.fn();
+      head.mtOnchange.viseme_aa = theirs;
+      head.mtAvatar.viseme_aa.onchange = theirs;
+      head.mtLimits.jawOpen = (v) => v / 2;
+      head.mtAvatar.jawOpen.limit = head.mtLimits.jawOpen;
+      const off = new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0 });
+
+      head.mtAvatar.viseme_aa.onchange(0.6);
+      expect(theirs).toHaveBeenCalledWith(0.6);
+      head.mtAvatar.viseme_aa.value = 0.3;
+      expect(head.mtAvatar.jawOpen.limit(0.8)).toBeCloseTo(0.4 * 0.5);
+      expect(head.mtLimits.eyeBlinkLeft).toBe(head.mtAvatar.eyeBlinkLeft.limit);
+
+      off();
+      expect(head.mtLimits.jawOpen(0.8)).toBe(0.4);
+      expect(head.mtAvatar.jawOpen.limit).toBe(head.mtLimits.jawOpen);
+      expect(head.mtAvatar.viseme_aa.onchange).toBe(theirs);
+      expect(head.mtOnchange.viseme_aa).toBe(theirs);
+      expect(head.mtOnchange.viseme_PP).toBeUndefined();
+    });
+
+    it('keeps ducking the new morph table after an avatar reload, and removes cleanly from it', () => {
+      const head = mouthHead();
+      const off = new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0, mouthLowerDownLeft: 0.5 });
+      const old = head.mtAvatar;
+      reload(head);
+      expect(head.mtAvatar).not.toBe(old);
+
+      old.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+      head.mtAvatar.jawOpen.needsUpdate = false;
+      head.mtAvatar.viseme_aa.onchange(0.6);
+      expect(head.mtAvatar.jawOpen.needsUpdate).toBe(true);
+
+      off();
+      expect(head.mtAvatar.jawOpen.limit).toBeNull();
+      expect(head.mtAvatar.viseme_aa.onchange).toBeNull();
+      expect(head.mtLimits.jawOpen).toBeUndefined();
+    });
+
+    it('two engines on one head can be removed in either order', () => {
+      const head = mouthHead();
+      const a = new TalkingHeadAdapter(head);
+      const offA = a.duckMouth({ jawOpen: 0 });
+      const offB = a.duckMouth({ jawOpen: 0.5 });
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+
+      offA();
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBeCloseTo(0.2);
+      offB();
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
+      reload(head);
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit?.(0.4) ?? 0.4).toBe(0.4);
+    });
+
+    it('does nothing on a head without a morph table', () => {
+      expect(() => new TalkingHeadAdapter(makeHead()).duckMouth({ jawOpen: 0.3 })()).not.toThrow();
+    });
+
+    it('reports whether TalkingHead is speaking', () => {
+      const head = mouthHead();
+      const a = new TalkingHeadAdapter(head);
+      expect(a.isSpeaking()).toBe(false);
+      head.isSpeaking = true;
+      expect(a.isSpeaking()).toBe(true);
+    });
   });
 });

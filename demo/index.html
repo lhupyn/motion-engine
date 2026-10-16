@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>motion-engine</title>
+  <meta name="description" content="Expressive face and body for TalkingHead avatars." />
+  <meta property="og:title" content="motion-engine" />
+  <meta property="og:description" content="Expressive face and body for TalkingHead avatars." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/lhupyn/motion-engine/main/images/demo.jpg" />
+  <meta property="og:url" content="https://lhupyn.github.io/motion-engine/" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="data:," />
   <script type="importmap">
   { "imports": {
@@ -72,8 +78,11 @@
       overflow-y: auto;
       padding: 24px 24px 40px;
     }
+    a { color: inherit; }
+    .title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
     header h1 { font-size: 18px; letter-spacing: -0.01em; }
     header p { color: var(--muted); margin-top: 4px; }
+    .links { font-size: 12px; color: var(--muted); white-space: nowrap; }
 
     section { margin-top: 22px; }
     h2 {
@@ -81,6 +90,15 @@
       letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px;
     }
     h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 10px 0 6px; }
+    h3 .side { margin-left: 10px; font-weight: 400; cursor: pointer; }
+    h3 .side input { vertical-align: -2px; accent-color: var(--accent); }
+    .section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+    .section-head h2 { margin-bottom: 0; }
+    .tag {
+      padding: 1px 7px; border-radius: 999px; color: var(--muted);
+      font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0;
+      background: var(--chip); border: 1px solid var(--line);
+    }
 
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
     button {
@@ -91,6 +109,9 @@
     }
     button:hover { background: var(--chip-hover); }
     button.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+    button.manual { background: transparent; border-style: dashed; color: var(--muted); }
+    .legend .key { padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--text); }
+    .legend .key.manual { background: transparent; border-style: dashed; color: var(--muted); }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     input[type=text], input[type=password] {
@@ -102,8 +123,11 @@
     .row { display: flex; gap: 6px; align-items: center; }
     .row + .row, .row + .chips, .chips + .row { margin-top: 8px; }
     .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
-    .note a { color: inherit; }
     #speaker { margin-top: 14px; }
+    #feedback { min-height: 1.45em; }
+    .note.error { color: var(--error); }
+    .phrase-label { flex-basis: 100%; margin-top: 4px; }
+    #decisions h3 { margin-top: 18px; }
 
     #log { list-style: none; padding: 0; margin-top: 12px; display: grid; gap: 8px; }
     #log li {
@@ -118,66 +142,103 @@
     #log .error { color: var(--error); }
     #log .meta { color: var(--muted); margin-top: 4px; }
 
+    footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+    /* The avatar stays in view while the panel scrolls beneath it. */
     @media (max-width: 760px) {
-      body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+      body { grid-template-columns: 1fr; grid-template-rows: 45vh auto; height: auto; }
+      #stage { position: sticky; top: 0; z-index: 1; height: 45vh; }
       aside { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+    }
+    /* 16 px stops iOS from zooming into a focused input. */
+    @media (pointer: coarse) {
+      input[type=text], input[type=password] { font-size: 16px; }
+      button { min-height: 42px; padding: 8px 14px; }
     }
   </style>
 </head>
 <body>
   <div id="stage">
-    <div id="avatar"></div>
-    <div id="status">Loading avatar…</div>
+    <div id="avatar" role="img" aria-label="Animated avatar"></div>
+    <div id="status" aria-live="polite">Loading avatar…</div>
   </div>
 
   <aside>
     <header>
-      <h1>motion-engine</h1>
+      <div class="title">
+        <h1>motion-engine</h1>
+        <nav class="links">
+          <a href="https://github.com/lhupyn/motion-engine">GitHub</a> ·
+          <a href="https://github.com/lhupyn/motion-engine#readme">Docs</a>
+        </nav>
+      </div>
       <p>Expressive face and body for TalkingHead avatars.</p>
+      <p class="note">
+        Try any expression or gesture below — no key needed. To let the avatar react to text on its own, add an OpenRouter key.
+      </p>
     </header>
 
     <section>
       <h2>Talk to it</h2>
       <div class="row">
-        <input id="key" type="password" placeholder="OpenRouter API key" autocomplete="off" />
+        <input id="key" type="password" placeholder="OpenRouter API key" aria-label="OpenRouter API key" autocomplete="off" />
         <button id="key-save">Use</button>
       </div>
-      <p class="note" id="key-note">
-        Jev decides the reactions. Your key stays in this browser and is sent only to openrouter.ai.
+      <p class="note" id="key-note" aria-live="polite">
+        Jev, a small decision model, picks the reactions. Get a key at
+        <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> — about $0.0001 per line.
+        Your key stays in this browser and is sent only to openrouter.ai.
       </p>
 
       <div class="row chips" id="speaker" role="group" aria-label="Who says it">
-        <button data-speaker="user" class="on">You say it</button>
-        <button data-speaker="avatar">The avatar says it</button>
+        <button data-speaker="user" class="on" aria-pressed="true">You say it</button>
+        <button data-speaker="avatar" aria-pressed="false">The avatar says it</button>
       </div>
+      <p class="note">You: it reacts while listening · The avatar: it moves while saying the line</p>
       <form class="row" id="say">
-        <input id="text" type="text" placeholder="I just got the job!" autocomplete="off" />
+        <input id="text" type="text" placeholder="I just got the job!" aria-label="Line to say" autocomplete="off" />
         <button type="submit">Send</button>
       </form>
+      <p class="note" id="feedback" aria-live="polite"></p>
       <div class="chips" id="phrases"></div>
-      <ol id="log" reversed></ol>
+
+      <div id="decisions" hidden>
+        <h3>What the avatar decided</h3>
+        <p class="note">✓ played · ✗ skipped (reason) · % = confidence</p>
+        <ol id="log" reversed aria-live="polite"></ol>
+      </div>
     </section>
 
     <section>
-      <h2>Camera</h2>
-      <div class="chips" id="camera"></div>
+      <div class="section-head"><h2>Camera</h2><span class="tag">No key needed</span></div>
+      <div class="chips" id="camera" role="group" aria-label="Camera"></div>
     </section>
 
     <section>
-      <h2>Face</h2>
+      <div class="section-head"><h2>Face</h2><span class="tag">No key needed</span></div>
+      <p class="note legend"><span class="key">solid</span> Jev can pick it · <span class="key manual">dashed</span> manual only, Jev never picks it</p>
       <h3>Expressions — held until replaced</h3>
-      <div class="chips" id="moods"></div>
+      <div class="chips" id="moods" role="group" aria-label="Expressions"></div>
       <h3>Beats — play once</h3>
       <div class="chips" id="beats"></div>
+      <h3>Gaze</h3>
+      <div class="chips" id="gaze"></div>
     </section>
 
     <section>
-      <h2>Body</h2>
+      <div class="section-head"><h2>Body</h2><span class="tag">No key needed</span></div>
+      <p class="note legend"><span class="key">solid</span> Jev can pick it · <span class="key manual">dashed</span> manual only, Jev never picks it</p>
       <h3>Head — can play with a hand gesture</h3>
       <div class="chips" id="head-gestures"></div>
-      <h3>Hands</h3>
+      <h3>Hands <label class="side"><input type="checkbox" id="left-hand" /> Left hand</label></h3>
       <div class="chips" id="hand-gestures"></div>
     </section>
+
+    <footer class="note">
+      Built on <a href="https://github.com/met4citizen/TalkingHead">TalkingHead</a>.
+      Demo avatar © Ready Player Me, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.
+      Code <a href="https://github.com/lhupyn/motion-engine/blob/main/LICENSE">MIT</a>.
+    </footer>
   </aside>
 
   <script type="module" src="./main.js"></script>

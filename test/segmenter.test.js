@@ -91,6 +91,9 @@ describe('Segmenter', () => {
 
   it('splits CJK sentences, which have no space after the terminator', () => {
     const s = new Segmenter();
-    expect(s.push('今日はいい天気ですね。散歩に行きましょう！')).toEqual(['今日はいい天気ですね。', '散歩に行きましょう！']);
+    expect(s.push('今日はいい天気ですね。散歩に行きましょう！')).toEqual([
+      '今日はいい天気ですね。',
+      '散歩に行きましょう！',
+    ]);
   });
 });

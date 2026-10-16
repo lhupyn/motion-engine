@@ -9,15 +9,25 @@ function fakes() {
         happy: { description: 'Glad', aus: { AU12: 0.5 } },
         tender: { description: 'Caring', aus: { AU1: 0.3 } },
         wink: { description: 'Playful wink', kind: 'beat', aus: { AU46: 0.7 } },
+        laugh: { description: 'Laugh', kind: 'beat', aus: { AU26: 0.3 } },
+        yawn: { description: 'Yawn', kind: 'beat', whileSpeaking: false, aus: { AU26: 1 } },
         look_left: { kind: 'beat', aus: { AU61: 0.5 } }, // no description → not offered
       },
     },
     current: null,
-    resolve(name) { const e = this.facs.expressions[name]; return e ? { name, kind: e.kind || 'mood' } : null; },
-    play: vi.fn(function (name) { if (this.resolve(name).kind === 'mood') this.current = name; }),
+    resolve(name) {
+      const e = this.facs.expressions[name];
+      return e ? { name, kind: e.kind || 'mood' } : null;
+    },
+    play: vi.fn(function (name) {
+      if (this.resolve(name).kind === 'mood') this.current = name;
+    }),
   };
   const body = {
-    gestures: { head: { nod: { description: 'Agree' } }, hands: { wave: { description: 'Greet' }, clap: { description: 'Applaud' } } },
+    gestures: {
+      head: { nod: { description: 'Agree' } },
+      hands: { wave: { description: 'Greet' }, clap: { description: 'Applaud' } },
+    },
     current: { head: null, hands: null },
     play: vi.fn(),
   };
@@ -38,18 +48,18 @@ describe('Director', () => {
   describe('questions', () => {
     it('offers only described items, plus none', () => {
       const q = d.questions('avatar');
-      expect(Object.keys(q.expression.criteria)).toEqual(['happy', 'tender', 'wink', 'none']);
+      expect(Object.keys(q.expression.criteria)).toEqual(['happy', 'tender', 'wink', 'laugh', 'yawn', 'none']);
       expect(Object.keys(q.head.criteria)).toEqual(['nod', 'none']);
       expect(Object.keys(q.hands.criteria)).toEqual(['wave', 'clap', 'none']);
       expect(q.expression.criteria.happy).toBe('Glad');
     });
 
-    it('asks the person\'s lines whether they are intelligible; the avatar\'s are not asked', () => {
+    it("asks the person's lines whether they are intelligible; the avatar's are not asked", () => {
       expect(d.questions('user').clear).toMatchObject({ type: 'noul' });
       expect(d.questions('avatar').clear).toBeUndefined();
     });
 
-    it('frames the person\'s lines as a reaction, not a copy', () => {
+    it("frames the person's lines as a reaction, not a copy", () => {
       expect(d.questions('user').expression.instructions).toMatch(/reaction/);
       expect(d.questions('avatar').expression.instructions).toMatch(/while saying/);
     });
@@ -72,7 +82,9 @@ describe('Director', () => {
     });
 
     it('none means no action at all', () => {
-      expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual([]);
+      expect(d.apply({ expression: choice('none'), head: choice('none'), hands: choice('none') }, 'avatar')).toEqual(
+        [],
+      );
     });
 
     it('ignores low confidence', () => {
@@ -87,6 +99,18 @@ describe('Director', () => {
       const [a] = d.apply({ expression: choice('happy') }, 'avatar');
       expect(a.reason).toBe('already showing');
       expect(face.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('a beat marked whileSpeaking: false is skipped while TalkingHead speaks; others play over the words', () => {
+      d.talking = () => true;
+      expect(d.apply({ expression: choice('yawn') }, 'avatar')[0]).toMatchObject({
+        applied: false,
+        reason: 'avatar is speaking',
+      });
+      expect(d.apply({ expression: choice('laugh') }, 'avatar')[0].applied).toBe(true);
+      expect(d.apply({ expression: choice('happy') }, 'avatar')[0].applied).toBe(true);
+      d.talking = () => false;
+      expect(d.apply({ expression: choice('yawn') }, 'avatar')[0].applied).toBe(true);
     });
 
     it('beats always play (a second wink is a new wink)', () => {

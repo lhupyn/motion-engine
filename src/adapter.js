@@ -15,6 +15,10 @@ const OWN = Symbol('motion-engine');
 // animations get a key of their own.
 const key = (name) => `motion-engine:${name}`;
 
+// TalkingHead drives vowels at 0.6 (up to 1 at the end of long words) and PP/FF
+// at 0.9: a vowel at its usual level already counts as a fully open mouth.
+const VISEME_PEAK = 0.6;
+
 // Gaze and blink belong to TalkingHead's idle eye animation, which outranks the
 // baseline, so they go through the system slot (it expires on its own). Every
 // other morph is written as baseline so lip-sync visemes still play over it.
@@ -22,6 +26,7 @@ const EYE_ANIM_RE = /^(eyeLook|eyeBlink)/;
 
 const has = (o, k) => !!o && Object.hasOwn(o, k);
 
+/** @internal */
 export class TalkingHeadAdapter {
   constructor(head) {
     this.head = head;
@@ -33,7 +38,12 @@ export class TalkingHeadAdapter {
    */
   onFrame(fn) {
     const prev = this.head.opt.update;
-    const update = prev ? (dt) => { prev(dt); fn(dt); } : fn;
+    const update = prev
+      ? (dt) => {
+          prev(dt);
+          fn(dt);
+        }
+      : fn;
     this.head.opt.update = update;
     return () => {
       if (this.head.opt.update === update) this.head.opt.update = prev;
@@ -42,7 +52,9 @@ export class TalkingHeadAdapter {
 
   /** [appendix] Gesture templates that TalkingHead ships or the app added (not the poses registered here). */
   gestureNames() {
-    return Object.entries(this.head.gestureTemplates || {}).filter(([, t]) => !t[OWN]).map(([name]) => name);
+    return Object.entries(this.head.gestureTemplates || {})
+      .filter(([, t]) => !t[OWN])
+      .map(([name]) => name);
   }
 
   /** [appendix] An arm/hand pose (bone rotations) that gesture frames can use like a built-in. */
@@ -101,16 +113,116 @@ export class TalkingHeadAdapter {
     if (i !== -1) queue.splice(i, 1);
   }
 
-  /** [internal] Shows a morph `w` above its rest level; call it every frame while it's held. */
-  setExpressionMorph(mt, w) {
+  /**
+   * [internal] Shows a morph `w` above its rest level; call it every frame while it's held.
+   * TalkingHead eases baseline changes over about a second, which smooths a mood's
+   * cross-fade but smears a beat, so `exact` writes the value through the realtime
+   * slot (no easing, and TalkingHead never writes it itself). The baseline follows
+   * along, so releasing the slot doesn't jump.
+   * @param {string} mt
+   * @param {number} w
+   * @param {boolean} [exact=false]
+   */
+  setExpressionMorph(mt, w, exact = false) {
     const value = Math.min(1, this.restBaseline(mt) + w);
-    if (EYE_ANIM_RE.test(mt)) this.head.setValue(mt, value, 200);
-    else this.head.setBaselineValue(mt, value);
+    if (EYE_ANIM_RE.test(mt)) return this.head.setValue(mt, value, 200);
+    this.head.setBaselineValue(mt, value);
+    this._realtime(mt, exact ? value : null);
   }
 
   /** [internal] Back to the rest level. */
   releaseMorph(mt) {
-    if (!EYE_ANIM_RE.test(mt)) this.head.setBaselineValue(mt, this.restBaseline(mt));
+    if (EYE_ANIM_RE.test(mt)) return;
+    this.head.setBaselineValue(mt, this.restBaseline(mt));
+    this._realtime(mt, null);
+  }
+
+  /** [internal] */
+  _realtime(mt, value) {
+    const o = this.head.mtAvatar?.[mt];
+    if (!o || (o.realtime ?? null) === value) return;
+    o.realtime = value;
+    o.needsUpdate = true;
+  }
+
+  /** [internal] Whether TalkingHead is playing speech (audio or lip-sync) right now. */
+  isSpeaking() {
+    return !!this.head.isSpeaking;
+  }
+
+  /**
+   * [internal] Lets the lip-sync take the mouth back: while a viseme plays, each
+   * given morph drops to its floor's share of its value (by how open the viseme is),
+   * whatever drives them. Uses TalkingHead's own per-morph hooks, the ones that
+   * make the eyelids follow the gaze: `limit` shapes the applied value and the
+   * visemes' `onchange` re-evaluates the morphs. Installed on the current avatar
+   * and in mtLimits/mtOnchange, so a reloaded avatar keeps it.
+   * @param {Record<string, number>} floors - Morph → floor: 0 = gone at a full viseme, 1 = untouched
+   * @returns {function} Removes it, restoring any hook it wrapped
+   */
+  duckMouth(floors) {
+    const head = this.head;
+    if (!head.mtAvatar || !head.mtLimits || !head.mtOnchange) return () => {};
+    const isViseme = (n) => n.startsWith('viseme_') && n !== 'viseme_sil';
+    const targets = Object.keys(floors);
+    // Always the current morph table: showAvatar() builds a new one with our hooks.
+    let table, visemes;
+    const open = () => {
+      if (head.mtAvatar !== table) {
+        table = head.mtAvatar;
+        visemes = Object.keys(table).filter(isViseme);
+      }
+      return visemes.reduce((m, n) => Math.max(m, table[n]?.value || 0), 0);
+    };
+    const refresh = () => {
+      for (const n of targets) if (head.mtAvatar?.[n]) head.mtAvatar[n].needsUpdate = true;
+    };
+
+    // Removing turns our hooks into pass-throughs instead of unlinking them, so
+    // two engines on one head can be disposed in any order.
+    let active = true;
+    const hooks = [];
+    const replaced = new Map(); // our hook → what it replaced
+    // One hook per morph, in both places TalkingHead keeps it.
+    const wrap = (store, name, field, make) => {
+      const prev = store[name] ?? null;
+      const ours = make(prev);
+      store[name] = ours;
+      replaced.set(ours, prev);
+      hooks.push({ store, name, field, ours, prev });
+      const entry = head.mtAvatar[name];
+      if (!entry) return;
+      const live = entry[field] ?? null;
+      entry[field] = live === prev ? ours : make(live);
+      replaced.set(entry[field], live);
+    };
+    for (const n of targets) {
+      const floor = floors[n];
+      wrap(head.mtLimits, n, 'limit', (prev) => (v) => {
+        const x = prev ? prev(v) : v;
+        return active ? x * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK)) : x;
+      });
+    }
+    for (const n of Object.keys(head.mtAvatar).filter(isViseme)) {
+      wrap(head.mtOnchange, n, 'onchange', (prev) => (v) => {
+        prev?.(v);
+        if (active) refresh();
+      });
+    }
+    refresh();
+    return () => {
+      if (!active) return;
+      active = false;
+      for (const { store, name, field, ours, prev } of hooks.reverse()) {
+        if (store[name] === ours) {
+          if (prev === null) delete store[name];
+          else store[name] = prev;
+        }
+        const entry = head.mtAvatar?.[name];
+        if (entry && replaced.has(entry[field])) entry[field] = replaced.get(entry[field]);
+      }
+      refresh();
+    };
   }
 
   /** [internal] A morph's level with no expression, in setMood()'s precedence order. */

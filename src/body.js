@@ -10,20 +10,61 @@ import GESTURES from './gestures.json' with { type: 'json' };
 
 const RAMP = 300;
 
+// The same hand gesture with the other hand is registered under this suffix.
+const MIRROR = ':mirror';
+
+/**
+ * A TalkingHead animation template, plus an optional oscillation overlay.
+ * @typedef {object} Gesture
+ * @property {string} [description] - When to use it; without one the classifier never picks it
+ * @property {number | Array<number | [number, number]>} dt - Frame timings, ms; [min, max] is a range
+ * @property {number[]} [rescale]
+ * @property {Record<string, any[]>} vs - Values per frame; hands use vs.gesture: [pose, duration, mirror, transitionMs]
+ * @property {{bones?: Record<string, {freq: number, amp: number[], phase?: number}>, delay?: number, duration?: number}} [overlay]
+ */
+
+/**
+ * @typedef {object} GestureCatalog
+ * @property {Record<string, Gesture>} head
+ * @property {Record<string, Gesture>} hands
+ * @property {Record<string, Record<string, {x: number, y: number, z: number}>>} [poses] - Arm poses: bone rotations in radians
+ */
+
+/**
+ * @typedef {object} BodyOptions
+ * @property {GestureCatalog} [gestures] - Default: the bundled gestures.json
+ * @property {number} [fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
+ * @property {number} [fadeOut=800]
+ * @property {number} [cutFade=100] - Arms back to the stance when a hand gesture is stopped early
+ * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
+ */
+
 export class Body {
+  // Not part of the documented API: kept out of the published types (stripInternal).
+  /** @internal */ adapter;
+  /** @internal @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */ gestures = {
+    head: {},
+    hands: {},
+  };
+  /** @internal */ _channels;
+
   /**
-   * @param {TalkingHeadAdapter} adapter
-   * @param {object} [options]
-   * @param {{head: object, hands: object, poses?: object}} [options.gestures]
-   * @param {number} [options.fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
-   * @param {number} [options.fadeOut=800]
-   * @param {number} [options.cutFade=100] - Arms back to the stance when a hand gesture is stopped early
-   * @param {number} [options.settle=1000] - Wait after a hand gesture fades out before it counts as done
+   * @internal
+   * @param {import('./adapter.js').TalkingHeadAdapter} adapter
+   * @param {BodyOptions} [options]
    */
-  constructor(adapter, { gestures = GESTURES, fadeIn = 800, fadeOut = 800, cutFade = 100, settle = 1000 } = {}) {
+  constructor(
+    adapter,
+    {
+      gestures = /** @type {GestureCatalog} */ (GESTURES),
+      fadeIn = 800,
+      fadeOut = 800,
+      cutFade = 100,
+      settle = 1000,
+    } = {},
+  ) {
     const opt = { fadeIn, fadeOut, cutFade, settle };
     this.adapter = adapter;
-    this.gestures = { head: {}, hands: {} };
     this._channels = { head: new Channel(adapter, 'head', opt), hands: new Channel(adapter, 'hands', opt) };
 
     const builtIn = new Set(adapter.gestureNames());
@@ -36,32 +77,47 @@ export class Body {
     }
     for (const channel of Object.keys(this.gestures)) {
       for (const [name, g] of Object.entries(gestures[channel] || {})) {
-        const t = toTemplate(g, fadeIn);
         this.gestures[channel][name] = g;
-        this._channels[channel].frames[name] = framesOf(t);
-        adapter.registerAnim(name, t);
+        this._channels[channel].add(name, g);
+        if (channel === 'hands') this._channels.hands.add(name + MIRROR, mirrored(g));
       }
     }
   }
 
+  /** @returns {string[]} */
   get names() {
     return [...Object.keys(this.gestures.head), ...Object.keys(this.gestures.hands)];
   }
 
-  /** What each channel is playing: { head, hands }, null when idle. */
+  /**
+   * What each channel is playing: { head, hands }, null when idle.
+   * @returns {{head: string|null, hands: string|null}}
+   */
   get current() {
     return { head: this._channels.head.current, hands: this._channels.hands.current };
   }
 
+  /**
+   * @param {string} name
+   * @returns {'head'|'hands'|null}
+   * @internal
+   */
   channelOf(name) {
     return Object.keys(this.gestures).find((c) => this.gestures[c][name]) ?? null;
   }
 
-  /** Interrupts the current gesture on its channel. Resolves true when done, false if interrupted or unknown. */
-  play(name) {
+  /**
+   * Interrupts the current gesture on its channel.
+   * @param {string} name
+   * @param {object} [options]
+   * @param {boolean} [options.mirror=false] - Hand gestures: play it with the other hand (the left, for the catalog's
+   *   one-hand gestures)
+   * @returns {Promise<boolean>} true when done, false if interrupted or unknown
+   */
+  play(name, { mirror = false } = {}) {
     const channel = this.channelOf(name);
     if (!channel) return Promise.resolve(false);
-    return this._channels[channel].play(name, this.gestures[channel][name]);
+    return this._channels[channel].play(name, mirror && channel === 'hands' ? name + MIRROR : name);
   }
 
   /** @param {'head'|'hands'} [channel] - Both when omitted */
@@ -69,6 +125,7 @@ export class Body {
     for (const c of channel ? [channel] : Object.keys(this._channels)) this._channels[c].stop();
   }
 
+  /** @internal @param {number} dt - ms since the last frame */
   update(dt) {
     this._channels.head.update(dt);
     this._channels.hands.update(dt);
@@ -82,18 +139,32 @@ class Channel {
     this.opt = opt;
     this.current = null;
     this.frames = {};
+    this.anims = {};
     this._cancel = null;
     this._osc = new Oscillation(adapter);
   }
 
-  async play(name, g) {
+  add(anim, g) {
+    const t = toTemplate(g, this.opt.fadeIn);
+    this.anims[anim] = g;
+    this.frames[anim] = framesOf(t);
+    this.adapter.registerAnim(anim, t);
+  }
+
+  /**
+   * @param {string} name - What `current` reports
+   * @param {string} anim - The registered animation: the name, or its mirrored variant
+   */
+  async play(name, anim) {
+    const g = this.anims[anim];
     // A new hand gesture takes the arms over from the current one instead of
     // dropping them to the stance first.
-    this.stop(this.frames[name]);
+    this.stop(this.frames[anim]);
     this.current = name;
+    this._anim = anim;
     const total = duration(g.dt);
-    if (this.kind === 'hands') this.adapter.playGesture(name);
-    else this.adapter.playAnim(name);
+    if (this.kind === 'hands') this.adapter.playGesture(anim);
+    else this.adapter.playAnim(anim);
     if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
 
     if (!(await this._wait(total))) return false;
@@ -111,8 +182,12 @@ class Channel {
     this._osc.clear();
     if (!this.current) return;
     this._cancel?.();
-    if (this.kind === 'head') this.adapter.stopAnim(this.current);
-    else if (next) this.adapter.handOver(next.map(([pose, , mirror]) => [pose, mirror]), next[0]?.[3] ?? this.opt.fadeIn);
+    if (this.kind === 'head') this.adapter.stopAnim(this._anim);
+    else if (next)
+      this.adapter.handOver(
+        next.map(([pose, , mirror]) => [pose, mirror]),
+        next[0]?.[3] ?? this.opt.fadeIn,
+      );
     else this.adapter.stopGesture(this.opt.cutFade);
     this.current = null;
   }
@@ -123,8 +198,15 @@ class Channel {
 
   _wait(ms) {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => { this._cancel = null; resolve(true); }, ms);
-      this._cancel = () => { clearTimeout(timer); this._cancel = null; resolve(false); };
+      const timer = setTimeout(() => {
+        this._cancel = null;
+        resolve(true);
+      }, ms);
+      this._cancel = () => {
+        clearTimeout(timer);
+        this._cancel = null;
+        resolve(false);
+      };
     });
   }
 }
@@ -145,7 +227,10 @@ class Oscillation {
     if (!run) return;
     run.t += dt;
     if (run.t < 0) return;
-    if (run.t > run.length) { this.clear(); return; }
+    if (run.t > run.length) {
+      this.clear();
+      return;
+    }
 
     const sec = run.t / 1000;
     const env = Math.min(run.t / RAMP, 1) * Math.min((run.length - run.t) / RAMP, 1);
@@ -178,6 +263,29 @@ function toTemplate({ dt, rescale, vs }, fadeIn) {
 }
 
 const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
+
+const otherSide = (name) => name.replace(/(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left'));
+
+// Rotation tracks that turn or tilt to one side.
+const SIDED_TRACKS = new Set(['bodyRotateY', 'bodyRotateZ', 'headRotateY', 'headRotateZ', 'eyesRotateY']);
+const negate = (v) => (typeof v === 'number' ? -v : Array.isArray(v) ? v.map(negate) : v);
+
+// The gesture with the other hand: each frame's mirror flag flips, sided tracks
+// and the overlay move to the other side, their y and z rotations reversed.
+function mirrored(g) {
+  const m = structuredClone(g);
+  for (const frame of framesOf(m)) frame[2] = !frame[2];
+  m.vs = Object.fromEntries(Object.entries(m.vs).map(([k, v]) => [otherSide(k), SIDED_TRACKS.has(k) ? negate(v) : v]));
+  if (m.overlay?.bones) {
+    m.overlay.bones = Object.fromEntries(
+      Object.entries(m.overlay.bones).map(([bone, o]) => [
+        otherSide(bone),
+        { ...o, amp: [o.amp[0] || 0, -(o.amp[1] || 0), -(o.amp[2] || 0)] },
+      ]),
+    );
+  }
+  return m;
+}
 
 // A [min, max] timing counts as its midpoint.
 function duration(dt) {

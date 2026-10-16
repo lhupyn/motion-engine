@@ -3,41 +3,70 @@ import { Face } from './face.js';
 import { Body } from './body.js';
 import { Director } from './director.js';
 import { Segmenter } from './segmenter.js';
-import { jev } from './jev.js';
+import { systemOne } from './systemone.js';
 
 // Not every provider sends a final fragment, so silence also ends the avatar's turn.
 const SILENCE_ENDS_TURN = 3000;
 
+/** @typedef {import('./systemone.js').Classify} Classify */
+
+/**
+ * @typedef {object} Options
+ * @property {Classify|null} [classify] - Decides the reactions, e.g. systemOne({ apiKey }); without it feed() does nothing
+ * @property {import('./face.js').FaceOptions} [face]
+ * @property {import('./body.js').BodyOptions} [body]
+ * @property {import('./director.js').DirectorOptions} [director] - Thresholds and timings
+ * @property {number} [pause=800] - Classify unfinished text after this many ms without fragments
+ */
+
+/**
+ * One per sentence, passed to onDecision.
+ * @typedef {object} Decision
+ * @property {'avatar'|'user'} speaker
+ * @property {string} text
+ * @property {import('./director.js').Action[]} actions
+ * @property {import('./systemone.js').Answers} [answers] - The classifier's raw answers
+ * @property {string|null} [model]
+ * @property {object|null} [usage] - As the provider returns it, e.g. { input_tokens, cost }
+ * @property {number} [ms]
+ * @property {string} [skipped] - Why the line wasn't sent, or why its answer was dropped
+ * @property {string} [error] - The request failed
+ */
+
 export class MotionEngine {
+  // Not part of the documented API: kept out of the published types (stripInternal).
+  /** @internal */ adapter;
+  /** @internal */ director;
+  /** @internal @type {Classify|null} */ classify;
+  /** @internal */ pause;
+  /** @internal */ _segments = { avatar: new Segmenter(), user: new Segmenter() };
+  /** @internal */ _timers = {};
+  /** @internal */ _inflight = new Map();
+  /** @internal */ _seq = 0;
+  /** @internal */ _applied = 0;
+  /** @internal */ _previous = null;
+  /** @internal */ _avatarSpeaking = false;
+  /** @internal */ _cut = false;
+  /** @internal */ _disposed = false;
+  /** @internal */ _offFrame;
+
   /**
    * @param {object} head - TalkingHead instance, after showAvatar()
-   * @param {object} [options]
-   * @param {object} [options.jev] - { apiKey, provider, model, url }
-   * @param {function} [options.classify] - Replaces Jev; same signature as jev()
-   * @param {object} [options.face]
-   * @param {object} [options.body]
-   * @param {object} [options.director] - Thresholds and timings
-   * @param {number} [options.pause=800] - Classify unfinished text after this many ms without fragments
+   * @param {Options} [options]
    */
-  constructor(head, { jev: jevOptions, classify, face, body, director, pause = 800 } = {}) {
+  constructor(head, { classify = null, face, body, director, pause = 800, ...rest } = {}) {
+    if ('jev' in rest)
+      throw new Error('motion-engine 2: the jev option was removed — pass classify: systemOne({ apiKey })');
     this.adapter = new TalkingHeadAdapter(head);
     this.face = new Face(this.adapter, face);
     this.body = new Body(this.adapter, body);
     this.director = new Director(this.face, this.body, director);
     this.director.busy = () => this._avatarSpeaking;
-    this.classify = classify || (jevOptions ? jev(jevOptions) : null);
+    this.director.talking = () => this.adapter.isSpeaking();
+    this.classify = classify;
     this.pause = pause;
+    /** @type {((decision: Decision) => void) | null} */
     this.onDecision = null;
-
-    this._segments = { avatar: new Segmenter(), user: new Segmenter() };
-    this._timers = {};
-    this._inflight = new Map();
-    this._seq = 0;
-    this._applied = 0;
-    this._previous = null;
-    this._avatarSpeaking = false;
-    this._cut = false;
-    this._disposed = false;
 
     this._offFrame = this.adapter.onFrame((dt) => {
       this.body.update(dt);
@@ -45,12 +74,16 @@ export class MotionEngine {
     });
   }
 
-  useJev(options) {
-    this.classify = jev(options);
+  /**
+   * Set or replace the classifier, e.g. once the visitor provides a key.
+   * @param {Classify|null} classify
+   */
+  useClassifier(classify) {
+    this.classify = classify;
   }
 
   /**
-   * Feed transcript text as it arrives. Each sentence is one Jev call. Lines
+   * Feed transcript text as it arrives. Each sentence is one classifier call. Lines
    * from the person are not classified while the avatar is speaking: the
    * reaction would come too late.
    *
@@ -112,9 +145,10 @@ export class MotionEngine {
     for (const t of Object.values(this._timers)) clearTimeout(t);
     this.director.dispose();
     this.body.stop();
-    this.face.reset();
+    this.face.dispose();
   }
 
+  /** @internal */
   _endTurnAfterSilence() {
     clearTimeout(this._timers.silence);
     this._timers.silence = setTimeout(() => this._endAvatarTurn(), SILENCE_ENDS_TURN);
@@ -122,6 +156,7 @@ export class MotionEngine {
 
   // Silence, not a final fragment: also forget the heard text, or it would
   // grow across turns and break the dedupe of a later final.
+  /** @internal */
   _endAvatarTurn() {
     this._avatarSpeaking = false;
     this._cut = false;
@@ -131,7 +166,10 @@ export class MotionEngine {
     seg.reset();
   }
 
+  /** @internal */
   async _handle(text, speaker) {
+    // The classifier can be removed while text is still buffered.
+    if (!this.classify) return;
     if (speaker === 'user' && this._avatarSpeaking) {
       this.onDecision?.({ speaker, text, actions: [], skipped: 'avatar is already speaking' });
       return;
@@ -164,4 +202,4 @@ export class MotionEngine {
   }
 }
 
-export { jev };
+export { systemOne };
