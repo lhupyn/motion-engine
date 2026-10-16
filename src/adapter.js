@@ -158,24 +158,23 @@ export class TalkingHeadAdapter {
   }
 
   /**
-   * [internal] Lets the lip-sync take the mouth back: while a viseme plays, the
-   * given morphs drop to `floor` of their value (by how open the viseme is),
+   * [internal] Lets the lip-sync take the mouth back: while a viseme plays, each
+   * given morph drops to its floor's share of its value (by how open the viseme is),
    * whatever drives them. Uses TalkingHead's own per-morph hooks, the ones that
    * make the eyelids follow the gaze: `limit` shapes the applied value and the
    * visemes' `onchange` re-evaluates the morphs. Installed on the current avatar
    * and in mtLimits/mtOnchange, so a reloaded avatar keeps it.
-   * @param {string[]} morphs
-   * @param {number} floor - 0 = gone at a full viseme, 1 = untouched
+   * @param {Record<string, number>} floors - Morph → floor: 0 = gone at a full viseme, 1 = untouched
    * @returns {function} Removes it, restoring any hook it wrapped
    */
-  duckMouth(morphs, floor) {
+  duckMouth(floors) {
     const head = this.head;
     const mt = head.mtAvatar;
     if (!mt || !head.mtLimits || !head.mtOnchange) return () => {};
     const visemes = Object.keys(mt).filter((n) => n.startsWith('viseme_') && n !== 'viseme_sil');
-    const targets = morphs.filter((n) => mt[n]);
+    const targets = Object.keys(floors).filter((n) => mt[n]);
     const open = () => visemes.reduce((m, n) => Math.max(m, mt[n]?.value || 0), 0);
-    const duck = (v) => v * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK));
+    const duck = (floor) => (v) => v * (1 - (1 - floor) * Math.min(1, open() / VISEME_PEAK));
 
     const undo = [];
     // One hook per morph, in both places TalkingHead keeps it.
@@ -195,7 +194,10 @@ export class TalkingHeadAdapter {
         if (entry && entry[field] === installed) entry[field] = live;
       });
     };
-    for (const n of targets) wrap(head.mtLimits, n, 'limit', (prev) => (prev ? (v) => duck(prev(v)) : duck));
+    for (const n of targets) {
+      const d = duck(floors[n]);
+      wrap(head.mtLimits, n, 'limit', (prev) => (prev ? (v) => d(prev(v)) : d));
+    }
     const refresh = () => {
       for (const n of targets) if (mt[n]) mt[n].needsUpdate = true;
     };

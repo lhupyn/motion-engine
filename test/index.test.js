@@ -34,7 +34,9 @@ describe('MotionEngine', () => {
     const head = fakeHead();
     const engine = new MotionEngine(head);
     expect(engine.body.names.length).toBeGreaterThan(0);
-    expect(Object.keys(head.animEmojis)).toHaveLength(engine.body.names.length);
+    // Every gesture, plus a mirrored variant of each hand gesture.
+    const hands = Object.keys(engine.body.gestures.hands).length;
+    expect(Object.keys(head.animEmojis)).toHaveLength(engine.body.names.length + hands);
     expect(head.gestureTemplates).toHaveProperty('palms_up');
   });
 

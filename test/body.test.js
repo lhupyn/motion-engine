@@ -65,7 +65,15 @@ describe('Body', () => {
   describe('registration', () => {
     it('registers both channels as TalkingHead animations', () => {
       expect(body.names).toEqual(['nod', 'wave', 'clap', 'shrug']);
-      expect(Object.keys(adapter.anims)).toEqual(['nod', 'wave', 'clap', 'shrug']);
+      expect(Object.keys(adapter.anims)).toEqual([
+        'nod',
+        'wave',
+        'wave:mirror',
+        'clap',
+        'clap:mirror',
+        'shrug',
+        'shrug:mirror',
+      ]);
       expect(body.channelOf('nod')).toBe('head');
       expect(body.channelOf('wave')).toBe('hands');
     });
@@ -157,6 +165,40 @@ describe('Body', () => {
     });
   });
 
+  describe('mirror', () => {
+    it('plays a hand gesture with the other hand: every frame flips, current still names it', () => {
+      body.play('wave', { mirror: true });
+      expect(adapter.playGesture).toHaveBeenCalledWith('wave:mirror');
+      expect(adapter.anims['wave:mirror'].vs.gesture[0][2]).toBe(false);
+      expect(adapter.anims.wave.vs.gesture[0][2]).toBe(true);
+      expect(body.current.hands).toBe('wave');
+    });
+
+    it('moves the overlay to the other side, its y and z reversed', () => {
+      const at = (mirror) => {
+        body.stop();
+        body.play('wave', { mirror });
+        for (let i = 0; i < 20; i++) body.update(16);
+        return { ...adapter.offsets[mirror ? 'LeftHand' : 'RightHand'] };
+      };
+      const right = at(false);
+      const left = at(true);
+      expect(Math.abs(right.y)).toBeGreaterThan(0);
+      expect(left).toEqual({ x: right.x, y: -right.y, z: -right.z });
+    });
+
+    it('hands over to a mirrored gesture with its flipped frames', () => {
+      body.play('wave');
+      body.play('wave', { mirror: true });
+      expect(adapter.handOver).toHaveBeenLastCalledWith([['handup', false]], 50);
+    });
+
+    it('head movements have no side', () => {
+      body.play('nod', { mirror: true });
+      expect(adapter.playAnim).toHaveBeenCalledWith('nod');
+    });
+  });
+
   describe('head', () => {
     it('plays as a plain animation, outside the gesture system', async () => {
       const done = body.play('nod');
@@ -235,8 +277,8 @@ describe('Body', () => {
     });
   });
 
-  it('gestures.json: every gesture has timing and no face morphs', () => {
-    const FACE = /^(mouth|eye|brow|cheek|jaw|nose|tongue)/;
+  it('gestures.json: every gesture has timing and no face morphs (the gaze may follow the head)', () => {
+    const FACE = /^(mouth|eye(?!Look)|brow|cheek|jaw|nose|tongue)/;
     for (const channel of ['head', 'hands']) {
       for (const [name, g] of Object.entries(GESTURES[channel])) {
         expect(g.dt, name).toBeDefined();

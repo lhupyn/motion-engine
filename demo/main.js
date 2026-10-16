@@ -1,7 +1,6 @@
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine, systemOne } from '../src/index.js';
 import FACS from '../src/facs.json' with { type: 'json' };
-import GESTURES from '../src/gestures.json' with { type: 'json' };
 
 const $ = (id) => document.getElementById(id);
 const label = (name) => name.replaceAll('_', ' ');
@@ -22,29 +21,26 @@ try {
   throw err;
 }
 
-// The load greeting's expressions and wave, softer than the catalog's; demo only.
+// The load greeting's glances; demo only.
 const beat = (aus, envelope) => ({ kind: 'beat', aus, envelope });
 const GREETING_FACES = {
-  shy_soft: { aus: { AU12_L: 0.3, AU12_R: 0.2, AU6: 0.2, AU1: 0.2 } },
   glance_down: beat({ AU64: 0.6 }, { in: 150, hold: 350, out: 250 }),
   glance_side: beat({ AU62: 0.5 }, { in: 200, hold: 500, out: 300 }),
 };
-const wave = GESTURES.hands.wave;
-const halve = (bones) =>
-  Object.fromEntries(Object.entries(bones).map(([b, o]) => [b, { ...o, amp: o.amp.map((a) => a / 2) }]));
-const GREETING_GESTURES = {
-  small_wave: {
-    ...wave,
-    description: undefined,
-    dt: [100, 1500],
-    overlay: { ...wave.overlay, bones: halve(wave.overlay.bones), delay: 300, duration: 1200 },
-  },
+const greetingOnly = new Set(Object.keys(GREETING_FACES));
+
+// For comparing speech ducking: ?speechMouth=1&speechSmile=1 turns it off.
+const param = (name) => {
+  const v = Number(new URLSearchParams(location.search).get(name) ?? NaN);
+  return Number.isFinite(v) ? v : undefined;
 };
-const greetingOnly = new Set([...Object.keys(GREETING_FACES), ...Object.keys(GREETING_GESTURES)]);
 
 const engine = new MotionEngine(head, {
-  face: { facs: { ...FACS, expressions: { ...FACS.expressions, ...GREETING_FACES } } },
-  body: { gestures: { ...GESTURES, hands: { ...GESTURES.hands, ...GREETING_GESTURES } } },
+  face: {
+    facs: { ...FACS, expressions: { ...FACS.expressions, ...GREETING_FACES } },
+    speechMouth: param('speechMouth'),
+    speechSmile: param('speechSmile'),
+  },
 });
 window.engine = engine;
 
@@ -55,9 +51,9 @@ status('Ready');
 // changes the face first.
 const GREETING = [
   [0, 'glance_down'],
-  [500, 'shy_soft'],
+  [500, 'shy'],
   [600, 'glance_side'],
-  [800, 'small_wave'],
+  [800, 'wave'],
 ];
 const play = (name) => (engine.body.channelOf(name) ? engine.body.play(name) : engine.face.play(name));
 const greetingTimers = [
@@ -138,8 +134,9 @@ for (const [channel, row, title] of [
     row,
     Object.keys(engine.body.gestures[channel]),
     (name) => {
-      engine.body.play(name).then((done) => done && status('Ready'));
-      return `${title}: ${label(name)}`;
+      const mirror = channel === 'hands' && $('left-hand').checked;
+      engine.body.play(name, { mirror }).then((done) => done && status('Ready'));
+      return `${title}: ${label(name)}${mirror ? ' (left hand)' : ''}`;
     },
     { manual: channel },
   );
@@ -285,13 +282,36 @@ $('say').onsubmit = (e) => {
 };
 
 let stream = null;
+const WORD_MS = 260;
+
+// The demo has no TTS, so the avatar mouths its line in silence, word for word
+// with the stream: speech ducking and whileSpeaking work as with a real voice.
+// TalkingHead has no Spanish lip-sync; Finnish spelling is as phonetic, so
+// Spanish lines use it, without accents.
+const SPANISH = /[áéíóúñ¿¡]|\b(que|el|la|de|y|es|muy|me|lo|por|para|un|una|esa|eso)\b/i;
+function mouth(words) {
+  const lipsyncLang = SPANISH.test(words.join('')) ? 'fi' : 'en';
+  const plain = words.map((w) => (lipsyncLang === 'fi' ? w.normalize('NFD').replace(/\p{M}/gu, '') : w).trim());
+  const ctx = head.audioCtx;
+  const audio = ctx.createBuffer(
+    1,
+    Math.ceil((ctx.sampleRate * (plain.length * WORD_MS + 300)) / 1000),
+    ctx.sampleRate,
+  );
+  const wtimes = plain.map((_, i) => i * WORD_MS);
+  head.speakAudio({ audio, words: plain, wtimes, wdurations: wtimes.map(() => WORD_MS - 20) }, { lipsyncLang });
+}
 
 // The person's line arrives whole, like a chat message; the avatar's is
 // streamed word by word, like a voice model's transcript.
 async function say(text) {
   if (!engine.classify) {
+    // Without a key the avatar still mouths its line, over the face picked by hand.
+    if (speaker === 'avatar') {
+      head.stopSpeaking();
+      mouth(text.split(/(?<=\s)/));
+    } else $('key').focus();
     feedback('Add an OpenRouter key above to let Jev decide.');
-    $('key').focus();
     return;
   }
   endGreeting();
@@ -301,10 +321,13 @@ async function say(text) {
   }
   // A new line ends the one still streaming, so the two don't merge into one sentence.
   if (stream) engine.feed('', { speaker: 'avatar', final: true });
+  head.stopSpeaking();
   const id = (stream = {});
-  for (const w of text.split(/(?<=\s)/)) {
+  const words = text.split(/(?<=\s)/);
+  mouth(words);
+  for (const w of words) {
     engine.feed(w, { speaker: 'avatar' });
-    await new Promise((r) => setTimeout(r, 260));
+    await new Promise((r) => setTimeout(r, WORD_MS));
     if (id !== stream) return;
   }
   stream = null;

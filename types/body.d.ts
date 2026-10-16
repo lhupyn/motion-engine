@@ -95,9 +95,14 @@ export declare class Body {
     /**
      * Interrupts the current gesture on its channel.
      * @param {string} name
+     * @param {object} [options]
+     * @param {boolean} [options.mirror=false] - Hand gestures: play it with the other hand (the left, for the catalog's
+     *   one-hand gestures)
      * @returns {Promise<boolean>} true when done, false if interrupted or unknown
      */
-    play(name: string): Promise<boolean>;
+    play(name: string, { mirror }?: {
+        mirror?: boolean;
+    }): Promise<boolean>;
     /** @param {'head'|'hands'} [channel] - Both when omitted */
     stop(channel?: 'head' | 'hands'): void;
 }

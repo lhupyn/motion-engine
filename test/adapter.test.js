@@ -270,7 +270,7 @@ describe('adapter verbs', () => {
 
     it('mouth morphs drop to the floor at a full viseme, in proportion below it', () => {
       const head = mouthHead();
-      new TalkingHeadAdapter(head).duckMouth(['mouthLowerDownLeft', 'jawOpen'], 0.3);
+      new TalkingHeadAdapter(head).duckMouth({ mouthLowerDownLeft: 0.3, jawOpen: 0.3 });
       const limit = head.mtAvatar.mouthLowerDownLeft.limit;
       expect(limit(0.5)).toBe(0.5);
       head.mtAvatar.viseme_aa.value = 0.6;
@@ -282,16 +282,24 @@ describe('adapter verbs', () => {
       expect(limit(0.5)).toBeCloseTo(0.15);
     });
 
+    it('each morph keeps its own floor', () => {
+      const head = mouthHead();
+      new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0, mouthLowerDownLeft: 0.5 });
+      head.mtAvatar.viseme_aa.value = 0.6;
+      expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0);
+      expect(head.mtAvatar.mouthLowerDownLeft.limit(0.4)).toBeCloseTo(0.2);
+    });
+
     it('silence is not speech', () => {
       const head = mouthHead();
-      new TalkingHeadAdapter(head).duckMouth(['jawOpen'], 0);
+      new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0 });
       head.mtAvatar.viseme_sil.value = 1;
       expect(head.mtAvatar.jawOpen.limit(0.4)).toBe(0.4);
     });
 
     it('a viseme change re-evaluates the mouth morphs', () => {
       const head = mouthHead();
-      new TalkingHeadAdapter(head).duckMouth(['mouthLowerDownLeft', 'jawOpen'], 0.3);
+      new TalkingHeadAdapter(head).duckMouth({ mouthLowerDownLeft: 0.3, jawOpen: 0.3 });
       head.mtAvatar.jawOpen.needsUpdate = false;
       head.mtAvatar.viseme_aa.onchange(0.6);
       expect(head.mtAvatar.jawOpen.needsUpdate).toBe(true);
@@ -305,7 +313,7 @@ describe('adapter verbs', () => {
       head.mtAvatar.viseme_aa.onchange = theirs;
       head.mtLimits.jawOpen = (v) => v / 2;
       head.mtAvatar.jawOpen.limit = head.mtLimits.jawOpen;
-      const off = new TalkingHeadAdapter(head).duckMouth(['jawOpen'], 0);
+      const off = new TalkingHeadAdapter(head).duckMouth({ jawOpen: 0 });
 
       head.mtAvatar.viseme_aa.onchange(0.6);
       expect(theirs).toHaveBeenCalledWith(0.6);
@@ -324,7 +332,7 @@ describe('adapter verbs', () => {
     });
 
     it('does nothing on a head without a morph table', () => {
-      expect(() => new TalkingHeadAdapter(makeHead()).duckMouth(['jawOpen'], 0.3)()).not.toThrow();
+      expect(() => new TalkingHeadAdapter(makeHead()).duckMouth({ jawOpen: 0.3 })()).not.toThrow();
     });
 
     it('reports whether TalkingHead is speaking', () => {

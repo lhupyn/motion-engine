@@ -94,10 +94,11 @@ engine.face.play('wink');         // beat: plays once on top
 engine.face.play('neutral');      // fade the held expression out
 engine.body.play('nod');          // head channel; resolves true when done
 engine.body.play('thumbs_up');    // hands channel; plays with the nod
+engine.body.play('wave', { mirror: true }); // the same hand gesture with the other (left) hand
 engine.body.stop();               // both, or stop('head') / stop('hands')
 ```
 
-`engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
+Hand gestures play with the right hand by default; `mirror: true` flips every frame to the other hand and moves the overlay with it. Head movements have no side. `engine.face.names` and `engine.body.names` list what's available. `engine.face.current` and `engine.body.current` (`{ head, hands }`) say what's showing now.
 
 Besides `feed()` and `interrupt()`: `useClassifier(classify)` sets or replaces the classifier at any time (e.g. once the visitor pastes a key); `dispose()` unhooks from TalkingHead, aborts calls, clears timers, stops the body and resets the face.
 
@@ -144,7 +145,7 @@ engine.feed(fullReply, { speaker: 'avatar', final: true });
 
 ## Roadmap
 
-Planned, not built yet: blending the top two expressions by Jev's probabilities · an intensity question (softer or stronger expressions and head movements) · a torso posture channel (leaning in or back, shrinking) · a demo avatar with hair and clothes physics (TalkingHead's Dynamic Bones) · a pose authoring tool that fits poses to a new avatar · camera-based listening (FaceMirror) as an optional plugin.
+Planned, not built yet: blending the top two expressions by Jev's probabilities · an intensity question (softer or stronger expressions and head movements) · a torso posture channel (leaning in or back, shrinking) · a demo avatar with hair and clothes physics (TalkingHead's Dynamic Bones) · a pose authoring tool that fits poses to a new avatar · camera-based listening (FaceMirror) as an optional plugin · the classifier picks the hand when the text asks for it ("raise your left hand"); today the director always plays the right hand.
 
 ## Licenses and credits
 
@@ -181,6 +182,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | `facs` | built-in `facs.json` | Expression catalog ([Appendix B](#appendix-b-catalogs)). |
 | `fade` | `400` | Mood cross-fade, ms. Beats without an `envelope` use `{ in: 300, hold: 1500, out: 600 }`. |
 | `speechMouth` | `0.3` | While a viseme plays, mouth-opening morphs (from AU10, AU16, AU20, AU25, AU26, AU27) drop to this share, so speech doesn't over-open the mouth or bare the teeth, and p/b/m still close. `1` = off. |
+| `speechSmile` | `0.5` | The same for the lip corners (AU12, AU14: smile, dimple), which over-stretch the mouth on visemes. `1` = off. |
 
 **`body`**
 
@@ -205,7 +207,7 @@ new MotionEngine(head, { classify: systemOne({ apiKey }), face: { facs }, body: 
 
 **Rules**
 
-- Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: `wave_left`, `hand_raise_left`, the gaze beats (`look_left`, …), `open_mouth`, `close_eyes`, `squint`, `neutral`.
+- Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: the gaze beats (`look_left`, …), `open_mouth`, `close_eyes`, `squint`, `neutral`.
 - The description says *when* to use it: *"Warm, genuine smile: glad, pleased, friendly, good news."*
 - Keep options distinct: similar options split the confidence and can both fall under the threshold.
 - Check faces still and while talking; keep jaw opening out of held moods, or it fights the visemes.
@@ -265,7 +267,7 @@ Values are illustrative.
 }
 ```
 
-**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: blendshapes belong in `facs.json`.
+**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`.
 
 **Hand frames** in `vs.gesture` are `[pose, duration, mirror, transitionMs]`:
 

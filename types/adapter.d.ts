@@ -45,17 +45,16 @@ export declare class TalkingHeadAdapter {
     /** [internal] Whether TalkingHead is playing speech (audio or lip-sync) right now. */
     isSpeaking(): boolean;
     /**
-     * [internal] Lets the lip-sync take the mouth back: while a viseme plays, the
-     * given morphs drop to `floor` of their value (by how open the viseme is),
+     * [internal] Lets the lip-sync take the mouth back: while a viseme plays, each
+     * given morph drops to its floor's share of its value (by how open the viseme is),
      * whatever drives them. Uses TalkingHead's own per-morph hooks, the ones that
      * make the eyelids follow the gaze: `limit` shapes the applied value and the
      * visemes' `onchange` re-evaluates the morphs. Installed on the current avatar
      * and in mtLimits/mtOnchange, so a reloaded avatar keeps it.
-     * @param {string[]} morphs
-     * @param {number} floor - 0 = gone at a full viseme, 1 = untouched
+     * @param {Record<string, number>} floors - Morph → floor: 0 = gone at a full viseme, 1 = untouched
      * @returns {function} Removes it, restoring any hook it wrapped
      */
-    duckMouth(morphs: string[], floor: number): Function;
+    duckMouth(floors: Record<string, number>): Function;
     /** [internal] A morph's level with no expression, in setMood()'s precedence order. */
     restBaseline(mt: any): any;
     /** [internal] Rotation offset (Euler x, y, z) on top of a bone's pose; ignored for bones TalkingHead keeps no offset for. */

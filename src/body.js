@@ -10,6 +10,9 @@ import GESTURES from './gestures.json' with { type: 'json' };
 
 const RAMP = 300;
 
+// The same hand gesture with the other hand is registered under this suffix.
+const MIRROR = ':mirror';
+
 /**
  * A TalkingHead animation template, plus an optional oscillation overlay.
  * @typedef {object} Gesture
@@ -73,10 +76,9 @@ export class Body {
     }
     for (const channel of Object.keys(this.gestures)) {
       for (const [name, g] of Object.entries(gestures[channel] || {})) {
-        const t = toTemplate(g, fadeIn);
         this.gestures[channel][name] = g;
-        this._channels[channel].frames[name] = framesOf(t);
-        adapter.registerAnim(name, t);
+        this._channels[channel].add(name, g);
+        if (channel === 'hands') this._channels.hands.add(name + MIRROR, mirrored(g));
       }
     }
   }
@@ -106,12 +108,15 @@ export class Body {
   /**
    * Interrupts the current gesture on its channel.
    * @param {string} name
+   * @param {object} [options]
+   * @param {boolean} [options.mirror=false] - Hand gestures: play it with the other hand (the left, for the catalog's
+   *   one-hand gestures)
    * @returns {Promise<boolean>} true when done, false if interrupted or unknown
    */
-  play(name) {
+  play(name, { mirror = false } = {}) {
     const channel = this.channelOf(name);
     if (!channel) return Promise.resolve(false);
-    return this._channels[channel].play(name, this.gestures[channel][name]);
+    return this._channels[channel].play(name, mirror && channel === 'hands' ? name + MIRROR : name);
   }
 
   /** @param {'head'|'hands'} [channel] - Both when omitted */
@@ -133,18 +138,32 @@ class Channel {
     this.opt = opt;
     this.current = null;
     this.frames = {};
+    this.anims = {};
     this._cancel = null;
     this._osc = new Oscillation(adapter);
   }
 
-  async play(name, g) {
+  add(anim, g) {
+    const t = toTemplate(g, this.opt.fadeIn);
+    this.anims[anim] = g;
+    this.frames[anim] = framesOf(t);
+    this.adapter.registerAnim(anim, t);
+  }
+
+  /**
+   * @param {string} name - What `current` reports
+   * @param {string} anim - The registered animation: the name, or its mirrored variant
+   */
+  async play(name, anim) {
+    const g = this.anims[anim];
     // A new hand gesture takes the arms over from the current one instead of
     // dropping them to the stance first.
-    this.stop(this.frames[name]);
+    this.stop(this.frames[anim]);
     this.current = name;
+    this._anim = anim;
     const total = duration(g.dt);
-    if (this.kind === 'hands') this.adapter.playGesture(name);
-    else this.adapter.playAnim(name);
+    if (this.kind === 'hands') this.adapter.playGesture(anim);
+    else this.adapter.playAnim(anim);
     if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
 
     if (!(await this._wait(total))) return false;
@@ -162,7 +181,7 @@ class Channel {
     this._osc.clear();
     if (!this.current) return;
     this._cancel?.();
-    if (this.kind === 'head') this.adapter.stopAnim(this.current);
+    if (this.kind === 'head') this.adapter.stopAnim(this._anim);
     else if (next)
       this.adapter.handOver(
         next.map(([pose, , mirror]) => [pose, mirror]),
@@ -243,6 +262,25 @@ function toTemplate({ dt, rescale, vs }, fadeIn) {
 }
 
 const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
+
+const otherSide = (name) => name.replace(/(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left'));
+
+// The gesture with the other hand: each frame's mirror flag flips, and the
+// overlay moves to the other side's bones, its y and z rotations reversed.
+function mirrored(g) {
+  const m = structuredClone(g);
+  for (const frame of framesOf(m)) frame[2] = !frame[2];
+  m.vs = Object.fromEntries(Object.entries(m.vs).map(([k, v]) => [otherSide(k), v]));
+  if (m.overlay?.bones) {
+    m.overlay.bones = Object.fromEntries(
+      Object.entries(m.overlay.bones).map(([bone, o]) => [
+        otherSide(bone),
+        { ...o, amp: [o.amp[0] || 0, -(o.amp[1] || 0), -(o.amp[2] || 0)] },
+      ]),
+    );
+  }
+  return m;
+}
 
 // A [min, max] timing counts as its midpoint.
 function duration(dt) {

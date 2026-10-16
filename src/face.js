@@ -10,6 +10,8 @@ const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
 // AUs that open the mouth; their blendshapes give way to the lip-sync visemes.
 const MOUTH_OPENING_AUS = ['AU10', 'AU16', 'AU20', 'AU25', 'AU26', 'AU27'];
+// AUs that pull the lip corners out; over a viseme they over-stretch the mouth.
+const SMILE_AUS = ['AU12', 'AU14'];
 
 /**
  * @typedef {object} Expression
@@ -37,6 +39,8 @@ const MOUTH_OPENING_AUS = ['AU10', 'AU16', 'AU20', 'AU25', 'AU26', 'AU27'];
  * @property {number} [fade=400] - Mood cross-fade, ms
  * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
  *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
+ * @property {number} [speechSmile=0.5] - The same for the lip corners (smile, dimple), which over-stretch the mouth on
+ *   visemes. 1 = off
  */
 
 export class Face {
@@ -59,14 +63,26 @@ export class Face {
    * @param {import('./adapter.js').TalkingHeadAdapter} adapter
    * @param {FaceOptions} [options]
    */
-  constructor(adapter, { facs = /** @type {FacsCatalog} */ (FACS), fade = 400, speechMouth = 0.3 } = {}) {
+  constructor(
+    adapter,
+    { facs = /** @type {FacsCatalog} */ (FACS), fade = 400, speechMouth = 0.3, speechSmile = 0.5 } = {},
+  ) {
     this.adapter = adapter;
     this.facs = facs;
     // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
     for (const v of auViolations(facs)) console.warn(`[motion-engine] ${v}`);
     this.fade = fade;
-    const mouth = new Set(MOUTH_OPENING_AUS.flatMap((au) => Object.keys(facs.au_map[au] || {})));
-    this._unduck = speechMouth < 1 ? adapter.duckMouth([...mouth], Math.max(0, speechMouth)) : () => {};
+    const floors = {};
+    for (const [aus, floor] of [
+      [MOUTH_OPENING_AUS, speechMouth],
+      [SMILE_AUS, speechSmile],
+    ]) {
+      if (floor >= 1) continue;
+      for (const mt of aus.flatMap((au) => Object.keys(facs.au_map[au] || {}))) {
+        floors[mt] = Math.min(floors[mt] ?? 1, Math.max(0, floor));
+      }
+    }
+    this._unduck = Object.keys(floors).length ? adapter.duckMouth(floors) : () => {};
   }
 
   /** @returns {string[]} */

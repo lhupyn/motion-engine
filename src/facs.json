@@ -1,5 +1,5 @@
 {
-  "_doc": "FACS expression data. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU25 parts the lips with mouthUpperUp+mouthLowerDown instead of jawOpen). expressions: name -> AU recipe. Recipe AU weights are the FINAL levels (one fixed intensity per expression): final morph = recipeWeight * au_map weight, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). kind 'mood' (default) holds until replaced; kind 'beat' plays once with its envelope {in, hold, out} ms. Moods never use jawOpen (AU26), which fights the lip-sync visemes; AU25 stands in where a canonical combination has AU26. The 7 core recipes use the canonical EMFACS-7 AU combinations; the rest are documented blends of the same primitives. au_limits (per avatar, from visual review): AU -> {max, beatMax?, note}, the highest level that still reads natural on this avatar in a held mood (beatMax for beats, default max). avoid: [{aus: {AU: level, ...}, note}], combinations that read wrong together: no recipe may exceed every listed level at once. Levels count a unilateral AU on its side (AU12 + AU12_L). test/facs.test.js enforces both; nothing is clamped at runtime.",
+  "_doc": "FACS expression data. au_map: FACS Action Unit -> ARKit base blendshapes (never the TalkingHead composites mouthSmile/mouthOpen/eyesClosed, to avoid double-driving), following the ARKit<->FACS convention and calibrated per-model (e.g. AU25 parts the lips mostly from the bottom, mouthLowerDown 0.5 + mouthUpperUp 0.1, as real lips part, instead of jawOpen). expressions: name -> AU recipe. Recipe AU weights are the FINAL levels (one fixed intensity per expression): final morph = recipeWeight * au_map weight, clamped 0..1. Unilateral AU via _L/_R suffix (e.g. AU12_L). kind 'mood' (default) holds until replaced; kind 'beat' plays once with its envelope {in, hold, out} ms. Moods never use jawOpen (AU26), which fights the lip-sync visemes; AU25 stands in where a canonical combination has AU26. The 7 core recipes use the canonical EMFACS-7 AU combinations; the rest are documented blends of the same primitives. au_limits (per avatar, from visual review): AU -> {max, beatMax?, note}, the highest level that still reads natural on this avatar in a held mood (beatMax for beats, default max). avoid: [{aus: {AU: level, ...}, note}], combinations that read wrong together: no recipe may exceed every listed level at once. Levels count a unilateral AU on its side (AU12 + AU12_L). test/facs.test.js enforces both; nothing is clamped at runtime.",
   "_sources": {
     "emfacs": "Emotional FACS (Ekman & Friesen 1983) — canonical AU combinations for the basic emotions. https://www.paulekman.com/facial-action-coding-system/",
     "au_to_arkit": "ARKit<->FACS mapping convention (each ARKit blendshape ~ one FACS AU). https://melindaozel.com/arkit-to-facs-cheat-sheet/ ; clinical blendshape<->AU mapping https://www.sciencedirect.com/science/article/pii/S2451958826001995 ; interactive ARKit-52<->AU guide https://arkit.miniface.org/faces",
@@ -54,8 +54,7 @@
       "mouthLowerDownRight": 1
     },
     "AU17": {
-      "mouthShrugLower": 1,
-      "mouthShrugUpper": 1
+      "mouthShrugLower": 1
     },
     "AU18": {
       "mouthPucker": 1
@@ -73,14 +72,13 @@
     },
     "AU24": {
       "mouthPressLeft": 1,
-      "mouthPressRight": 1,
-      "mouthClose": 0.3
+      "mouthPressRight": 1
     },
     "AU25": {
       "mouthLowerDownLeft": 0.5,
       "mouthLowerDownRight": 0.5,
-      "mouthUpperUpLeft": 0.5,
-      "mouthUpperUpRight": 0.5
+      "mouthUpperUpLeft": 0.1,
+      "mouthUpperUpRight": 0.1
     },
     "AU26": {
       "jawOpen": 0.7
@@ -116,8 +114,173 @@
       "cheekPuff": 1
     }
   },
-  "au_limits": {},
-  "avoid": [],
+  "au_limits": {
+    "AU1": {
+      "max": 0.6,
+      "beatMax": 0.8,
+      "note": "inner brow: 0.6 is the classic sad and pleading brow (owner); higher reads tented; real p99 0.52"
+    },
+    "AU2": {
+      "max": 0.5,
+      "beatMax": 0.8,
+      "note": "outer brow: above 0.5 held looks startled; real p99 0.49"
+    },
+    "AU4": {
+      "max": 0.5,
+      "beatMax": 0.7,
+      "note": "on this rig browDown also drops the lids (76% at 0.6, 60% at 1.0) and brows meet the glasses frame"
+    },
+    "AU5": {
+      "max": 0.4,
+      "beatMax": 0.65,
+      "note": "sclera above the iris from 0.5 (eye 132% at 0.6): staring"
+    },
+    "AU6": {
+      "max": 0.4,
+      "beatMax": 0.6,
+      "note": "real smiles: cheekSquint about 1/3 of the smile; weak alone on this rig"
+    },
+    "AU7": {
+      "max": 0.35,
+      "beatMax": 0.65,
+      "note": "lid tightening reads suspicious/sleepy; real p99 0.38"
+    },
+    "AU9": {
+      "max": 0.6,
+      "beatMax": 0.9,
+      "note": "barely visible on this rig; real p99 0.25"
+    },
+    "AU10": {
+      "max": 0.25,
+      "beatMax": 0.5,
+      "note": "upper teeth show from 0.4: snarl"
+    },
+    "AU12": {
+      "max": 0.55,
+      "beatMax": 0.8,
+      "note": "from 0.6 the corners crease into the cheeks (wide 'Joker' smile)"
+    },
+    "AU14": {
+      "max": 0.4,
+      "beatMax": 0.6,
+      "note": "real p99 0.37"
+    },
+    "AU15": {
+      "max": 0.6,
+      "beatMax": 0.6,
+      "note": "the classic sad frown goes to 0.6 (owner); cartoon pout above; real p99 0.30 (iPhone under-reports)"
+    },
+    "AU16": {
+      "max": 0.2,
+      "beatMax": 0.5,
+      "note": "lower teeth show from 0.4"
+    },
+    "AU17": {
+      "max": 0.35,
+      "beatMax": 0.5,
+      "note": "chin raise; with mouthShrugUpper gone from au_map it no longer bulges the upper lip"
+    },
+    "AU18": {
+      "max": 0.2,
+      "beatMax": 0.8,
+      "note": "a pucker held while talking turns visemes into a tube"
+    },
+    "AU19": {
+      "max": 0,
+      "beatMax": 0.8,
+      "note": "tongue only in a beat, after the jaw opens (offset)"
+    },
+    "AU20": {
+      "max": 0.25,
+      "beatMax": 0.5,
+      "note": "real p99 0.18; widens the 'aa' teeth band"
+    },
+    "AU22": {
+      "max": 0.15,
+      "beatMax": 0.4,
+      "note": "funnel + 'O' viseme = elongated tube"
+    },
+    "AU23": {
+      "max": 0.3,
+      "beatMax": 0.5,
+      "note": "real p99 0.27"
+    },
+    "AU24": {
+      "max": 0.2,
+      "beatMax": 0.4,
+      "note": "lip press; mouthClose left out of au_map so it no longer seals the lips during speech"
+    },
+    "AU25": {
+      "max": 0.5,
+      "beatMax": 0.7,
+      "note": "lips part mostly from the bottom (au_map lower 0.5, upper 0.1); above this the teeth show"
+    },
+    "AU26": {
+      "max": 0.1,
+      "beatMax": 1,
+      "note": "no held jaw opening; beats only"
+    },
+    "AU28": {
+      "max": 0.2,
+      "beatMax": 0.5,
+      "note": "lips vanish; upper lip edge tears with 'O' at 1.0"
+    },
+    "AU43": {
+      "max": 0.45,
+      "beatMax": 1,
+      "note": "eye 68% at 0.4: anything above 0.2 reads sleepy; only sleepy should go there"
+    },
+    "AU61": {
+      "max": 0.4,
+      "beatMax": 0.8,
+      "note": "gaze"
+    },
+    "AU62": {
+      "max": 0.4,
+      "beatMax": 0.8,
+      "note": "gaze"
+    },
+    "AU63": {
+      "max": 0.3,
+      "beatMax": 0.8,
+      "note": "sclera below the iris from 0.6: eye-roll"
+    },
+    "AU64": {
+      "max": 0.4,
+      "beatMax": 0.8,
+      "note": "lids follow the gaze down; reads eyes-closed from 0.8"
+    }
+  },
+  "avoid": [
+    {
+      "aus": {
+        "AU12": 0.4,
+        "AU7": 0.1
+      },
+      "note": "lid tightening on a broad smile reads forced or smug (real: eyeSquint about 0.1x the smile; Turrisi: AU7 not in happiness)"
+    },
+    {
+      "aus": {
+        "AU12": 0.45,
+        "AU25": 0.4
+      },
+      "note": "wide smile + parted lips shows a band of teeth: the rictus"
+    },
+    {
+      "aus": {
+        "AU1": 0.5,
+        "AU4": 0.5
+      },
+      "note": "knit brows press on the glasses and lower the lids (eye 64%)"
+    },
+    {
+      "aus": {
+        "AU12": 0.3,
+        "AU43": 0.15
+      },
+      "note": "a smile under lowered lids reads smug/sleepy"
+    }
+  ],
   "expressions": {
     "neutral": {
       "facs": "rest",
@@ -125,43 +288,42 @@
     },
     "happy": {
       "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
-      "facs": "EMFACS-7 happiness: AU6+AU12, with AU7 and lips part (AU25) for an open smile",
+      "facs": "EMFACS-7 happiness: AU6+AU12, lips part (AU25) for an open smile; no AU7 (not part of happiness, reads tense)",
       "aus": {
-        "AU6": 0.55,
-        "AU7": 0.2,
-        "AU12": 0.6,
-        "AU25": 0.55
+        "AU6": 0.25,
+        "AU12": 0.5,
+        "AU25": 0.35
       }
     },
     "sad": {
       "description": "Sadness: sorrow, grief, bad news, missing someone.",
       "facs": "EMFACS-7 sadness: AU1+AU4+AU15",
       "aus": {
-        "AU1": 0.8,
+        "AU1": 0.6,
         "AU4": 0.35,
-        "AU15": 0.55
+        "AU15": 0.6
       }
     },
     "surprise": {
       "description": "Surprise: unexpected news, astonishment, 'really?!'.",
-      "facs": "EMFACS-7 surprise: AU1+AU2+AU5+AU26, with AU25 in place of AU26",
+      "facs": "EMFACS-7 surprise: AU1+AU2+AU5+AU26, with AU25 in place of AU26, played as a beat (held, it stares)",
+      "kind": "beat",
       "aus": {
         "AU1": 0.8,
         "AU2": 0.8,
         "AU5": 0.65,
-        "AU25": 0.85
+        "AU25": 0.7
       }
     },
     "fear": {
       "description": "Fear: scared, alarmed, anxious about a threat.",
-      "facs": "EMFACS-7 fear: AU1+AU2+AU4+AU5+AU7+AU20+AU26, with AU25 in place of AU26",
+      "facs": "EMFACS-7 fear: AU1+AU2+AU4+AU5+AU20+AU26, with AU25 in place of AU26; AU7 left out (lids read suspicious on this rig)",
       "aus": {
-        "AU1": 0.7,
-        "AU2": 0.4,
+        "AU1": 0.35,
+        "AU2": 0.2,
         "AU4": 0.35,
-        "AU5": 0.6,
-        "AU7": 0.2,
-        "AU20": 0.4,
+        "AU5": 0.4,
+        "AU20": 0.2,
         "AU25": 0.4
       }
     },
@@ -169,40 +331,39 @@
       "description": "Anger: annoyed, indignant, outraged.",
       "facs": "EMFACS-7 anger: AU4+AU5+AU7+AU23",
       "aus": {
-        "AU4": 0.8,
-        "AU5": 0.25,
-        "AU7": 0.5,
-        "AU23": 0.4
+        "AU4": 0.5,
+        "AU5": 0.2,
+        "AU7": 0.35,
+        "AU23": 0.15
       }
     },
     "disgust": {
       "description": "Disgust: gross, revolting, distaste.",
-      "facs": "EMFACS-7 disgust: AU9+AU10+AU15+AU16",
+      "facs": "EMFACS-7 disgust: AU9+AU10+AU16, with AU4 brow lowering and no AU15 (real disgust shows no frown)",
       "aus": {
-        "AU9": 0.85,
-        "AU10": 0.35,
-        "AU15": 0.35,
-        "AU16": 0.15
+        "AU4": 0.2,
+        "AU9": 0.6,
+        "AU10": 0.25,
+        "AU16": 0.1
       }
     },
     "contempt": {
       "description": "Contempt or smugness: one-sided smirk, superiority, sarcasm.",
       "facs": "EMFACS-7 contempt: R12+R14 (unilateral)",
       "aus": {
-        "AU12_L": 0.5,
-        "AU14_L": 0.55
+        "AU12_L": 0.35,
+        "AU14_L": 0.4
       }
     },
     "laugh": {
       "description": "A brief laugh: something genuinely funny, a joke landing.",
-      "facs": "extension: intensified happiness (AU6+AU7+AU12) + lips part (AU25) + slight jaw drop (AU26)",
+      "facs": "extension: intensified happiness (AU6+AU12) + lips part (AU25) + jaw drop (AU26) carrying the laugh; no AU7",
       "kind": "beat",
       "aus": {
-        "AU6": 0.7,
-        "AU7": 0.3,
+        "AU6": 0.5,
         "AU12": 0.75,
-        "AU25": 0.8,
-        "AU26": 0.2
+        "AU25": 0.4,
+        "AU26": 0.35
       },
       "envelope": {
         "in": 250,
@@ -218,31 +379,30 @@
       "description": "Excitement: thrilled, can't wait, high-energy enthusiasm.",
       "facs": "extension: open happiness (AU6+AU12+AU25) + surprise brows and eyes (AU1+AU2+AU5)",
       "aus": {
-        "AU1": 0.55,
-        "AU2": 0.55,
-        "AU5": 0.4,
-        "AU6": 0.4,
-        "AU12": 0.65,
-        "AU25": 0.75
+        "AU1": 0.4,
+        "AU2": 0.4,
+        "AU5": 0.3,
+        "AU6": 0.3,
+        "AU12": 0.55,
+        "AU25": 0.4
       }
     },
     "amused": {
       "description": "Amused: playful, teasing, light-hearted, mildly funny.",
-      "facs": "extension: lopsided happiness (AU6+AU7, AU12 stronger on the left) + left dimpler (AU14_L) + lips part (AU25)",
+      "facs": "extension: lopsided happiness (AU6, AU12 stronger on the left) + left dimpler (AU14_L) + lips part (AU25); no AU7",
       "aus": {
-        "AU6": 0.5,
-        "AU7": 0.35,
-        "AU12_L": 0.7,
+        "AU6": 0.3,
+        "AU12_L": 0.55,
         "AU12_R": 0.3,
-        "AU14_L": 0.3,
-        "AU25": 0.3
+        "AU14_L": 0.2,
+        "AU25": 0.2
       }
     },
     "wistful": {
       "description": "Wistful: bittersweet nostalgia, gentle longing.",
       "facs": "extension: sadness brows (AU1+AU4) x faint happiness (AU6+AU12)",
       "aus": {
-        "AU1": 0.6,
+        "AU1": 0.45,
         "AU4": 0.1,
         "AU6": 0.2,
         "AU12": 0.3
@@ -252,20 +412,19 @@
       "description": "Tender warmth: caring, comforting, compassionate, gentle support.",
       "facs": "extension: soft closed smile (AU6+AU12) + raised inner brows (AU1)",
       "aus": {
-        "AU1": 0.7,
+        "AU1": 0.45,
         "AU6": 0.3,
         "AU12": 0.4
       }
     },
     "love": {
       "description": "Affection: adoration, deep fondness, loving.",
-      "facs": "extension: happiness (AU6+AU7+AU12) + inner-brow warmth (AU1) + lips softly parted (AU25)",
+      "facs": "extension: happiness (AU6+AU12) + inner-brow warmth (AU1) + lips softly parted (AU25); no AU7",
       "aus": {
-        "AU1": 0.35,
-        "AU6": 0.5,
-        "AU7": 0.15,
-        "AU12": 0.5,
-        "AU25": 0.25
+        "AU1": 0.25,
+        "AU6": 0.2,
+        "AU12": 0.45,
+        "AU25": 0.15
       }
     },
     "proud": {
@@ -290,13 +449,12 @@
     },
     "shy": {
       "description": "Shy: bashful, embarrassed, flattered by a compliment.",
-      "facs": "extension: lopsided soft smile (AU6+AU12+AU14) + inner brow (AU1) + gaze down (AU64)",
+      "facs": "extension: a small lopsided smile (AU12 stronger on the left, AU6) with a hint of inner-brow raise (AU1); no dimple",
       "aus": {
-        "AU1": 0.3,
-        "AU6": 0.3,
-        "AU12_L": 0.5,
-        "AU12_R": 0.35,
-        "AU14": 0.15
+        "AU1": 0.2,
+        "AU6": 0.2,
+        "AU12_L": 0.3,
+        "AU12_R": 0.2
       }
     },
     "curious": {
@@ -304,7 +462,7 @@
       "facs": "extension: brow raise (AU1+AU2, left higher) + AU5 + lips part (AU25)",
       "aus": {
         "AU1": 0.4,
-        "AU2_L": 0.7,
+        "AU2_L": 0.5,
         "AU2_R": 0.35,
         "AU5": 0.2,
         "AU25": 0.15
@@ -314,7 +472,7 @@
       "description": "Skepticism: doubt, disbelief, 'are you sure?'.",
       "facs": "extension: asymmetric brow (AU2_L raise + AU4_R lower) + AU7 + one-sided dimpler (AU14_R)",
       "aus": {
-        "AU2_L": 0.65,
+        "AU2_L": 0.5,
         "AU4_R": 0.45,
         "AU7": 0.25,
         "AU14_R": 0.25
@@ -347,11 +505,11 @@
       "description": "Nervous: awkward, uneasy, apprehensive.",
       "facs": "extension: worried brows (AU1+AU4) + lip stretch/press (AU20+AU23) + AU7 + faint smile (AU12)",
       "aus": {
-        "AU1": 0.6,
+        "AU1": 0.45,
         "AU4": 0.25,
         "AU7": 0.1,
         "AU12": 0.15,
-        "AU20": 0.5,
+        "AU20": 0.25,
         "AU23": 0.25
       }
     },
@@ -361,8 +519,8 @@
       "aus": {
         "AU1": 0.4,
         "AU4": 0.3,
-        "AU15": 0.45,
-        "AU17": 0.4
+        "AU15": 0.35,
+        "AU17": 0.3
       }
     },
     "sleepy": {
@@ -377,9 +535,9 @@
       "description": "Physical pain: ouch, hurt, wincing.",
       "facs": "extension: FACS pain (AU4+AU6+AU7+AU9+AU10)",
       "aus": {
-        "AU4": 0.65,
-        "AU6": 0.45,
-        "AU7": 0.6,
+        "AU4": 0.5,
+        "AU6": 0.4,
+        "AU7": 0.35,
         "AU9": 0.4,
         "AU10": 0.25
       }
@@ -388,7 +546,7 @@
       "description": "Pleading: begging, 'please', an earnest request.",
       "facs": "extension: strong inner brow raise (AU1+AU2) + AU5 + slight frown (AU15) + lips part (AU25)",
       "aus": {
-        "AU1": 0.9,
+        "AU1": 0.5,
         "AU2": 0.25,
         "AU5": 0.15,
         "AU15": 0.25,
@@ -425,13 +583,13 @@
     },
     "tongue_out": {
       "description": "Tongue out: cheeky teasing, silly playfulness.",
-      "facs": "AU19 tongue show + lips part (AU25) + slight jaw drop (AU26)",
+      "facs": "AU19 tongue show + lips part (AU25) + jaw drop (AU26), the tongue offset so it comes out after the jaw opens",
       "kind": "beat",
       "whileSpeaking": false,
       "aus": {
         "AU19": 0.8,
         "AU25": 0.45,
-        "AU26": 0.15
+        "AU26": 0.4
       },
       "envelope": {
         "in": 150,

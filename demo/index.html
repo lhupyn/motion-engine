@@ -90,6 +90,8 @@
       letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px;
     }
     h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 10px 0 6px; }
+    h3 .side { margin-left: 10px; font-weight: 400; cursor: pointer; }
+    h3 .side input { vertical-align: -2px; accent-color: var(--accent); }
     .section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
     .section-head h2 { margin-bottom: 0; }
     .tag {
@@ -225,7 +227,7 @@
       <div class="section-head"><h2>Body</h2><span class="tag">No key needed</span></div>
       <h3>Head — can play with a hand gesture</h3>
       <div class="chips" id="head-gestures"></div>
-      <h3>Hands</h3>
+      <h3>Hands <label class="side"><input type="checkbox" id="left-hand" /> Left hand</label></h3>
       <div class="chips" id="hand-gestures"></div>
     </section>
 

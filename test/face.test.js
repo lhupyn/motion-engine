@@ -212,21 +212,28 @@ describe('Face', () => {
   });
 
   describe('speech', () => {
-    it('hands the mouth-opening blendshapes to the lip-sync at the speechMouth floor, and takes them back on dispose', () => {
+    it('hands the mouth-opening and lip-corner blendshapes to the lip-sync at their floors, and takes them back on dispose', () => {
       const off = vi.fn();
       const duck = vi.spyOn(adapter, 'duckMouth').mockReturnValue(off);
-      const f = new Face(adapter, { facs: TEST_FACS, speechMouth: 0.2 });
-      expect(duck).toHaveBeenCalledWith(['mouthLowerDownLeft', 'jawOpen'], 0.2);
+      const f = new Face(adapter, { facs: TEST_FACS, speechMouth: 0.2, speechSmile: 0.6 });
+      expect(duck).toHaveBeenCalledWith({
+        mouthLowerDownLeft: 0.2,
+        jawOpen: 0.2,
+        mouthSmileLeft: 0.6,
+        mouthSmileRight: 0.6,
+      });
       f.dispose();
       expect(off).toHaveBeenCalled();
     });
 
-    it('defaults to 0.3; speechMouth: 1 turns it off', () => {
+    it('defaults to 0.3 for the mouth and 0.5 for the corners; 1 turns either off', () => {
       const duck = vi.spyOn(adapter, 'duckMouth');
       new Face(adapter, { facs: TEST_FACS });
-      expect(duck).toHaveBeenLastCalledWith(expect.any(Array), 0.3);
-      duck.mockClear();
+      expect(duck).toHaveBeenLastCalledWith(expect.objectContaining({ jawOpen: 0.3, mouthSmileLeft: 0.5 }));
       new Face(adapter, { facs: TEST_FACS, speechMouth: 1 });
+      expect(duck).toHaveBeenLastCalledWith({ mouthSmileLeft: 0.5, mouthSmileRight: 0.5 });
+      duck.mockClear();
+      new Face(adapter, { facs: TEST_FACS, speechMouth: 1, speechSmile: 1 });
       expect(duck).not.toHaveBeenCalled();
     });
   });

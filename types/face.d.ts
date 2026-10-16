@@ -63,6 +63,11 @@ export type FaceOptions = {
      * so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
      */
     speechMouth?: number;
+    /**
+     * - The same for the lip corners (smile, dimple), which over-stretch the mouth on
+     * visemes. 1 = off
+     */
+    speechSmile?: number;
 };
 /**
  * @typedef {object} Expression
@@ -88,13 +93,15 @@ export type FaceOptions = {
  * @property {number} [fade=400] - Mood cross-fade, ms
  * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
  *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
+ * @property {number} [speechSmile=0.5] - The same for the lip corners (smile, dimple), which over-stretch the mouth on
+ *   visemes. 1 = off
  */
 export declare class Face {
     /**
      * @param {import('./adapter.js').TalkingHeadAdapter} adapter
      * @param {FaceOptions} [options]
      */
-    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { facs, fade, speechMouth }?: FaceOptions);
+    constructor(adapter: import('./adapter.js').TalkingHeadAdapter, { facs, fade, speechMouth, speechSmile }?: FaceOptions);
     /** @returns {string[]} */
     get names(): string[];
     /**
