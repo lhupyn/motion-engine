@@ -4,7 +4,7 @@ Expressive face and body for [TalkingHead](https://github.com/met4citizen/Talkin
 
 **[Live demo](https://lhupyn.github.io/motion-engine/)** — try expressions and gestures right away; add an OpenRouter key to let Jev react to text.
 
-![motion-engine demo](images/demo.jpg)
+https://github.com/user-attachments/assets/456c9c19-f37a-4aff-8274-5e15c5ce0839
 
 - **The main LLM just talks.** No emoji, no `[happy]` markers, no extra rules in its prompt.
 - **Jev decides.** Each sentence goes to [Jev](https://typesafe.ai), TypeSafe's decision model, which picks an expression, a head movement and a hand gesture, each with a confidence.
