@@ -18,7 +18,7 @@ Every number below is printed by `npm run bench:score` from [`results.json`](res
 
 Hard negatives mention a gesture without doing it ("In some countries, a thumbs up is considered rude": `none` on every channel) or use sarcasm ("Oh great, it's raining again. Just perfect.": an eye roll, not a smile).
 
-**Run.** 15 decision models through OpenRouter's `/api/v1/systemone`, with the library's own client (`src/systemone.js`) and the director's questions at commit 88a5152 (motion-engine 2.1.0). Two full passes per model, 2026-10-17; 4500 calls, no errors.
+**Run.** 15 decision models through OpenRouter's `/api/v1/systemone`, called from a page on the demo's origin with the library's own client (`src/systemone.js`) and the director's questions at commit 88a5152 (motion-engine 2.1.0). [`run.js`](run.js) is the same run in Node, to reproduce it. Two full passes per model, 2026-10-17; 4500 calls, no errors.
 
 **Metrics.** *Played* is what the director plays with its default thresholds (expression 0.45, head 0.5, hands 0.55; on the person's lines nothing plays when `clear` < 0.5). *Raw*, in brackets, is the model's own top choice.
 
@@ -99,7 +99,7 @@ acts = expression + hands; wrong = all channels, pass 2.
 | cloudflare/clef-flash | 488 | 740 | 1921 / 2036 | 0.000044 |
 | jaredpalmer/kev-4b | 637 | 703 | 1138 / 1208 | 0.000048 |
 
-Latency is the round trip from one client (a 2015 laptop on a home connection, three models in parallel): compare models with each other, not as absolute numbers. Prices are OpenRouter's `usage.cost` on 2026-10-17. The whole round cost $0.245.
+Latency is the round trip from one browser client (a 2015 laptop on a home connection, three models in parallel): compare models with each other, not as absolute numbers. Prices are OpenRouter's `usage.cost` on 2026-10-17. The whole round cost $0.245.
 
 ## Incompatible models
 
@@ -122,7 +122,7 @@ Three decision models on OpenRouter reject the director's questions:
 
 - **Neither replaces Jev yet.** open-jev spreads its probability over the 36 expressions, so little passes the default thresholds.
 - **DeBERTa doesn't fit the questions.** With their criteria they take about 1010 tokens on the avatar's lines and 1080 on the person's, against its 512 (the expression question alone takes 570). Only option names fit (230 / 300).
-- **kev-4b is the promising size.** The OpenRouter version (above) reaches 89% cross-validated acts with low thresholds (0.10 / 0.35 / 0.25), against 46% at the defaults. Its ONNX build for the browser is an earlier checkpoint (v7-rc3, on Qwen3-4B-Base) and was not tested.
+- **kev-4b is the promising size.** The OpenRouter version (above) reaches 89% cross-validated acts with low thresholds (0.10 / 0.35 / 0.25), against 46% at the defaults. Its [ONNX conversion](https://huggingface.co/onnx-community/kev-4b-ONNX) for Transformers.js declares Qwen3-4B-Base as its base, while OpenRouter's kev-4b declares Qwen3.5-4B-Base, so it may not behave the same; not tested.
 
 ### In the browser
 
@@ -136,7 +136,7 @@ Scoring is free and calls nothing:
 npm run bench:score              # or: node bench/score.js [bench/results.json]
 ```
 
-Running the models costs money (this round: $0.245 for 4500 calls); `--max-cost` stops new calls near a budget:
+`run.js` runs the models in Node with the same client and questions. It costs money (this round: $0.245 for 4500 calls); `--max-cost` stops new calls near a budget:
 
 ```sh
 OPENROUTER_API_KEY=… node bench/run.js --models typesafe/jev-1.14,liquid/d1   # 2 passes, 3 models in parallel, $1 cap by default
