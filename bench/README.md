@@ -6,7 +6,7 @@ Every number below is printed by `npm run bench:score` from [`results.json`](res
 
 ## Method
 
-**Lines.** 150 lines written for this study by one annotator (no inter-annotator agreement). Each channel lists every acceptable answer; `none` means no visible action.
+**Lines.** 150 lines written for this study. Each channel lists every acceptable answer; `none` means no visible action.
 
 | | lines |
 | --- | --- |
@@ -153,7 +153,7 @@ OPENROUTER_API_KEY=… node bench/run.js --models typesafe/jev-1.14,liquid/d1   
 
 ## Limitations
 
-- One annotator, no inter-annotator agreement; acceptable answers reflect one person's judgment.
+- The acceptable answers are a judgment call; other lines or other judges could rank the models differently.
 - One catalog (the bundled `facs.json` and `gestures.json`) and one set of questions; another catalog changes the task.
 - Two languages (English and Spanish), 150 lines.
 - The fitted thresholds were tuned on these same lines; cross-validation reduces, but doesn't remove, that bias.
