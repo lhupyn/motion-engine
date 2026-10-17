@@ -310,7 +310,7 @@ Other decision models speak the same API:
 
 - **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
 - **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
-- **Local / in the browser (experimental):** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`; its DeBERTa model's 512-token context doesn't hold the questions. In our tests the small models were less accurate and much slower than Jev; details in [bench/](bench/#local-models).
+- **Local / in the browser (experimental):** the [open-jev](https://github.com/nico-martin/open-jev) library runs decision models in the browser with Transformers.js and can be wrapped as a custom `classify`. Its models and how they compare: [bench/](bench/#local-models).
 
 The default thresholds are tuned for Jev; [bench/](bench/) compares 15 models and [suggests `minConfidence` per model](bench/#results-with-thresholds-fitted-per-model). Check another model's answers in `onDecision`.
 
