@@ -111,7 +111,7 @@ Three decision models on OpenRouter reject the director's questions:
 
 ## Local models
 
-[open-jev](https://github.com/nico-martin/open-jev) runs decision models locally with Transformers.js; met4citizen (TalkingHead's author) suggested it. It was run in Node on the CPU of a 2015 MacBook Pro (Intel i5, 2 cores, 8 GB), q4 weights, on the **first 40 lines** of the gold set, not all 150. Setup and adapter: [`local/`](local/).
+The [open-jev](https://github.com/nico-martin/open-jev) library runs decision models locally with Transformers.js; met4citizen (TalkingHead's author) suggested it. It ships three models: kev-0.6b, kev-4b and one also named open-jev, on DeBERTa-v3-large with a 512-token context. kev-0.6b and the open-jev model were run in Node on the CPU of a 2015 MacBook Pro (Intel i5, 2 cores, 8 GB), q4 weights, on the **first 40 lines** of the gold set, not all 150. Setup and adapter: [`local/`](local/).
 
 | model | right expression / hand gesture where one is needed | hand gestures where only none is right | p50 per line | peak RAM |
 | --- | --- | --- | --- | --- |
@@ -133,7 +133,7 @@ kev-0.6b ran in Chrome 150 on the same 2015 MacBook Pro (macOS 12.7, Intel Iris 
 | WebGPU, q4f16 (no flag needed) | 355 MB download; first load 23.5 s, from cache 10.65 s; first call 17.2 s; p50 19.8 s per line. All 10 lines give the same choices as in Node. About 330 MB in the tab's renderer while answering (a lower bound: the machine was swapping). |
 | WASM, q4 and q4f16 | Doesn't load: onnxruntime-web's CPU provider has no `GatherBlockQuantized` kernel, and the model ships only q4 and q4f16. |
 
-On this integrated GPU, WebGPU is as slow as the CPU in Node (p50 19.8 s both). It is one 2015 machine; don't extrapolate to modern GPUs. open-jev on DeBERTa and kev-4b were not tested in the browser.
+On this integrated GPU, WebGPU is as slow as the CPU in Node (p50 19.8 s both). It is one 2015 machine; don't extrapolate to modern GPUs. The open-jev model and kev-4b were not tested in the browser.
 
 ## Reproduce
 
