@@ -2,7 +2,13 @@
 
 A comparison of 15 System One decision models on the job motion-engine gives them: for each line of a conversation, pick an expression, a head movement and a hand gesture, each with a confidence, from the director's real questions and catalog descriptions. The director then plays only what passes its thresholds (`minConfidence`), so a model is judged on what would actually play, not only on its raw choice.
 
-Every number below is printed by `npm run bench:score` from [`results.json`](results.json) and [`gold.json`](gold.json), except the local-model section, which comes from a separate run described there.
+**In short.**
+
+- The director's default thresholds are tuned for Jev. Most of the difference between models is how they spread their confidence, not what they pick.
+- With thresholds fitted per model, 12 of the 15 play the right expression and hand gesture on 91–97% of the lines that need one (cross-validated), with very different numbers of wrong actions.
+- The small local models tested through the open-jev library don't replace Jev yet.
+
+Every number below is printed by `npm run bench:score` from [`results.json`](results.json) and [`gold.json`](gold.json), except the incompatible models' errors and the local models, which come from separate runs described there.
 
 ## Method
 
@@ -99,7 +105,7 @@ acts = expression + hands; wrong = all channels, pass 2.
 | cloudflare/clef-flash | 488 | 740 | 1921 / 2036 | 0.000044 |
 | jaredpalmer/kev-4b | 637 | 703 | 1138 / 1208 | 0.000048 |
 
-Latency is the round trip from one browser client (a 2015 laptop on a home connection, three models in parallel): compare models with each other, not as absolute numbers. Prices are OpenRouter's `usage.cost` on 2026-10-17. The whole round cost $0.245.
+Latency is the round trip from one browser client (on a 2015 laptop, three models in parallel): compare models with each other, not as absolute numbers. Prices are OpenRouter's `usage.cost` on 2026-10-17.
 
 ## Incompatible models
 
@@ -111,7 +117,7 @@ Three decision models on OpenRouter reject the director's questions:
 
 ## Local models
 
-The [open-jev](https://github.com/nico-martin/open-jev) library runs decision models locally with Transformers.js; met4citizen (TalkingHead's author) suggested it. It ships three models: kev-0.6b, kev-4b and one also named open-jev, on DeBERTa-v3-large with a 512-token context. kev-0.6b and the open-jev model were run in Node on the CPU of a 2015 MacBook Pro (Intel i5, 2 cores, 8 GB), q4 weights, on the **first 40 lines** of the gold set, not all 150. Setup and adapter: [`local/`](local/).
+The [open-jev](https://github.com/nico-martin/open-jev) library runs decision models locally with Transformers.js. It ships three models: kev-0.6b, kev-4b and one also named open-jev, on DeBERTa-v3-large with a 512-token context. kev-0.6b and the open-jev model were run in Node on the CPU of a 2015 MacBook Pro (Intel i5, 2 cores, 8 GB), q4 weights, on the **first 40 lines** of the gold set, not all 150. Setup and adapter: [`local/`](local/).
 
 | model | right expression / hand gesture where one is needed | hand gestures where only none is right | p50 per line | peak RAM |
 | --- | --- | --- | --- | --- |
@@ -120,9 +126,9 @@ The [open-jev](https://github.com/nico-martin/open-jev) library runs decision mo
 | open-jev (DeBERTa), option names only | 4/18 · 2/14 | 0/13 | 2.6 s | 0.93 GB |
 | typesafe/jev-1.14 (OpenRouter) | 17/18 · 14/14 | 2/13 | 0.4 s | — |
 
-- **Neither replaces Jev yet.** open-jev spreads its probability over the 36 expressions, so little passes the default thresholds.
-- **DeBERTa doesn't fit the questions.** With their criteria they take about 1010 tokens on the avatar's lines and 1080 on the person's, against its 512 (the expression question alone takes 570). Only option names fit (230 / 300).
-- **kev-4b is the promising size.** The OpenRouter version (above) reaches 89% cross-validated acts with low thresholds (0.10 / 0.35 / 0.25), against 46% at the defaults. Its [ONNX conversion](https://huggingface.co/onnx-community/kev-4b-ONNX) for Transformers.js declares Qwen3-4B-Base as its base, while OpenRouter's kev-4b declares Qwen3.5-4B-Base, so it may not behave the same; not tested.
+- **Neither replaces Jev yet.** The open-jev model spreads its probability over the 36 expressions, so little passes the default thresholds.
+- **The open-jev model doesn't fit the questions.** With their criteria they take about 1010 tokens on the avatar's lines and 1080 on the person's, against its 512. Only option names fit (230 / 300).
+- **kev-4b is the promising size.** The OpenRouter version (above) reaches 89% cross-validated acts with low thresholds (0.10 / 0.35 / 0.25), against 46% at the defaults. Its [ONNX conversion](https://huggingface.co/onnx-community/kev-4b-ONNX) for Transformers.js declares a different base model than OpenRouter's, so it may not behave the same; not tested.
 
 ### In the browser
 
@@ -130,7 +136,7 @@ kev-0.6b ran in Chrome 150 on the same 2015 MacBook Pro (macOS 12.7, Intel Iris 
 
 | backend | result |
 | --- | --- |
-| WebGPU, q4f16 (no flag needed) | 355 MB download; first load 23.5 s, from cache 10.65 s; first call 17.2 s; p50 19.8 s per line. All 10 lines give the same choices as in Node. About 330 MB in the tab's renderer while answering (a lower bound: the machine was swapping). |
+| WebGPU, q4f16 (no flag needed) | 355 MB download; first load 23.5 s, from cache 10.65 s; p50 19.8 s per line. All 10 lines give the same choices as in Node. About 330 MB in the tab's renderer while answering. |
 | WASM, q4 and q4f16 | Doesn't load: onnxruntime-web's CPU provider has no `GatherBlockQuantized` kernel, and the model ships only q4 and q4f16. |
 
 On this integrated GPU, WebGPU is as slow as the CPU in Node (p50 19.8 s both). It is one 2015 machine; don't extrapolate to modern GPUs. The open-jev model and kev-4b were not tested in the browser.
