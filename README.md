@@ -140,7 +140,7 @@ for await (const chunk of llmStream) engine.feed(chunk, { speaker: 'avatar' });
 engine.feed(fullReply, { speaker: 'avatar', final: true });
 ```
 
-**Offline / in the browser:** pass a client-side decision model (e.g. `open-jev` on WebGPU, ideally in a Web Worker so it doesn't block rendering) as a custom `classify` function ([Appendix C](#appendix-c-classifiers)).
+**Offline / in the browser (experimental):** a client-side decision model (e.g. `open-jev` on WebGPU, ideally in a Web Worker) can be passed as a custom `classify` function ([Appendix C](#appendix-c-classifiers)).
 
 ## Keys
 
@@ -310,7 +310,7 @@ Other decision models speak the same API:
 
 - **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
 - **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
-- **Local / in the browser:** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`. Measured in Node on CPU ([bench/](bench/#local-models)), kev-0.6b and open-jev don't replace Jev yet, and DeBERTa's 512 tokens don't hold the questions; kev-4b (below, through OpenRouter) is promising with low thresholds. In Chrome, kev-0.6b runs on WebGPU (not WASM) with the same answers; on our test machine (a 2015 laptop, integrated GPU) it took about 20 s per line, too slow for live use there.
+- **Local / in the browser (experimental):** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`. In our tests the small models were less accurate and much slower than Jev; details in [bench/](bench/#local-models).
 
 The default thresholds are tuned for Jev. [bench/](bench/) compares 15 models on 150 annotated lines with the director's real questions, and most of the difference between them is how they spread their confidence. A few, cross-validated with thresholds fitted per model:
 
