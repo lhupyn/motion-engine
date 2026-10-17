@@ -126,7 +126,14 @@ Three decision models on OpenRouter reject the director's questions:
 
 ### In the browser
 
-> TODO: Chrome results (WebGPU / WASM) from `.shots/local-models/browser.md`, once that test is done. Nothing here is measured yet.
+kev-0.6b ran in Chrome 150 on the same 2015 MacBook Pro (macOS 12.7, Intel Iris 6100), through open-jev 0.1.2 and Transformers.js 4.3.1, with the same adapter and questions, on 10 of the avatar's lines.
+
+| backend | result |
+| --- | --- |
+| WebGPU, q4f16 (no flag needed) | 355 MB download; first load 23.5 s, from cache 10.65 s; first call 17.2 s; p50 19.8 s per line. All 10 lines give the same choices as in Node. About 330 MB in the tab's renderer while answering (a lower bound: the machine was swapping). |
+| WASM, q4 and q4f16 | Doesn't load: onnxruntime-web's CPU provider has no `GatherBlockQuantized` kernel, and the model ships only q4 and q4f16. |
+
+On this integrated GPU, WebGPU is as slow as the CPU in Node (p50 19.8 s both). It is one 2015 machine; don't extrapolate to modern GPUs. open-jev on DeBERTa and kev-4b were not tested in the browser.
 
 ## Reproduce
 

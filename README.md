@@ -308,7 +308,7 @@ Other decision models speak the same API:
 
 - **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
 - **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
-- **Local / in the browser:** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`. Measured in Node on CPU ([bench/](bench/#local-models)), kev-0.6b and open-jev don't replace Jev yet, and DeBERTa's 512 tokens don't hold the questions; kev-4b (below, through OpenRouter) is promising with low thresholds. Not yet measured in a browser.
+- **Local / in the browser:** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`. Measured in Node on CPU ([bench/](bench/#local-models)), kev-0.6b and open-jev don't replace Jev yet, and DeBERTa's 512 tokens don't hold the questions; kev-4b (below, through OpenRouter) is promising with low thresholds. In Chrome, kev-0.6b runs on WebGPU (not WASM) and gives the same answers, at the same speed as the CPU on a 2015 laptop's integrated GPU.
 
 The default thresholds are tuned for Jev. [bench/](bench/) compares 15 models on 150 annotated lines with the director's real questions, and most of the difference between them is how they spread their confidence. A few, cross-validated with thresholds fitted per model:
 
