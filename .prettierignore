@@ -7,5 +7,7 @@ package-lock.json
 README.md
 # Hand-formatted catalog data
 src/*.json
+# Bench data: hand-formatted gold lines, one call per line in results
+bench/*.json
 # Hand-formatted page: compact CSS and import map
 demo/index.html
