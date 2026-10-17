@@ -26,7 +26,8 @@
     "types": "node -e \"require('fs').rmSync('types', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "bench:score": "node bench/score.js"
   },
   "keywords": [
     "talkinghead",
