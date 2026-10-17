@@ -140,7 +140,7 @@ for await (const chunk of llmStream) engine.feed(chunk, { speaker: 'avatar' });
 engine.feed(fullReply, { speaker: 'avatar', final: true });
 ```
 
-**Offline / in the browser (experimental):** a client-side decision model (e.g. `open-jev` on WebGPU, ideally in a Web Worker) can be passed as a custom `classify` function ([Appendix C](#appendix-c-classifiers)).
+**Offline / in the browser (experimental):** a decision model running in the browser (e.g. through the [open-jev](https://github.com/nico-martin/open-jev) library on WebGPU, ideally in a Web Worker) can be passed as a custom `classify` function ([Appendix C](#appendix-c-classifiers)).
 
 ## Keys
 
