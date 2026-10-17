@@ -304,12 +304,24 @@ Errors reject as `System One <status>: <message>` and reach `onDecision({ error 
 
 ### Other decision models
 
-Other decision models speak the same API; only Jev has been tested with motion-engine.
+Other decision models speak the same API:
 
 - **OpenRouter:** pick an id from its [decision models](https://openrouter.ai/api/v1/models?output_modalities=decisions) (JSON): `systemOne({ apiKey, model: '<id>' })`.
 - **Self-hosted:** [Kev](https://github.com/jaredpalmer/kev) or [Laya](https://github.com/NandhaKishorM/laya) serve `POST /v1/systemone`: `systemOne({ url: 'http://localhost:8009/v1/systemone', model: '<id>' })`. A web page needs CORS on your server, or call it from your backend.
+- **Local / in the browser:** [open-jev](https://github.com/nico-martin/open-jev) runs decision models with Transformers.js and can be wrapped as a custom `classify`. Measured in Node on CPU ([bench/](bench/#local-models)), kev-0.6b and open-jev don't replace Jev yet, and DeBERTa's 512 tokens don't hold the questions; kev-4b (below, through OpenRouter) is promising with low thresholds. Not yet measured in a browser.
 
-The default thresholds were set with Jev; check `minConfidence` against another model's answers in `onDecision`.
+The default thresholds are tuned for Jev. [bench/](bench/) compares 15 models on 150 annotated lines with the director's real questions, and most of the difference between them is how they spread their confidence. A few, cross-validated with thresholds fitted per model:
+
+| model | acts | wrong | $/line | suggested `minConfidence` (expression / head / hands) |
+| --- | --- | --- | --- | --- |
+| typesafe/jev-1.14 (default) | 95% | 25 | 0.000081 | 0.35 / 0.70 / 0.55 |
+| liquid/d1 | 97% | 9 | 0.000022 | 0.00 / 0.65 / 0.45 |
+| perplexity/pplx-decider-v1.2 | 93% | 19 | 0.000025 | 0.00 / 0.40 / 0.40 |
+| cloudflare/clef | 93% | 16 | 0.000104 | 0.20 / 0.65 / 0.45 |
+| liquid/d1-ultra | 93% | 20 | 0.000047 | 0.30 / 0.60 / 0.50 |
+| jaredpalmer/kev-4b | 89% | 21 | 0.000048 | 0.10 / 0.35 / 0.25 |
+
+acts: the right expression + hand gesture where one is needed; wrong: actions played that aren't acceptable, in one pass over the 150 lines. The suggested thresholds were fit on the same lines: start from them for another model and check its answers in `onDecision`.
 
 ### Custom classifier
 
