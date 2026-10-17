@@ -1,10 +1,6 @@
-// Client for the System One API that decision models share (Jev, Clef…):
+// Client for the System One API that decision models share (Jev by default):
 // typed questions (choice, yes/no) answered with a confidence instead of text.
-// The defaults point at Jev, TypeSafe's decision model.
-//
-// OpenRouter accepts requests from any website, so a page can use the
-// visitor's own key. TypeSafe's API only accepts its own console, so use it
-// from a server.
+// OpenRouter accepts browser requests; TypeSafe's API is server-only.
 
 /**
  * The line to classify.

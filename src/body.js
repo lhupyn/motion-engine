@@ -1,10 +1,7 @@
 // Two channels play at once, so the avatar can nod while it gestures:
 //   head  — head and torso (nod, shake, bow), run as plain animations
 //   hands — arm gestures, through TalkingHead's gesture system
-// Each channel plays one gesture at a time; a new one interrupts the current
-// one on its channel. An optional overlay adds per-bone sine oscillations on
-// top. Hand gestures move the arms to TalkingHead's built-in poses (handup,
-// namaste…) or to the catalog's own `poses`.
+// Each plays one gesture at a time; a new one interrupts the current one.
 
 import GESTURES from './gestures.json' with { type: 'json' };
 
@@ -40,7 +37,6 @@ const MIRROR = ':mirror';
  */
 
 export class Body {
-  // Not part of the documented API: kept out of the published types (stripInternal).
   /** @internal */ adapter;
   /** @internal @type {{head: Record<string, Gesture>, hands: Record<string, Gesture>}} */ gestures = {
     head: {},

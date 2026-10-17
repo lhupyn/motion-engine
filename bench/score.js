@@ -17,7 +17,7 @@ const FOLDS = 5;
 
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const keyOf = (speaker, text) => `${speaker}\n${text}`;
-// Half to even, like Python's round(), so the numbers match the first analysis.
+// Half to even, like Python's round().
 const round = (x) => {
   const r = Math.round(x);
   return Math.abs(x % 1) === 0.5 && r % 2 ? r - 1 : r;

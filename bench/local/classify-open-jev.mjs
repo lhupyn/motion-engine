@@ -1,5 +1,5 @@
 // A motion-engine classify() backed by open-jev (https://github.com/nico-martin/open-jev),
-// running kev-0.6b or open-jev (DeBERTa) locally with Transformers.js.
+// running kev-0.6b or the open-jev model (DeBERTa) locally with Transformers.js.
 //
 // Translation choices:
 // - state: open-jev takes a string, so the line (and the one before) become text

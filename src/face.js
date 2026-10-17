@@ -1,8 +1,6 @@
 // FACS compositor: expressions are Action Unit recipes (facs.json) resolved to
 // ARKit blendshapes and added on top of the avatar's mood baseline each frame.
 // Moods hold and cross-fade; beats play once with an in/hold/out envelope.
-// Within a beat, an AU with an `offset` rises that much later and falls that
-// much earlier than the rest (the tongue comes out after the lips part).
 
 import FACS from './facs.json' with { type: 'json' };
 
@@ -44,7 +42,6 @@ const SMILE_AUS = ['AU12', 'AU14'];
  */
 
 export class Face {
-  // Not part of the documented API: kept out of the published types (stripInternal).
   /** @internal */ adapter;
   /** @internal @type {FacsCatalog} */ facs;
   /** @internal */ fade;
@@ -216,7 +213,6 @@ export class Face {
     return out;
   }
 
-  // A trailing _L/_R makes an AU unilateral.
   /** @internal */
   _ausToVs(aus) {
     const vs = {};

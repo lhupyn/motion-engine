@@ -2,8 +2,8 @@
 // Fragments are buffered and released one sentence at a time.
 
 // Fragments split at word boundaries, so punctuation at the end of what has
-// arrived already closes the sentence. CJK, Arabic, Urdu, Devanagari,
-// Armenian, Ethiopic and Burmese marks only end sentences, so they need no space.
+// arrived already closes the sentence. Non-Latin marks (CJK, Arabic…) only end
+// sentences, so they need no space after them.
 const SENTENCE_END = /[.!?…]+["'”’)\]]*(\s|$)|[。！？؟۔।॥։።။]+[」』”’）]*/;
 
 // "3." at the end of a fragment may be "3.50": wait for the next one.
