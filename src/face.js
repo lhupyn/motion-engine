@@ -6,6 +6,10 @@ import FACS from './facs.json' with { type: 'json' };
 
 const BEAT_ENVELOPE = { in: 300, hold: 1500, out: 600 };
 
+// A held mood stays at full strength for APEX ms, then takes RELAX ms to settle at its sustain level.
+const APEX = 1500;
+const RELAX = 2500;
+
 // AUs that open the mouth; their blendshapes give way to the lip-sync visemes.
 const MOUTH_OPENING_AUS = ['AU10', 'AU16', 'AU20', 'AU25', 'AU26', 'AU27'];
 // AUs that pull the lip corners out; over a viseme they over-stretch the mouth.
@@ -35,6 +39,8 @@ const SMILE_AUS = ['AU12', 'AU14'];
  * @typedef {object} FaceOptions
  * @property {FacsCatalog} [facs] - Default: the bundled facs.json
  * @property {number} [fade=400] - Mood cross-fade, ms
+ * @property {number} [sustain=0.75] - A held mood settles at this share of its recipe a moment after it peaks, as a
+ *   real expression does; held at full strength it reads as a mask. 1 = off
  * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
  *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
  * @property {number} [speechSmile=0.5] - The same for the lip corners (smile, dimple), which over-stretch the mouth on
@@ -45,6 +51,7 @@ export class Face {
   /** @internal */ adapter;
   /** @internal @type {FacsCatalog} */ facs;
   /** @internal */ fade;
+  /** @internal */ sustain;
   /** @internal */ _unduck;
   /** @internal */ _moods = [];
   /** @internal */ _beats = [];
@@ -63,13 +70,14 @@ export class Face {
    */
   constructor(
     adapter,
-    { facs = /** @type {FacsCatalog} */ (FACS), fade = 400, speechMouth = 0.3, speechSmile = 0.5 } = {},
+    { facs = /** @type {FacsCatalog} */ (FACS), fade = 400, sustain = 0.75, speechMouth = 0.3, speechSmile = 0.5 } = {},
   ) {
     this.adapter = adapter;
     this.facs = facs;
     // Limits are a review aid, not a clamp: a custom catalog may break them on purpose.
     for (const v of auViolations(facs)) console.warn(`[motion-engine] ${v}`);
     this.fade = fade;
+    this.sustain = sustain;
     const floors = {};
     for (const [aus, floor] of [
       [MOUTH_OPENING_AUS, speechMouth],
@@ -130,7 +138,7 @@ export class Face {
       return true;
     }
     for (const m of this._moods) m.target = 0;
-    if (morphs.length) this._moods.push({ name, morphs, level: 0, target: 1 });
+    if (morphs.length) this._moods.push({ name, morphs, level: 0, target: 1, age: 0 });
     return true;
   }
 
@@ -162,7 +170,10 @@ export class Face {
     this._moods = this._moods.filter((m) => {
       m.level = m.target > m.level ? Math.min(m.target, m.level + step) : Math.max(m.target, m.level - step);
       if (m.level <= 0 && m.target === 0) return false;
-      add(m.morphs, m.level);
+      // A mood on its way out keeps the strength it had settled to.
+      if (m.target === 1) m.age += dt;
+      const settled = ease(Math.min(1, Math.max(0, (m.age - APEX) / RELAX)));
+      add(m.morphs, m.level * (1 - (1 - this.sustain) * settled));
       return true;
     });
 

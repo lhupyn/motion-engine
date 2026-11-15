@@ -59,6 +59,11 @@ export type FaceOptions = {
      */
     fade?: number;
     /**
+     * - A held mood settles at this share of its recipe a moment after it peaks, as a
+     * real expression does; held at full strength it reads as a mask. 1 = off
+     */
+    sustain?: number;
+    /**
      * - While a viseme plays, mouth-opening morphs drop to this share of their value,
      * so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
      */
@@ -91,6 +96,8 @@ export type FaceOptions = {
  * @typedef {object} FaceOptions
  * @property {FacsCatalog} [facs] - Default: the bundled facs.json
  * @property {number} [fade=400] - Mood cross-fade, ms
+ * @property {number} [sustain=0.75] - A held mood settles at this share of its recipe a moment after it peaks, as a
+ *   real expression does; held at full strength it reads as a mask. 1 = off
  * @property {number} [speechMouth=0.3] - While a viseme plays, mouth-opening morphs drop to this share of their value,
  *   so speech doesn't open the mouth too wide or bare the teeth, and p/b/m still close the lips. 1 = off
  * @property {number} [speechSmile=0.5] - The same for the lip corners (smile, dimple), which over-stretch the mouth on

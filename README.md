@@ -186,6 +186,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | --- | --- | --- |
 | `facs` | built-in `facs.json` | Expression catalog ([Appendix B](#appendix-b-catalogs)). |
 | `fade` | `400` | Mood cross-fade, ms. Beats without an `envelope` use `{ in: 300, hold: 1500, out: 600 }`. |
+| `sustain` | `0.75` | A held mood settles at this share of its recipe about 1.5 s after it peaks, over 2.5 s. `1` = off. |
 | `speechMouth` | `0.3` | While a viseme plays, mouth-opening morphs (from AU10, AU16, AU20, AU25, AU26, AU27) drop to this share, so speech doesn't over-open the mouth or bare the teeth, and p/b/m still close. `1` = off. |
 | `speechSmile` | `0.5` | The same for the lip corners (AU12, AU14: smile, dimple), which over-stretch the mouth on visemes. `1` = off. |
 
