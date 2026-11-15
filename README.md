@@ -62,6 +62,13 @@ Or with a bundler: `npm i github:lhupyn/motion-engine` (not on npm yet). The cat
 
 **Avatar:** TalkingHead's [requirements](https://github.com/met4citizen/TalkingHead#appendix-a-create-your-own-3d-avatar): a Mixamo-compatible rig with the 52 ARKit and 15 Oculus viseme blend shapes. The bundled poses and expression levels are fitted to the demo avatar; another avatar may need them retuned ([catalogs](#appendix-b-catalogs)).
 
+**Head posture:** two of TalkingHead's standing poses tuck the chin (`side` 11° down, `hip` 15°), and its neutral mood spends most of the time in them, so the avatar looks up from under the brows. The demo levels them with `straight`:
+
+```js
+head.poseTemplates.side.props['Head.rotation'].x = -0.05; // 0.077
+head.poseTemplates.hip.props['Head.rotation'].x = 0.1; // 0.298
+```
+
 ```js
 import { TalkingHead } from 'talkinghead';
 import { MotionEngine, systemOne } from 'motion-engine';
@@ -216,7 +223,10 @@ new MotionEngine(head, { classify: systemOne({ apiKey }), face: { facs }, body: 
 - Only entries with a `description` are offered to the classifier; the rest are manual-only (`face.play` / `body.play`). Bundled manual-only: `look_left`, `look_right`, `open_mouth`, `squint`, `neutral`.
 - The description says *when* to use it: *"Warm, genuine smile: glad, pleased, friendly, good news."* A narrow one keeps a novelty for its cue: `vulcan_salute` (🖖) only on "live long and prosper" or a mention of Star Trek or Vulcans.
 - Keep options distinct: similar options split the confidence and can both fall under the threshold.
-- Check faces still and while talking; keep jaw opening out of held moods, or it fights the visemes.
+- Check faces as they will play: still, talking, and with the head pitched down, where the idle leaves it. Keep jaw opening to a touch in held moods, or it fights the visemes.
+- A smile needs the eyes: add the blendshape that raises the lower lids (often `eyeSquint`, AU7) to every smile, or it reads cold.
+- Look at the avatar's resting mouth. If its corners turn up, lowered brows over it read as a smirk: give the negative moods some AU15.
+- The [lab](lab/README.md) renders these checks as contact sheets and measures lids, teeth and gesture speeds.
 - Keep an entry named `neutral`: the director relaxes to it.
 
 ### `facs.json`
@@ -360,6 +370,7 @@ The seven core emotions use the canonical EMFACS-7 AU combinations; the other ex
 ```bash
 npm install
 npm run demo     # Vite dev server for demo/
+npm run lab      # Calibration lab: expression sheets and gesture speeds on a frozen avatar (lab/README.md)
 npm test         # Vitest, incl. the adapter contract test against TalkingHead's source
 npm run build    # Build the demo into dist/
 npm run lint     # ESLint

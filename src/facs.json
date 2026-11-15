@@ -675,14 +675,15 @@
     },
     "yawn": {
       "description": "A yawn: boredom or tiredness.",
-      "facs": "AU1+AU25+AU26+AU43 (brows up, jaw wide open, eyes shut)",
+      "facs": "AU1+AU25+AU26+AU43 with AU7 (brows up, jaw wide open, eyes squeezed shut once the jaw is on its way)",
       "kind": "beat",
       "whileSpeaking": false,
       "aus": {
         "AU1": 0.3,
+        "AU7": 0.6,
         "AU25": 0.3,
         "AU26": 1,
-        "AU43": 0.6
+        "AU43": 0.85
       },
       "envelope": {
         "in": 400,
@@ -690,6 +691,7 @@
         "out": 600
       },
       "offset": {
+        "AU7": 250,
         "AU43": 250
       }
     },
