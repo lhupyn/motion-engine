@@ -34,115 +34,119 @@
   "hands": {
     "open_palms": {
       "description": "Open palms: explaining, offering an idea, \"here is the thing\".",
-      "dt": [100,2200],
+      "dt": [100,2400],
       "rescale": [0,1],
-      "vs": {"gesture":[["palms_up",null,false,600],null]},
-      "overlay": {"bones":{"RightForeArm":{"freq":7,"amp":[0,0.06,0],"phase":0},"LeftForeArm":{"freq":7,"amp":[0,-0.06,0],"phase":0}},"delay":700,"duration":1600}
+      "vs": {"gesture":[["palms_up",null,false,800],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":7,"amp":[0,0.06,0],"phase":0},"LeftForeArm":{"freq":7,"amp":[0,-0.06,0],"phase":0}},"delay":900,"duration":1600}
     },
 
     "hand_on_heart": {
       "description": "Hand on heart: thanks, sincerity, empathy, \"I mean it\".",
-      "dt": [100,2200],
+      "dt": [100,2400],
       "rescale": [0,1],
-      "vs": {"gesture":[["hand_on_chest",null,true,700],null]}
+      "vs": {"gesture":[["hand_on_chest",null,true,900],null]}
     },
 
     "think": {
       "description": "Finger to cheek: thinking it over, \"let me see\", pondering.",
-      "dt": [100,2500],
+      "dt": [100,2700],
       "rescale": [0,1],
-      "vs": {"gesture":[["finger_on_cheek",null,true,700],null]}
+      "vs": {"gesture":[["finger_on_cheek",null,true,900],null]}
     },
 
     "wait": {
       "description": "Palm forward: \"hold on\", \"wait a moment\", stop.",
-      "dt": [50,1800],
+      "dt": [50,2050],
       "rescale": [0,1],
-      "vs": {"gesture":[["palm_forward",null,true,400],null]}
+      "vs": {"gesture":[["palm_forward",null,true,650],null]}
     },
 
     "point": {
       "description": "Pointing forward: \"you\", \"that one\", directing attention.",
-      "dt": [100,1800],
+      "dt": [100,2050],
       "rescale": [0,1],
-      "vs": {"gesture":[["point_forward",null,true,450],null]}
+      "vs": {"gesture":[["point_forward",null,true,700],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":13,"amp":[0.08,0,0],"phase":0}},"delay":700,"duration":900}
     },
 
     "wave": {
       "description": "A wave: hello or goodbye.",
-      "dt": [100,1500],
+      "dt": [100,1750],
       "rescale": [0,1],
-      "vs": {"gesture":[["hand_wave_low",null,true,500],null]},
-      "overlay": {"bones":{"RightHand":{"freq":14,"amp":[0,0.1,0.125],"phase":0},"RightForeArm":{"freq":14,"amp":[0.04,0,0.075],"phase":1.5707963267948966}},"delay":300,"duration":1200}
+      "vs": {"gesture":[["hand_wave_low",null,true,750],null]},
+      "overlay": {"bones":{"RightHand":{"freq":14,"amp":[0,0.1,0.125],"phase":0},"RightForeArm":{"freq":14,"amp":[0.04,0,0.075],"phase":1.5707963267948966}},"delay":450,"duration":1200}
     },
 
     "hand_raise": {
       "description": "Raising a hand: asking to speak, volunteering, \"me!\".",
-      "dt": [100,2000],
+      "dt": [100,2350],
       "rescale": [0,1],
-      "vs": {"gesture":[["hand_high",null,true,500],null]}
+      "vs": {"gesture":[["hand_high",null,true,850],null]}
     },
 
     "thumbs_up": {
       "description": "Thumbs up: approval, well done, sounds good.",
-      "dt": [100,1800],
+      "dt": [100,2050],
       "rescale": [0,1],
-      "vs": {"gesture":[["thumb_up",null,true,450],null]}
+      "vs": {"gesture":[["thumb_up",null,true,700],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":13,"amp":[0.08,0,0],"phase":0}},"delay":700,"duration":900}
     },
 
     "thumbs_down": {
       "description": "Thumbs down: disapproval, that is bad.",
-      "dt": [100,1800],
+      "dt": [100,2100],
       "rescale": [0,1],
-      "vs": {"gesture":[["thumb_down",null,true,450],null]}
+      "vs": {"gesture":[["thumb_down",null,true,750],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":13,"amp":[0.08,0,0],"phase":0}},"delay":750,"duration":900}
     },
 
     "ok_sign": {
       "description": "OK sign: all good, perfect, understood.",
-      "dt": [100,1800],
+      "dt": [100,2150],
       "rescale": [0,1],
-      "vs": {"gesture":[["ok_relaxed",null,true,450],null]}
+      "vs": {"gesture":[["ok_relaxed",null,true,800],null]},
+      "overlay": {"bones":{"RightForeArm":{"freq":13,"amp":[0.08,0,0],"phase":0}},"delay":800,"duration":900}
     },
 
     "shrug": {
       "description": "Shrugging with palms up: not knowing, \"who knows\", uncertainty.",
-      "dt": [100,1300,600],
-      "vs": {"gesture":[["palms_out_up",null,false,350],["palms_out",null,false,450],null]}
+      "dt": [100,1550,600],
+      "vs": {"gesture":[["palms_out_up",null,false,600],["palms_out",null,false,450],null]}
     },
 
     "namaste": {
       "description": "Hands pressed together: thank you, please, gratitude.",
-      "dt": [100,2000],
+      "dt": [100,2250],
       "rescale": [0,1],
-      "vs": {"gesture":[["namaste_low",null,false,500],null]}
+      "vs": {"gesture":[["namaste_low",null,false,750],null]}
     },
 
     "facepalm": {
       "description": "Facepalm: embarrassment, \"oh no\", a silly mistake.",
-      "dt": [100,1800],
+      "dt": [100,2100],
       "rescale": [0,1],
-      "vs": {"gesture":[["hand_on_brow",null,true,600],null]}
+      "vs": {"gesture":[["hand_on_brow",null,true,900],null]}
     },
 
     "celebrate": {
       "description": "Raising an arm in celebration: victory, great news, \"yes!\".",
-      "dt": [100,1900],
+      "dt": [100,2250],
       "rescale": [0,1],
-      "vs": {"gesture":[["arms_up",null,false,500],null]},
-      "overlay": {"bones":{"RightArm":{"freq":4,"amp":[0,0,0.05],"phase":0},"LeftArm":{"freq":4,"amp":[0,0,-0.05],"phase":0}},"delay":500,"duration":1300}
+      "vs": {"gesture":[["arms_up",null,false,850],null]},
+      "overlay": {"bones":{"RightArm":{"freq":4,"amp":[0,0,0.05],"phase":0},"LeftArm":{"freq":4,"amp":[0,0,-0.05],"phase":0}},"delay":850,"duration":1300}
     },
 
     "applause": {
       "description": "Clapping: congratulating, applauding an achievement.",
-      "dt": [100,450,170,170,170,170,170,170,170,350],
-      "vs": {"gesture":[["namaste_low",null,false,450],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],null]}
+      "dt": [100,700,170,170,170,170,170,170,170,350],
+      "vs": {"gesture":[["namaste_low",null,false,700],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],["clap_open_low",null,false,140],["namaste_low",null,false,120],null]}
     },
 
     "vulcan_salute": {
       "description": "The Vulcan salute 🖖: only when someone says 'live long and prosper' (or 'larga vida y prosperidad'), or explicitly mentions Star Trek or Vulcans.",
-      "dt": [100,1500],
+      "dt": [100,1750],
       "rescale": [0,1],
-      "vs": {"gesture":[["vulcan",null,true,500],null]}
+      "vs": {"gesture":[["vulcan",null,true,750],null]}
     }
   },
 

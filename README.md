@@ -186,6 +186,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | --- | --- | --- |
 | `facs` | built-in `facs.json` | Expression catalog ([Appendix B](#appendix-b-catalogs)). |
 | `fade` | `400` | Mood cross-fade, ms. Beats without an `envelope` use `{ in: 300, hold: 1500, out: 600 }`. |
+| `sustain` | `0.75` | A held mood settles at this share of its recipe about 1.5 s after it peaks, over 2.5 s. `1` = off. |
 | `speechMouth` | `0.3` | While a viseme plays, mouth-opening morphs (from AU10, AU16, AU20, AU25, AU26, AU27) drop to this share, so speech doesn't over-open the mouth or bare the teeth, and p/b/m still close. `1` = off. |
 | `speechSmile` | `0.5` | The same for the lip corners (AU12, AU14: smile, dimple), which over-stretch the mouth on visemes. `1` = off. |
 
@@ -195,7 +196,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | --- | --- | --- |
 | `gestures` | built-in `gestures.json` | Gesture catalog, `{ head, hands, poses }`. |
 | `fadeIn` | `800` | Arm transition into a pose, ms, unless the frame sets its own. |
-| `fadeOut` | `800` | Hand gesture fade-out, ms. |
+| `fadeOut` | `1100` | Hand gesture fade-out, ms. |
 | `cutFade` | `100` | Arms back to the stance when a hand gesture is stopped early (`stop()`, `interrupt()`), ms. Another hand gesture takes the arms over instead. |
 | `settle` | `1000` | Wait after a hand fade-out before the channel is free, ms. |
 
@@ -241,7 +242,7 @@ Values are illustrative.
 | `avoid` | Optional, per avatar: `[{ aus: { AU: level, … }, note }]`. No recipe may exceed every listed level at once. |
 | `expressions.<name>.description` | When to use it; without it, the classifier never picks it. |
 | `facs` | Provenance note; not used at runtime. |
-| `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. |
+| `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. Where the held mood already moves a blendshape, the beat takes it up to its own level instead of adding to it. |
 | `aus` | AU → level. `_L` / `_R` makes it one-sided. Each AU adds level × `au_map` weight to the avatar's rest level, capped at 1. |
 | `envelope` | Beats: `{ in, hold, out }` ms. |
 | `whileSpeaking` | Beats, default `true`. `false`: the director never starts it while the avatar speaks (`yawn`); `face.play` still can. |
@@ -272,7 +273,7 @@ Values are illustrative.
 }
 ```
 
-**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`.
+**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`. Head movements ease between keyframes on a gentler curve than TalkingHead's own, for their rotation tracks (`headRotateX`, `bodyRotateX`, …).
 
 **Hand frames** in `vs.gesture` are `[pose, duration, mirror, transitionMs]`:
 

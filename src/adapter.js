@@ -114,6 +114,23 @@ export class TalkingHeadAdapter {
   }
 
   /**
+   * [internal] Replaces the curve TalkingHead follows between two keyframes of the
+   * given animation tracks. Its own is a steep sigmoid: most of the way in the
+   * middle third, a pause at each end. On the current avatar only.
+   * @param {string[]} tracks
+   * @param {(alpha: number) => number} fn
+   * @returns {function} Puts back the curves it replaced
+   */
+  easeTracks(tracks, fn) {
+    const table = this.head.mtAvatar;
+    const prev = tracks.filter((t) => table?.[t]).map((t) => [t, table[t].easing]);
+    for (const [t] of prev) table[t].easing = fn;
+    return () => {
+      for (const [t, easing] of prev) if (table[t].easing === fn) table[t].easing = easing;
+    };
+  }
+
+  /**
    * [internal] Shows a morph `w` above its rest level; call it every frame while it's held.
    * TalkingHead eases baseline changes over about a second, which smooths a mood's
    * cross-fade but smears a beat, so `exact` writes the value through the realtime

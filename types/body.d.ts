@@ -43,6 +43,10 @@ export type BodyOptions = {
      * - Arm transition into a pose, unless the gesture frame sets its own
      */
     fadeIn?: number;
+    /**
+     * - Arms back to the stance after a hand gesture; slower than the way in, as a hand
+     * that is done drops without hurry
+     */
     fadeOut?: number;
     /**
      * - Arms back to the stance when a hand gesture is stopped early
@@ -72,7 +76,8 @@ export type BodyOptions = {
  * @typedef {object} BodyOptions
  * @property {GestureCatalog} [gestures] - Default: the bundled gestures.json
  * @property {number} [fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
- * @property {number} [fadeOut=800]
+ * @property {number} [fadeOut=1100] - Arms back to the stance after a hand gesture; slower than the way in, as a hand
+ *   that is done drops without hurry
  * @property {number} [cutFade=100] - Arms back to the stance when a hand gesture is stopped early
  * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
  */
