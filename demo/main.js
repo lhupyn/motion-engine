@@ -24,6 +24,12 @@ try {
   throw err;
 }
 
+// TalkingHead's 'side' and 'hip' stances tuck the chin (11° and 15° down) and the
+// neutral mood spends most of its time in them, so the avatar looks up from under
+// her brows. Level with 'straight'.
+head.poseTemplates.side.props['Head.rotation'].x = -0.05;
+head.poseTemplates.hip.props['Head.rotation'].x = 0.1;
+
 // The load greeting's glances; demo only.
 const beat = (aus, envelope) => ({ kind: 'beat', aus, envelope });
 const GREETING_FACES = {
