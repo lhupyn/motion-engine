@@ -241,7 +241,7 @@ Values are illustrative.
 | `avoid` | Optional, per avatar: `[{ aus: { AU: level, … }, note }]`. No recipe may exceed every listed level at once. |
 | `expressions.<name>.description` | When to use it; without it, the classifier never picks it. |
 | `facs` | Provenance note; not used at runtime. |
-| `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. |
+| `kind` | `'mood'` (default) holds and cross-fades; `'beat'` plays once on top. Where the held mood already moves a blendshape, the beat takes it up to its own level instead of adding to it. |
 | `aus` | AU → level. `_L` / `_R` makes it one-sided. Each AU adds level × `au_map` weight to the avatar's rest level, capped at 1. |
 | `envelope` | Beats: `{ in, hold, out }` ms. |
 | `whileSpeaking` | Beats, default `true`. `false`: the director never starts it while the avatar speaks (`yawn`); `face.play` still can. |

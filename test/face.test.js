@@ -35,6 +35,8 @@ const TEST_FACS = {
     cheeky: { aus: { AU6: 0.4 } },
     overlap: { aus: { AU12: 0.8, AU6: 0.8 } },
     glance: { kind: 'beat', aus: { AU61: 0.7 }, envelope: { in: 100, hold: 200, out: 100 } },
+    crinkle: { kind: 'beat', aus: { AU6: 0.6 }, envelope: { in: 100, hold: 200, out: 100 } },
+    twitch: { kind: 'beat', aus: { AU6: 0.2 }, envelope: { in: 100, hold: 200, out: 100 } },
     tongue: {
       kind: 'beat',
       aus: { AU19: 0.8, AU25: 0.6 },
@@ -198,6 +200,28 @@ describe('Face', () => {
       run(face, 600);
       expect(face._beats).toHaveLength(0);
       expect(adapter.baseline.mouthSmileLeft).toBeCloseTo(0.9); // the mood is untouched
+    });
+
+    it('ramp slowly at both ends of the way in and out', () => {
+      face.play('crinkle'); // AU6 0.6, in 100
+      face.update(25);
+      expect(adapter.baseline.cheekSquintLeft).toBeCloseTo(0.6 * 0.15625); // a quarter of the time, less than a sixth of the way
+      face.update(25);
+      expect(adapter.baseline.cheekSquintLeft).toBeCloseTo(0.3);
+    });
+
+    it('over a mood that moves the same morph, rise to their own level instead of stacking', () => {
+      const peak = (beat) => {
+        face.play(beat);
+        run(face, 200);
+        return adapter.baseline.cheekSquintLeft;
+      };
+      face.play('cheeky'); // AU6 0.4
+      run(face, 600);
+      expect(peak('crinkle')).toBeCloseTo(0.6); // AU6 0.6: not 0.4 + 0.6
+      run(face, 400);
+      expect(adapter.baseline.cheekSquintLeft).toBeCloseTo(0.4);
+      expect(peak('twitch')).toBeCloseTo(0.4); // AU6 0.2: the mood is already past it
     });
   });
 

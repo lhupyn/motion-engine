@@ -173,9 +173,12 @@ export class Face {
       b.t += dt;
       if (b.t >= b.in + b.hold + b.out) return false;
       // All of a live beat's morphs, even at 0 (an offset's tail): eased, they'd linger.
+      // Over a morph the mood already moves, a beat adds only what its own level is
+      // short of: a laugh over a smile is the laugh, not both smiles stacked.
       for (const [mt, w, offset] of b.morphs) {
         exact.add(mt);
-        sum.set(mt, (sum.get(mt) || 0) + w * beatLevel(b, offset));
+        const held = sum.get(mt) || 0;
+        sum.set(mt, held + Math.max(0, w - held) * beatLevel(b, offset));
       }
       return true;
     });
@@ -234,10 +237,13 @@ function beatLevel(b, offset) {
   const t = b.t - offset;
   const end = b.in + b.hold + b.out - 2 * offset;
   if (t < 0 || t >= end) return 0;
-  if (t < b.in) return t / b.in;
+  if (t < b.in) return ease(t / b.in);
   if (t < end - b.out) return 1;
-  return (end - t) / b.out;
+  return ease((end - t) / b.out);
 }
+
+// Slow in, slow out: at constant speed a ramp starts and stops with a jolt.
+const ease = (x) => x * x * (3 - 2 * x);
 
 /**
  * Recipes that break the catalog's per-avatar calibration: an AU above its
