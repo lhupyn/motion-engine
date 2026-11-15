@@ -7,6 +7,10 @@ import GESTURES from './gestures.json' with { type: 'json' };
 
 const RAMP = 300;
 
+// Head movements go from keyframe to keyframe on this curve, gentler than TalkingHead's own.
+const ease = (x) => x * x * (3 - 2 * x);
+const ROTATION = /Rotate[XYZ]$/;
+
 // The same hand gesture with the other hand is registered under this suffix.
 const MIRROR = ':mirror';
 
@@ -31,7 +35,8 @@ const MIRROR = ':mirror';
  * @typedef {object} BodyOptions
  * @property {GestureCatalog} [gestures] - Default: the bundled gestures.json
  * @property {number} [fadeIn=800] - Arm transition into a pose, unless the gesture frame sets its own
- * @property {number} [fadeOut=800]
+ * @property {number} [fadeOut=1100] - Arms back to the stance after a hand gesture; slower than the way in, as a hand
+ *   that is done drops without hurry
  * @property {number} [cutFade=100] - Arms back to the stance when a hand gesture is stopped early
  * @property {number} [settle=1000] - Wait after a hand gesture fades out before it counts as done
  */
@@ -54,7 +59,7 @@ export class Body {
     {
       gestures = /** @type {GestureCatalog} */ (GESTURES),
       fadeIn = 800,
-      fadeOut = 800,
+      fadeOut = 1100,
       cutFade = 100,
       settle = 1000,
     } = {},
@@ -137,6 +142,7 @@ class Channel {
     this.frames = {};
     this.anims = {};
     this._cancel = null;
+    this._unease = null;
     this._osc = new Oscillation(adapter);
   }
 
@@ -160,7 +166,13 @@ class Channel {
     this._anim = anim;
     const total = duration(g.dt);
     if (this.kind === 'hands') this.adapter.playGesture(anim);
-    else this.adapter.playAnim(anim);
+    else {
+      this._unease = this.adapter.easeTracks(
+        Object.keys(g.vs).filter((track) => ROTATION.test(track)),
+        ease,
+      );
+      this.adapter.playAnim(anim);
+    }
     if (g.overlay) this._osc.start(g.overlay.bones || {}, g.overlay.duration || total, g.overlay.delay || 0);
 
     if (!(await this._wait(total))) return false;
@@ -168,6 +180,7 @@ class Channel {
       this.adapter.stopGesture(this.opt.fadeOut);
       if (!(await this._wait(this.opt.settle))) return false;
     }
+    this._restoreEasing();
     this.current = null;
     return true;
   }
@@ -178,6 +191,7 @@ class Channel {
     this._osc.clear();
     if (!this.current) return;
     this._cancel?.();
+    this._restoreEasing();
     if (this.kind === 'head') this.adapter.stopAnim(this._anim);
     else if (next)
       this.adapter.handOver(
@@ -190,6 +204,11 @@ class Channel {
 
   update(dt) {
     this._osc.update(dt);
+  }
+
+  _restoreEasing() {
+    this._unease?.();
+    this._unease = null;
   }
 
   _wait(ms) {

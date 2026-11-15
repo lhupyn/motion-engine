@@ -196,7 +196,7 @@ Planned, not built yet: blending the top two expressions by Jev's probabilities 
 | --- | --- | --- |
 | `gestures` | built-in `gestures.json` | Gesture catalog, `{ head, hands, poses }`. |
 | `fadeIn` | `800` | Arm transition into a pose, ms, unless the frame sets its own. |
-| `fadeOut` | `800` | Hand gesture fade-out, ms. |
+| `fadeOut` | `1100` | Hand gesture fade-out, ms. |
 | `cutFade` | `100` | Arms back to the stance when a hand gesture is stopped early (`stop()`, `interrupt()`), ms. Another hand gesture takes the arms over instead. |
 | `settle` | `1000` | Wait after a hand fade-out before the channel is free, ms. |
 
@@ -273,7 +273,7 @@ Values are illustrative.
 }
 ```
 
-**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`.
+**Gestures** are TalkingHead animation templates ([TalkingHead README](https://github.com/met4citizen/TalkingHead), Appendix D): `dt` frame timings (a `[min, max]` pair is random; motion-engine times it by the midpoint), optional `rescale`, `vs` values per frame. Body only: a test keeps expression blendshapes out of `gestures.json`; only gaze (`eyeLook*`) may follow the head, as in `bow`. Head movements ease between keyframes on a gentler curve than TalkingHead's own, for their rotation tracks (`headRotateX`, `bodyRotateX`, …).
 
 **Hand frames** in `vs.gesture` are `[pose, duration, mirror, transitionMs]`:
 

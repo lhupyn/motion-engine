@@ -27,6 +27,12 @@ function fakeAdapter() {
     handOver: vi.fn(),
     playAnim: vi.fn(),
     stopAnim: vi.fn(),
+    eased: [],
+    easeTracks(tracks, fn) {
+      const entry = { tracks, fn };
+      this.eased.push(entry);
+      return () => this.eased.splice(this.eased.indexOf(entry), 1);
+    },
     setBoneOffset(bone, x, y, z) {
       this.offsets[bone] = { x, y, z };
     },
@@ -227,6 +233,19 @@ describe('Body', () => {
       await vi.advanceTimersByTimeAsync(500);
       expect(await done).toBe(true);
       expect(adapter.stopGesture).not.toHaveBeenCalled();
+    });
+
+    it('follows a gentler curve between keyframes while it plays, then gives TalkingHead its own back', async () => {
+      const done = body.play('nod');
+      expect(adapter.eased).toHaveLength(1);
+      expect(adapter.eased[0].tracks).toEqual(['headRotateX']);
+      expect(adapter.eased[0].fn(0.25)).toBeCloseTo(0.15625);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await done).toBe(true);
+      expect(adapter.eased).toEqual([]);
+      body.play('nod');
+      body.stop('head');
+      expect(adapter.eased).toEqual([]);
     });
 
     it('runs alongside a hand gesture: neither interrupts the other', async () => {

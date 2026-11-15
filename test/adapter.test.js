@@ -46,6 +46,11 @@ describe('adapter contract (TalkingHead source)', () => {
     expect(th).toMatch(/this\.isSpeaking = true/);
   });
 
+  it('TalkingHead eases each animation track between keyframes with its own easing function', () => {
+    expect(th).toMatch(/if \( m\.easing \) alpha = m\.easing\(alpha\);/);
+    expect(th).toMatch(/easing: this\.mtEasingDefault,/);
+  });
+
   it('TalkingHead has the "update" frame callback option', () => {
     expect(th).toMatch(/\bupdate\s*:\s*null/);
     expect(th).toMatch(/this\.opt\.update\(\s*dt\s*\)/);
@@ -152,6 +157,19 @@ describe('adapter verbs', () => {
     expect(head.animQueue[0].gesture).toBeUndefined();
     a.stopAnim('nod');
     expect(head.animQueue).toEqual([]);
+  });
+
+  it('swaps the curve of the tracks the avatar has, and puts back what was there', () => {
+    const head = makeHead();
+    const sigmoid = (x) => x;
+    head.mtAvatar = { headRotateX: { easing: sigmoid }, headRotateY: { easing: null } };
+    const smooth = (x) => x * x;
+    const restore = new TalkingHeadAdapter(head).easeTracks(['headRotateX', 'headRotateY', 'noSuchTrack'], smooth);
+    expect(head.mtAvatar.headRotateX.easing).toBe(smooth);
+    expect(head.mtAvatar.headRotateY.easing).toBe(smooth);
+    restore();
+    expect(head.mtAvatar.headRotateX.easing).toBe(sigmoid);
+    expect(head.mtAvatar.headRotateY.easing).toBeNull();
   });
 
   it('resolves rest baseline with setMood() precedence', () => {
