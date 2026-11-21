@@ -19,7 +19,7 @@
     },
 
     "tilt": {
-      "description": "A head tilt: curious, sympathetic, listening closely.",
+      "description": "A head tilt: only for a question, real curiosity or sympathy for something sad. Not for plain statements.",
       "dt": [450,1800,600],
       "vs": {"headMove":[0],"headRotateZ":[-0.18,-0.18,0],"headRotateX":[0.04,0.04,0]}
     },
@@ -33,7 +33,7 @@
 
   "hands": {
     "open_palms": {
-      "description": "Open palms: explaining, offering an idea, \"here is the thing\".",
+      "description": "Open palms: offering an idea or opening up to someone, \"here is the thing\". Not for ordinary explanations.",
       "dt": [100,2400],
       "rescale": [0,1],
       "vs": {"gesture":[["palms_up",null,false,800],null]},
@@ -41,7 +41,7 @@
     },
 
     "hand_on_heart": {
-      "description": "Hand on heart: thanks, sincerity, empathy, \"I mean it\".",
+      "description": "Hand on heart: heartfelt thanks, deep sincerity, strong empathy, \"I mean it\". Not for casual warmth.",
       "dt": [100,2400],
       "rescale": [0,1],
       "vs": {"gesture":[["hand_on_chest",null,true,900],null]}
