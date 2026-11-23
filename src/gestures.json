@@ -70,7 +70,7 @@
     },
 
     "wave": {
-      "description": "A wave: saying hello or goodbye (\"hi!\", \"bye!\"). Not introducing oneself or the rest of a greeting.",
+      "description": "A wave: saying hello or goodbye (\"hi!\", \"bye!\").",
       "dt": [100,1750],
       "rescale": [0,1],
       "vs": {"gesture":[["hand_wave_low",null,true,750],null]},
