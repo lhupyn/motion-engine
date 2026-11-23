@@ -19,13 +19,13 @@
     },
 
     "tilt": {
-      "description": "A head tilt: curious, sympathetic, listening closely.",
+      "description": "A head tilt: a sympathetic or puzzled question about something specific the person said (\"wait, what happened?\"). Not an ordinary question to keep the conversation going.",
       "dt": [450,1800,600],
       "vs": {"headMove":[0],"headRotateZ":[-0.18,-0.18,0],"headRotateX":[0.04,0.04,0]}
     },
 
     "bow": {
-      "description": "A small bow: thanking, apologizing, showing respect.",
+      "description": "A small bow: a formal thank-you, an apology, showing respect.",
       "dt": [500,600,600],
       "vs": {"headMove":[0],"bodyRotateX":[0.16,0.16,0],"headRotateX":[0.06,0.06,0],"eyeLookDownLeft":[0.35,0.35,0],"eyeLookDownRight":[0.35,0.35,0]}
     }
@@ -33,7 +33,7 @@
 
   "hands": {
     "open_palms": {
-      "description": "Open palms: explaining, offering an idea, \"here is the thing\".",
+      "description": "Open palms: laying out an argument or an option (\"here's the thing\", \"you could…\"). Not every explanation.",
       "dt": [100,2400],
       "rescale": [0,1],
       "vs": {"gesture":[["palms_up",null,false,800],null]},
@@ -41,7 +41,7 @@
     },
 
     "hand_on_heart": {
-      "description": "Hand on heart: thanks, sincerity, empathy, \"I mean it\".",
+      "description": "Hand on heart: being deeply moved, heartfelt gratitude, swearing sincerity (\"I mean it\"). Not for everyday warmth or empathy.",
       "dt": [100,2400],
       "rescale": [0,1],
       "vs": {"gesture":[["hand_on_chest",null,true,900],null]}
@@ -70,7 +70,7 @@
     },
 
     "wave": {
-      "description": "A wave: hello or goodbye.",
+      "description": "A wave: saying hello or goodbye (\"hi!\", \"bye!\"). Not introducing oneself or the rest of a greeting.",
       "dt": [100,1750],
       "rescale": [0,1],
       "vs": {"gesture":[["hand_wave_low",null,true,750],null]},
@@ -115,7 +115,7 @@
     },
 
     "namaste": {
-      "description": "Hands pressed together: thank you, please, gratitude.",
+      "description": "Hands pressed together: a respectful \"thank you\" or an earnest \"please\".",
       "dt": [100,2250],
       "rescale": [0,1],
       "vs": {"gesture":[["namaste_low",null,false,750],null]}

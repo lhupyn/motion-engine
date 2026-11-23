@@ -280,7 +280,7 @@
       "aus": {}
     },
     "happy": {
-      "description": "Warm, genuine smile: glad, pleased, friendly, good news.",
+      "description": "A warm smile at something good: good news, a pleasant surprise, being glad for someone.",
       "facs": "EMFACS-7 happiness: AU6+AU12, softened with the dimpler (AU14) so the corners widen more than they curl; a light lower-lid raise (AU7) and inner-brow lift (AU1), kept low so it stays a smile, not a laugh",
       "aus": {
         "AU1": 0.2,
@@ -354,7 +354,7 @@
       }
     },
     "contempt": {
-      "description": "Contempt or smugness: one-sided smirk, superiority, sarcasm.",
+      "description": "Contempt: scorn or disdain for someone or something. Playful teasing is amused; irony is skeptical.",
       "facs": "EMFACS-7 contempt: R12+R14 (unilateral)",
       "aus": {
         "AU12_L": 0.35,
@@ -418,7 +418,7 @@
       }
     },
     "tender": {
-      "description": "Tender warmth: caring, comforting, compassionate, gentle support.",
+      "description": "Tender warmth toward someone who is hurting or vulnerable: comforting, consoling, gentle reassurance.",
       "facs": "extension: raised inner brows (AU1) + a slight brow lowerer (AU4), concern without a smile",
       "aus": {
         "AU1": 0.45,
@@ -470,7 +470,7 @@
       }
     },
     "curious": {
-      "description": "Curiosity: interested, intrigued, wanting to know more.",
+      "description": "Curiosity sparked by something specific: intrigued, \"tell me more about that\". A routine question to keep talking is none.",
       "facs": "extension: brow raise (AU1+AU2, left higher) + AU5 + lips part (AU25)",
       "aus": {
         "AU1": 0.4,
@@ -637,7 +637,7 @@
       }
     },
     "close_eyes": {
-      "description": "Eyes closed for a moment: savoring, relief, a fond memory.",
+      "description": "Eyes closed for a moment: savoring something, a fond memory.",
       "facs": "AU43 eyes closed, with a faint smile and inner-brow lift (AU12+AU1) so it reads content, not asleep",
       "kind": "beat",
       "aus": {
