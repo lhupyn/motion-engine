@@ -267,7 +267,7 @@ class Oscillation {
 // Infinity, so a null duration means "hold"; a missing transition gets fadeIn
 // (TalkingHead's own default is a slow 1 s).
 function toTemplate({ dt, rescale, vs }, fadeIn) {
-  const t = { dt, vs: structuredClone(vs) };
+  const t = { dt, vs: copy(vs) };
   if (rescale) t.rescale = rescale;
   for (const frame of framesOf(t)) {
     frame[1] ??= Infinity;
@@ -279,6 +279,16 @@ function toTemplate({ dt, rescale, vs }, fadeIn) {
 
 const framesOf = (g) => (g.vs.gesture || []).filter(Array.isArray);
 
+// A deep copy of catalog data (objects, arrays, numbers incl. Infinity, strings,
+// booleans, null). Not structuredClone: Chrome only has it from 98, and older
+// Android Chromes failed to boot. Not JSON: a hold's Infinity would become null.
+const copy = (v) =>
+  Array.isArray(v)
+    ? v.map(copy)
+    : v !== null && typeof v === 'object'
+      ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, copy(x)]))
+      : v;
+
 const otherSide = (name) => name.replace(/(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left'));
 
 // Rotation tracks that turn or tilt to one side.
@@ -288,7 +298,7 @@ const negate = (v) => (typeof v === 'number' ? -v : Array.isArray(v) ? v.map(neg
 // The gesture with the other hand: each frame's mirror flag flips, sided tracks
 // and the overlay move to the other side, their y and z rotations reversed.
 function mirrored(g) {
-  const m = structuredClone(g);
+  const m = copy(g);
   for (const frame of framesOf(m)) frame[2] = !frame[2];
   m.vs = Object.fromEntries(Object.entries(m.vs).map(([k, v]) => [otherSide(k), SIDED_TRACKS.has(k) ? negate(v) : v]));
   if (m.overlay?.bones) {

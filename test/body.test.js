@@ -352,3 +352,38 @@ describe('Body', () => {
     }
   });
 });
+
+// Chrome added structuredClone in 98 (2022). On Chrome 94/97 for Android,
+// DoaCam's avatar failed to boot ("structuredClone is not defined", 25 reports
+// in a week of November 2026). Registration must not need it, and must build
+// the very same animations without it — holds (Infinity) included.
+describe('Body without structuredClone (Chrome < 98)', () => {
+  const register = () => {
+    const a = fakeAdapter();
+    new Body(a, { gestures: GESTURES, fadeIn: 50 });
+    return a.anims;
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('registers every gesture and its mirror exactly as with it', () => {
+    const withIt = register();
+    vi.stubGlobal('structuredClone', undefined);
+    const without = register();
+    expect(Object.keys(without)).toEqual(Object.keys(withIt));
+    expect(without).toEqual(withIt);
+  });
+
+  it('copies the catalog instead of sharing it with the registered templates', () => {
+    vi.stubGlobal('structuredClone', undefined);
+    const a = fakeAdapter();
+    const catalog = { head: {}, hands: { wave: structuredCloneFree(TEST_GESTURES.hands.wave) } };
+    new Body(a, { gestures: catalog, fadeIn: 50 });
+    a.anims['wave'].vs.gesture[0][1] = 'changed';
+    a.anims['wave:mirror'].vs.gesture[0][2] = 'changed';
+    expect(catalog.hands.wave.vs.gesture[0]).toEqual(['handup', null, true]);
+  });
+});
+
+function structuredCloneFree(v) {
+  return JSON.parse(JSON.stringify(v));
+}
