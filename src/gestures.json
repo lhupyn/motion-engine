@@ -8,8 +8,8 @@
 
     "nod_small": {
       "description": "A small listening nod: \"mm-hm\", following along, acknowledging.",
-      "dt": [220,200,200,260],
-      "vs": {"headMove":[0],"headRotateX":[0.09,0,0.07,0]}
+      "dt": [300,450],
+      "vs": {"headMove":[0],"headRotateX":[0.09,0]}
     },
 
     "shake": {
